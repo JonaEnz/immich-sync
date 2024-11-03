@@ -1,0 +1,5 @@
+package: oapi
+output: client.go
+generate:
+  models: true
+  client: true
