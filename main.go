@@ -25,30 +25,44 @@ func main() {
 	apiKey = *flag.String("api-key", "y2gDkeRqPpiTcM0CpQpTc58hxTutkltzBOHLYYw70", "api key")
 	client, _ := oapi.NewClient(*serverURL, &APIKeySecuritySource{})
 
-	albums, err := client.GetAllAlbums(context.Background(), oapi.GetAllAlbumsParams{})
+	imageDir := NewImageDirectory("/home/jona/Pictures/Screenshots")
+	err := imageDir.Read()
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
-	for _, a := range albums {
-		fmt.Println(a.AlbumName)
+	for imagePath, entry := range imageDir.contentCache {
+		fmt.Printf("%s %x\n", entry.info.Name(), entry.hashSha1)
+		h := entry.HashHexString()
+		err = upload(client, imagePath, &h)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
-	err = upload(client, "/home/jona/Pictures/plasma6-sun.jpeg")
-	if err != nil {
-		fmt.Println(err)
-	}
+
+	// albums, err := client.GetAllAlbums(context.Background(), oapi.GetAllAlbumsParams{})
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// for _, a := range albums {
+	// 	fmt.Println(a.AlbumName)
+	// }
 }
 
-func upload(c *oapi.Client, path string) error {
+func upload(c *oapi.Client, path string, assetSha1 *string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 
-	h := sha1.New()
-	if _, err = io.Copy(h, file); err != nil {
-		return err
+	if assetSha1 == nil {
+		h := sha1.New()
+		if _, err = io.Copy(h, file); err != nil {
+			return err
+		}
+		sha1String := fmt.Sprintf("%x", h.Sum(nil))
+		assetSha1 = &sha1String
 	}
-	assetSha1 := fmt.Sprintf("%x", h.Sum(nil))
 
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -74,7 +88,7 @@ func upload(c *oapi.Client, path string) error {
 		FileModifiedAt: time.Now(),
 	},
 		oapi.UploadAssetParams{
-			XImmichChecksum: oapi.NewOptString(assetSha1),
+			XImmichChecksum: oapi.NewOptString(*assetSha1),
 		})
 	if err != nil {
 		return err
