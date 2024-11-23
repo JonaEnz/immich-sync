@@ -33,43 +33,47 @@ func (i *ImageDirectory) Path() string {
 	return i.path
 }
 
-func (i *ImageDirectory) Read() error {
+func (i *ImageDirectory) Read() (int, error) {
 	p, err := os.ReadDir(i.path)
 	if err != nil {
-		return err
+		return 0, err
 	}
+	updated := 0
 	for _, entry := range p {
 		if entry.Type().IsRegular() {
-			i.addOrUpdateCache(path.Join(i.path, entry.Name()))
+			if ok, _ := i.addOrUpdateCache(path.Join(i.path, entry.Name())); ok {
+				updated += 1
+			}
 		}
 	}
-	return nil
+	return updated, nil
 }
 
-func (i *ImageDirectory) addOrUpdateCache(filePath string) error {
+func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 	cacheEntry, ok := i.contentCache[filePath]
 	f, err := os.Open(filePath)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer f.Close()
 	fileInfo, err := f.Stat()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if ok && fileInfo.ModTime().Unix() <= cacheEntry.info.ModTime().Unix() {
-		return nil // Cache still current
+		return false, nil // Cache still current
 	}
 
 	h := sha1.New()
 	if _, err = io.Copy(h, f); err != nil {
-		return err
+		return false, err
 	}
 
 	i.contentCache[filePath] = FileStat{
 		info:     fileInfo,
 		hashSha1: h.Sum(nil),
 	}
-	return nil
+	fmt.Printf("%s %x\n", fileInfo.Name(), i.contentCache[filePath].hashSha1)
+	return true, nil
 }
