@@ -26,11 +26,6 @@ func main() {
 
 	i := NewImageDirectory("/home/jona/Pictures/Screenshots")
 	imageDirs := []*ImageDirectory{&i}
-	_, err := imageDirs[0].Read()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
 
 	if *daemon && *scanMins >= 1 {
 		for {
