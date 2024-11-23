@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/JonaEnz/immich-sync/immichserver"
 )
@@ -34,7 +35,7 @@ func main() {
 	if *daemon && *scanMins >= 1 {
 		for {
 			doScan(imageDirs)
-			// time.Sleep(time.Minute * time.Duration(*scanMins))
+			time.Sleep(time.Minute * time.Duration(*scanMins))
 		}
 	} else {
 		doScan(imageDirs)

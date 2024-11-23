@@ -1,0 +1,12 @@
+# immich-sync.service
+[Unit]
+Description=Monitors directories and uploads images to an immich server
+AssertPathExists=/usr/bin/immich-sync
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/immich-sync -d
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
