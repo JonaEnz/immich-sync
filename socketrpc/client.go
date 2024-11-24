@@ -3,23 +3,48 @@ package socketrpc
 import (
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
-func SendMessage(cmd byte, jsonMsg string) {
-	c, err := net.Dial("unix", socketAddr)
+type RPCClient struct {
+	mu   *sync.Mutex
+	conn net.Conn
+}
+
+func NewRPCClient() (*RPCClient, error) {
+	conn, err := net.Dial("unix", socketAddr)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	defer c.Close()
-	c.Write([]byte{cmd})
+	c := RPCClient{
+		mu:   &sync.Mutex{},
+		conn: conn,
+	}
+	return &c, nil
+}
+
+func (c *RPCClient) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.conn.Close()
+	c.conn = nil
+}
+
+func (c *RPCClient) SendMessage(cmd byte, jsonMsg string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.conn == nil {
+		log.Fatal("RPC connection does not exist anymore.")
+	}
+	c.conn.Write([]byte{cmd})
 	if jsonMsg != "" {
-		c.Write([]byte(jsonMsg))
+		c.conn.Write([]byte(jsonMsg))
 	}
 
-	c.SetReadDeadline(time.Now().Add(time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(time.Second))
 	buf := make([]byte, 1)
-	n, err := c.Read(buf)
+	n, err := c.conn.Read(buf)
 	if err != nil || n == 0 {
 		log.Fatal(err)
 	}

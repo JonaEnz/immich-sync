@@ -75,7 +75,7 @@ func (s *RPCServer) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.exit != nil {
-		s.exit <- 1
+		close(s.exit)
 	}
 }
 
@@ -84,4 +84,8 @@ func (s *RPCServer) RegisterCallback(cmd byte, f func(string) byte) error {
 	defer s.mu.Unlock()
 	s.callbacks[cmd] = f
 	return nil
+}
+
+func (s *RPCServer) WaitForExit() {
+	<-s.exit
 }

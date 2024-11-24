@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/JonaEnz/immich-sync/immichserver"
@@ -21,7 +23,7 @@ func main() {
 	apiKey = *flag.String("api-key", "y2gDkeRqPpiTcM0CpQpTc58hxTutkltzBOHLYYw70", "api key")
 	concurrentUploads = *flag.Int("concurrentUploads", 5, "Number of concurrent uploads")
 	daemon := flag.Bool("d", false, "Start as daemon")
-	rpcServer := flag.Bool("rpc", true, "Start RPC socket server")
+	useRPCServer := flag.Bool("rpc", true, "Start RPC socket server")
 	scanMins := flag.Int("scan-minutes", 15, "Minutes delay between scans (requires -d)")
 	flag.Parse()
 
@@ -30,9 +32,10 @@ func main() {
 	i := NewImageDirectory("/home/jona/Pictures/Screenshots")
 	imageDirs := []*ImageDirectory{&i}
 
+	var rpcServer socketrpc.RPCServer
 	if *daemon {
-		if *rpcServer {
-			rpcServer := socketrpc.NewRPCServer()
+		if *useRPCServer {
+			rpcServer = socketrpc.NewRPCServer()
 			rpcServer.RegisterCallback(socketrpc.CmdScanAll, func(s string) byte {
 				doScan(imageDirs)
 				return socketrpc.ErrOk
@@ -44,11 +47,26 @@ func main() {
 				doScan(imageDirs)
 				time.Sleep(time.Minute * time.Duration(*scanMins))
 			}
+		} else if *useRPCServer {
+			rpcServer.WaitForExit()
 		}
-	} else {
-		doScan(imageDirs)
-		// socketrpc.SendMessage(socketrpc.CmdScanAll, "")
+
 	}
+
+	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
+		if os.Args[1] == "scan" {
+			rpcClient, err := socketrpc.NewRPCClient()
+			if err != nil {
+				doScan(imageDirs) // No daemon, scan yourself
+				return
+			}
+			defer rpcClient.Close()
+			rpcClient.SendMessage(socketrpc.CmdScanAll, "")
+		}
+	}
+}
+
+func startDaemon() {
 }
 
 func doScan(imageDirs []*ImageDirectory) {
