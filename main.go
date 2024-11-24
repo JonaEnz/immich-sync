@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/JonaEnz/immich-sync/immichserver"
+	"github.com/JonaEnz/immich-sync/socketrpc"
 )
 
 var (
@@ -19,6 +21,7 @@ func main() {
 	apiKey = *flag.String("api-key", "y2gDkeRqPpiTcM0CpQpTc58hxTutkltzBOHLYYw70", "api key")
 	concurrentUploads = *flag.Int("concurrentUploads", 5, "Number of concurrent uploads")
 	daemon := flag.Bool("d", false, "Start as daemon")
+	rpcServer := flag.Bool("rpc", true, "Start RPC socket server")
 	scanMins := flag.Int("scan-minutes", 15, "Minutes delay between scans (requires -d)")
 	flag.Parse()
 
@@ -27,26 +30,37 @@ func main() {
 	i := NewImageDirectory("/home/jona/Pictures/Screenshots")
 	imageDirs := []*ImageDirectory{&i}
 
-	if *daemon && *scanMins >= 1 {
-		for {
-			doScan(imageDirs)
-			time.Sleep(time.Minute * time.Duration(*scanMins))
+	if *daemon {
+		if *rpcServer {
+			rpcServer := socketrpc.NewRPCServer()
+			rpcServer.RegisterCallback(socketrpc.CmdScanAll, func(s string) byte {
+				doScan(imageDirs)
+				return socketrpc.ErrOk
+			})
+			rpcServer.Start()
+		}
+		if *scanMins >= 1 {
+			for {
+				doScan(imageDirs)
+				time.Sleep(time.Minute * time.Duration(*scanMins))
+			}
 		}
 	} else {
 		doScan(imageDirs)
+		// socketrpc.SendMessage(socketrpc.CmdScanAll, "")
 	}
 }
 
 func doScan(imageDirs []*ImageDirectory) {
 	sem := make(chan int, concurrentUploads)
 	for _, dir := range imageDirs {
-		fmt.Printf("Scanning directory %s...\n", dir.path)
+		log.Printf("Scanning directory %s...\n", dir.path)
 		read, err := dir.Read()
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		} else {
-			fmt.Printf("Found %d new/updated files in %s.\n", read, dir.path)
+			log.Printf("Found %d new/updated files in %s.\n", read, dir.path)
 		}
 		for imagePath, entry := range dir.contentCache {
 			h := entry.HashHexString()

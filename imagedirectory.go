@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 )
@@ -74,6 +75,6 @@ func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 		info:     fileInfo,
 		hashSha1: h.Sum(nil),
 	}
-	fmt.Printf("%s %x\n", fileInfo.Name(), i.contentCache[filePath].hashSha1)
+	log.Printf("%s %x\n", fileInfo.Name(), i.contentCache[filePath].hashSha1)
 	return true, nil
 }
