@@ -36,15 +36,22 @@ func main() {
 	if *daemon {
 		if *useRPCServer {
 			rpcServer = socketrpc.NewRPCServer()
-			rpcServer.RegisterCallback(socketrpc.CmdScanAll, func(s string) byte {
-				doScan(imageDirs)
-				return socketrpc.ErrOk
+			rpcServer.RegisterCallback(socketrpc.CmdScanAll, func(s string) (byte, string) {
+				scanAll(imageDirs)
+				return socketrpc.ErrOk, ""
+			})
+			rpcServer.RegisterCallback(socketrpc.CmdStatus, func(s string) (byte, string) {
+				result := ""
+				for _, d := range imageDirs {
+					result += d.String() + "\n"
+				}
+				return socketrpc.ErrOk, result[:len(result)-1]
 			})
 			rpcServer.Start()
 		}
 		if *scanMins >= 1 {
 			for {
-				doScan(imageDirs)
+				scanAll(imageDirs)
 				time.Sleep(time.Minute * time.Duration(*scanMins))
 			}
 		} else if *useRPCServer {
@@ -54,14 +61,27 @@ func main() {
 	}
 
 	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
-		if os.Args[1] == "scan" {
+		switch os.Args[1] {
+		case "scan":
 			rpcClient, err := socketrpc.NewRPCClient()
 			if err != nil {
-				doScan(imageDirs) // No daemon, scan yourself
+				scanAll(imageDirs) // No daemon, scan yourself
 				return
 			}
 			defer rpcClient.Close()
 			rpcClient.SendMessage(socketrpc.CmdScanAll, "")
+		case "status":
+			rpcClient, err := socketrpc.NewRPCClient()
+			if err != nil {
+				fmt.Println("Immich-Sync is not running.")
+				return
+			}
+			defer rpcClient.Close()
+			answer, err := rpcClient.SendMessage(socketrpc.CmdStatus, "")
+			fmt.Println("Immich-Sync status:")
+			for _, l := range strings.Split(answer, "\n") {
+				fmt.Println(l)
+			}
 		}
 	}
 }
@@ -69,7 +89,7 @@ func main() {
 func startDaemon() {
 }
 
-func doScan(imageDirs []*ImageDirectory) {
+func scanAll(imageDirs []*ImageDirectory) {
 	sem := make(chan int, concurrentUploads)
 	for _, dir := range imageDirs {
 		log.Printf("Scanning directory %s...\n", dir.path)

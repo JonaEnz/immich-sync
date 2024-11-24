@@ -1,6 +1,8 @@
 package socketrpc
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -31,7 +33,7 @@ func (c *RPCClient) Close() {
 	c.conn = nil
 }
 
-func (c *RPCClient) SendMessage(cmd byte, jsonMsg string) {
+func (c *RPCClient) SendMessage(cmd byte, jsonMsg string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.conn == nil {
@@ -43,12 +45,15 @@ func (c *RPCClient) SendMessage(cmd byte, jsonMsg string) {
 	}
 
 	c.conn.SetReadDeadline(time.Now().Add(time.Second))
-	buf := make([]byte, 1)
+	buf := make([]byte, 1<<14)
 	n, err := c.conn.Read(buf)
 	if err != nil || n == 0 {
 		log.Fatal(err)
 	}
 	if buf[0] != ErrOk {
-		log.Printf("Call returned error code %x\n", buf[0])
+		e := fmt.Sprintf("Call returned error code %x\n", buf[0])
+		log.Println(e)
+		return "", errors.New(e)
 	}
+	return string(buf[1:n]), nil
 }

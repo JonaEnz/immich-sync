@@ -10,14 +10,14 @@ import (
 type RPCServer struct {
 	mu        *sync.RWMutex
 	exit      chan interface{}
-	callbacks map[byte]func(string) byte
+	callbacks map[byte]func(string) (byte, string)
 }
 
 func NewRPCServer() RPCServer {
 	s := RPCServer{
 		mu:        &sync.RWMutex{},
 		exit:      nil,
-		callbacks: make(map[byte]func(string) byte),
+		callbacks: make(map[byte]func(string) (byte, string)),
 	}
 	s.callbacks[CmdScanAll] = nil
 	s.callbacks[CmdAddDir] = nil
@@ -42,7 +42,7 @@ func (s *RPCServer) Start() {
 			conn, _ := socket.Accept()
 			go func(conn net.Conn) {
 				defer conn.Close()
-				buf := make([]byte, 4096)
+				buf := make([]byte, 1<<14)
 				n, err := conn.Read(buf)
 				if err != nil || n == 0 {
 					conn.Write([]byte{ErrGeneric})
@@ -59,8 +59,9 @@ func (s *RPCServer) Start() {
 					conn.Write([]byte{ErrUnsupportedCmd})
 					return
 				}
-				result := callbackFunc(message)
+				result, resultString := callbackFunc(message)
 				conn.Write([]byte{result})
+				conn.Write([]byte(resultString))
 			}(conn)
 			select {
 			case <-s.exit:
@@ -79,7 +80,7 @@ func (s *RPCServer) Close() {
 	}
 }
 
-func (s *RPCServer) RegisterCallback(cmd byte, f func(string) byte) error {
+func (s *RPCServer) RegisterCallback(cmd byte, f func(string) (byte, string)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.callbacks[cmd] = f

@@ -7,11 +7,13 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 )
 
 type ImageDirectory struct {
 	path         string
 	contentCache map[string]FileStat
+	lastScan     time.Time
 }
 
 type FileStat struct {
@@ -27,11 +29,20 @@ func NewImageDirectory(path string) ImageDirectory {
 	return ImageDirectory{
 		path:         path,
 		contentCache: make(map[string]FileStat),
+		lastScan:     time.Time{},
 	}
 }
 
 func (i *ImageDirectory) Path() string {
 	return i.path
+}
+
+func (i *ImageDirectory) Count() int {
+	return len(i.contentCache)
+}
+
+func (i *ImageDirectory) String() string {
+	return fmt.Sprintf("%s: %d images, last scanned %s", i.path, i.Count(), i.lastScan.Format("Mon Jan 2 15:04:05 MST 2006"))
 }
 
 func (i *ImageDirectory) Read() (int, error) {
@@ -47,6 +58,7 @@ func (i *ImageDirectory) Read() (int, error) {
 			}
 		}
 	}
+	i.lastScan = time.Now()
 	return updated, nil
 }
 
