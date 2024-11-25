@@ -20,10 +20,11 @@ import (
 type ImmichServer struct {
 	apiURL     string
 	apiKey     string
+	deviceID   string
 	oapiClient *oapi.Client
 }
 
-func NewImmichServer(apiKey, serverURL string) *ImmichServer {
+func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
 	client, _ := oapi.NewClient(serverURL, &ImmichServerSecuritySource{
 		key: oapi.APIKey{
 			APIKey: apiKey,
@@ -33,6 +34,7 @@ func NewImmichServer(apiKey, serverURL string) *ImmichServer {
 	return &ImmichServer{
 		apiURL:     serverURL,
 		apiKey:     apiKey,
+		deviceID:   deviceID,
 		oapiClient: client,
 	}
 }
@@ -71,7 +73,7 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) error {
 			Header: mimetype,
 		},
 		DeviceAssetId:  assetUUID,
-		DeviceId:       "apitest",
+		DeviceId:       i.deviceID,
 		FileCreatedAt:  time.Now(),
 		FileModifiedAt: time.Now(),
 	},

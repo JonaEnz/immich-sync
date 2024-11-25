@@ -10,6 +10,7 @@ import (
 
 	"github.com/JonaEnz/immich-sync/immichserver"
 	"github.com/JonaEnz/immich-sync/socketrpc"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -19,18 +20,59 @@ var (
 )
 
 func main() {
-	serverURL := flag.String("url", "http://192.168.0.136:2283/api", "Immich server url with trailing /api")
-	apiKey = *flag.String("api-key", "y2gDkeRqPpiTcM0CpQpTc58hxTutkltzBOHLYYw70", "api key")
+	// serverURL := flag.String("url", "http://192.168.0.136:2283/api", "Immich server url with trailing /api")
+	// apiKey = *flag.String("api-key", "y2gDkeRqPpiTcM0CpQpTc58hxTutkltzBOHLYYw70", "api key")
 	concurrentUploads = *flag.Int("concurrentUploads", 5, "Number of concurrent uploads")
 	daemon := flag.Bool("d", false, "Start as daemon")
 	useRPCServer := flag.Bool("rpc", true, "Start RPC socket server")
 	scanMins := flag.Int("scan-minutes", 15, "Minutes delay between scans (requires -d)")
 	flag.Parse()
 
-	server = immichserver.NewImmichServer(apiKey, *serverURL)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/.config/immich-sync")
 
-	i := NewImageDirectory("/home/jona/Pictures/Screenshots")
-	imageDirs := []*ImageDirectory{&i}
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+		} else {
+			// Config file was found but another error was produced
+			log.Fatalf("Error %x reading config file.\n", err)
+		}
+	}
+
+	// ------------------------------------------
+	//  Config
+	// ------------------------------------------
+	watchDirs := []string{}
+	if viper.IsSet("watch") {
+		watchDirs = viper.GetStringSlice("watch")
+	} else {
+		// watchDirs = append(watchDirs, "/home/jona/Pictures/Screenshots")
+	}
+	deviceID := ""
+	if viper.IsSet("deviceid") {
+		deviceID = viper.GetString("deviceid")
+		if len(deviceID) == 0 {
+			deviceID = "apitest" // For debugging, please remove later and replace with uuid
+		}
+	}
+	if !viper.IsSet("server") || !viper.IsSet("apikey") {
+		log.Fatal("Server and apikey need to be set in config file!")
+	}
+	serverURL := viper.GetString("server")
+	apiKey = viper.GetString("apikey")
+
+	// ------------------------------------------
+	// Server init
+	// ------------------------------------------
+	server = immichserver.NewImmichServer(apiKey, serverURL, deviceID)
+
+	imageDirs := make([]*ImageDirectory, len(watchDirs))
+	for i := range watchDirs {
+		idir := NewImageDirectory(watchDirs[i])
+		imageDirs[i] = &idir
+	}
 
 	var rpcServer socketrpc.RPCServer
 	if *daemon {
@@ -60,6 +102,7 @@ func main() {
 
 	}
 
+	// TODO: Use viper/cobra for arg parsing
 	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
 		switch os.Args[1] {
 		case "scan":
