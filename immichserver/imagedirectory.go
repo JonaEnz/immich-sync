@@ -1,4 +1,4 @@
-package main
+package immichserver
 
 import (
 	"crypto/sha1"
@@ -89,4 +89,19 @@ func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 	}
 	log.Printf("%s %x\n", fileInfo.Name(), i.contentCache[filePath].hashSha1)
 	return true, nil
+}
+
+func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
+	sem := make(chan int, concurrentUploads)
+	for imagePath, entry := range i.contentCache {
+		h := entry.HashHexString()
+		sem <- 1
+		go func(imagePath, h string) {
+			err := server.Upload(imagePath, &h)
+			if err != nil {
+				fmt.Println(err)
+			}
+			<-sem
+		}(imagePath, h)
+	}
 }

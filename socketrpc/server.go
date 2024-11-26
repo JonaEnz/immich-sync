@@ -36,7 +36,6 @@ func (s *RPCServer) Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Started RPC server on socket '%s'", socketAddr)
 	go func(socket net.Listener) {
 		for {
 			conn, _ := socket.Accept()
@@ -70,6 +69,7 @@ func (s *RPCServer) Start() {
 			}
 		}
 	}(socket)
+	log.Printf("Started RPC server on socket '%s'", socketAddr)
 }
 
 func (s *RPCServer) Close() {
