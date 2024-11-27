@@ -51,8 +51,12 @@ func (c *RPCClient) SendMessage(cmd byte, jsonMsg string) (string, error) {
 		log.Fatal(err)
 	}
 	if buf[0] != ErrOk {
-		e := fmt.Sprintf("Call returned error code %x\n", buf[0])
-		log.Println(e)
+		e := ""
+		if n > 1 {
+			e = fmt.Sprintf("Error code %x: %s\n", buf[0], string(buf[1:]))
+		} else {
+			e = fmt.Sprintf("Call returned error code %x\n", buf[0])
+		}
 		return "", errors.New(e)
 	}
 	return string(buf[1:n]), nil
