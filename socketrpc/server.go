@@ -33,6 +33,7 @@ func (s *RPCServer) Start() {
 		log.Fatal(err)
 	}
 	socket, err := net.Listen("unix", socketAddr)
+	os.Chmod(socketAddr, 0o777)
 	if err != nil {
 		log.Fatal(err)
 	}

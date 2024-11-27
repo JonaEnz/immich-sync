@@ -47,6 +47,7 @@ func initConfig() {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 		viper.AddConfigPath("$HOME/.config/immich-sync")
+		viper.AddConfigPath("/etc/immich-sync")
 	}
 
 	viper.AutomaticEnv()
