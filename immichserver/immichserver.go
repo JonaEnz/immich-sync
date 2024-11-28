@@ -1,6 +1,7 @@
 package immichserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/JonaEnz/immich-sync/oapi"
-	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
 )
@@ -40,16 +40,21 @@ func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
 }
 
 func (i *ImmichServer) Upload(path string, assetSha1 *string) error {
+	var r io.Reader
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
+	r = file
 
 	if assetSha1 == nil {
 		h := sha1.New()
-		if _, err = io.Copy(h, file); err != nil {
+		var buf bytes.Buffer
+		tee := io.TeeReader(file, &buf)
+		if _, err = io.Copy(h, tee); err != nil {
 			return err
 		}
+		r = &buf
 		sha1String := fmt.Sprintf("%x", h.Sum(nil))
 		assetSha1 = &sha1String
 	}
@@ -64,15 +69,14 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) error {
 	}
 	mimetype := textproto.MIMEHeader{}
 	mimetype.Set("Content-Type", mimename)
-	assetUUID := uuid.New().String()
 	_, err = i.oapiClient.UploadAsset(context.Background(), &oapi.AssetMediaCreateDtoMultipart{
 		AssetData: http.MultipartFile{
 			Name:   file.Name(),
-			File:   file,
+			File:   r,
 			Size:   fileInfo.Size(),
 			Header: mimetype,
 		},
-		DeviceAssetId:  assetUUID,
+		DeviceAssetId:  i.deviceID + *assetSha1,
 		DeviceId:       i.deviceID,
 		FileCreatedAt:  time.Now(),
 		FileModifiedAt: time.Now(),

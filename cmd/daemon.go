@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/JonaEnz/immich-sync/immichserver"
@@ -60,6 +61,7 @@ var daemonCmd = &cobra.Command{
 		})
 		rpcServer.RegisterCallback(socketrpc.CmdAddDir, addDir)
 		rpcServer.RegisterCallback(socketrpc.CmdRmDir, rmDir)
+		rpcServer.RegisterCallback(socketrpc.CmdUploadFile, uploadFile)
 		rpcServer.Start()
 		go func() {
 			for {
@@ -74,10 +76,10 @@ var daemonCmd = &cobra.Command{
 func addDir(path string) (byte, string) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return socketrpc.ErrGeneric, err.Error()
+		return socketrpc.ErrFileNotFound, err.Error()
 	}
 	if !stat.IsDir() {
-		return socketrpc.ErrGeneric, fmt.Sprintf("'%s' is not a directory", path)
+		return socketrpc.ErrWrongArgs, fmt.Sprintf("'%s' is not a directory", path)
 	}
 	iDir := immichserver.NewImageDirectory(path)
 	imageDirs = append(imageDirs, &iDir)
@@ -88,10 +90,10 @@ func addDir(path string) (byte, string) {
 func rmDir(path string) (byte, string) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return socketrpc.ErrGeneric, err.Error()
+		return socketrpc.ErrFileNotFound, err.Error()
 	}
 	if !stat.IsDir() {
-		return socketrpc.ErrGeneric, fmt.Sprintf("'%s' is not a directory", path)
+		return socketrpc.ErrWrongArgs, fmt.Sprintf("'%s' is not a directory", path)
 	}
 	for i := range imageDirs {
 		if imageDirs[i].Path() == path {
@@ -101,6 +103,34 @@ func rmDir(path string) (byte, string) {
 		}
 	}
 	return socketrpc.ErrGeneric, fmt.Sprintf("'%s' is not watched by immich-sync and could not be removed.", path)
+}
+
+func uploadFile(arg string) (byte, string) {
+	paths := strings.Split(arg, ":")
+	for _, path := range paths {
+		stat, err := os.Stat(path)
+		if err != nil {
+			return socketrpc.ErrFileNotFound, fmt.Sprintf("File '%s' does not exist / could not be accessed", path)
+		}
+		if stat.IsDir() {
+			return socketrpc.ErrWrongArgs, fmt.Sprintf("'%s' is a directory, this is not currently supported", path)
+		}
+	}
+	success, failed := 0, 0
+	for _, path := range paths {
+		log.Printf("Uploading %s\n", path)
+		err := server.Upload(path, nil)
+		if err != nil {
+			failed += 1
+		} else {
+			success += 1
+		}
+	}
+	answer := fmt.Sprintf("Uploaded %d files, %d failed", success, failed)
+	if failed > 0 {
+		return socketrpc.ErrGeneric, answer
+	}
+	return socketrpc.ErrOk, answer
 }
 
 func updateConfig() {
