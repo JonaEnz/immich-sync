@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -23,6 +24,8 @@ type ImmichServer struct {
 	apiKey     string
 	deviceID   string
 	oapiClient *oapi.Client
+	ImageDirs  []*ImageDirectory
+	albumCache ImmichAlbumCache
 }
 
 func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
@@ -37,7 +40,53 @@ func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
 		apiKey:     apiKey,
 		deviceID:   deviceID,
 		oapiClient: client,
+		albumCache: NewImmichAlbumCache(),
 	}
+}
+
+func (i *ImmichServer) GetAlbumUUIDByName(name string) (uuid.UUID, error) {
+	return i.albumCache.GetAlbumUUIDByName(i, name)
+}
+
+func (i *ImmichServer) CreateNewAlbum(name string) (uuid.UUID, error) {
+	i.albumCache.FillCache(i)
+
+	for _, album := range i.albumCache.cache {
+		if album.AlbumName == name {
+			return uuid.UUID{}, errors.New("an album with this name already exists")
+		}
+	}
+
+	response, err := i.oapiClient.CreateAlbum(context.Background(), &oapi.CreateAlbumDto{
+		AlbumName:   name,
+		AlbumUsers:  make([]oapi.AlbumUserCreateDto, 0),
+		AssetIds:    make([]uuid.UUID, 0),
+		Description: oapi.OptString{},
+	})
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	albumUUID, err := uuid.Parse(response.ID)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	i.albumCache.cache[name] = response
+	return albumUUID, nil
+}
+
+func (i *ImmichServer) AddToAlbum(imageUUIDs []uuid.UUID, albumUUID uuid.UUID) error {
+	response, err := i.oapiClient.AddAssetsToAlbum(context.Background(), &oapi.BulkIdsDto{Ids: imageUUIDs}, oapi.AddAssetsToAlbumParams{
+		ID: albumUUID,
+	})
+	if err != nil {
+		return err
+	}
+	for _, r := range response {
+		if !r.Success {
+			return fmt.Errorf("Image '%s' failed with error '%s'", r.ID, r.Error.Value)
+		}
+	}
+	return nil
 }
 
 func (i *ImmichServer) GetUserUUID() (uuid.UUID, error) {
@@ -89,6 +138,16 @@ func (i *ImmichServer) DoFullSync(t time.Time) (*[]oapi.AssetResponseDto, error)
 		ouuid.SetTo(u)
 	}
 	return &assets, nil
+}
+
+func (i *ImmichServer) GetImageUUIDByPath(path string) (uuid.UUID, error) {
+	for j := range i.ImageDirs {
+		if cache, ok := i.ImageDirs[j].contentCache[path]; ok {
+			return cache.uuid, nil
+		}
+	}
+
+	return uuid.UUID{}, errors.New("path is not in the watched directories")
 }
 
 func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {

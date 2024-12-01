@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ImageDirectory struct {
@@ -19,7 +21,7 @@ type ImageDirectory struct {
 type FileStat struct {
 	info     os.FileInfo
 	hashSha1 []byte
-	uuid     string
+	uuid     uuid.UUID
 }
 
 func (f *FileStat) HashHexString() string {
@@ -98,11 +100,18 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 		h := entry.HashHexString()
 		sem <- 1
 		go func(imagePath, h string) {
-			uuid, err := server.Upload(imagePath, &h)
+			rawUUID, err := server.Upload(imagePath, &h)
 			if err != nil {
 				fmt.Println(err)
+				<-sem
+				return
 			}
-			entry.uuid = uuid
+			u, err := uuid.Parse(rawUUID)
+			if err != nil {
+				<-sem
+				return
+			}
+			entry.uuid = u
 			i.contentCache[imagePath] = entry
 			<-sem
 		}(imagePath, h)

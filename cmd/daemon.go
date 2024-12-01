@@ -9,6 +9,7 @@ import (
 
 	"github.com/JonaEnz/immich-sync/immichserver"
 	"github.com/JonaEnz/immich-sync/socketrpc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -19,7 +20,6 @@ func init() {
 
 var (
 	server            *immichserver.ImmichServer
-	imageDirs         []*immichserver.ImageDirectory
 	concurrentUploads int
 )
 
@@ -42,19 +42,19 @@ var daemonCmd = &cobra.Command{
 	Short: "Daemon mode, opens a unix socket for communication",
 	Run: func(cmd *cobra.Command, args []string) {
 		server = immichserver.NewImmichServer(apiKey, serverURL, deviceID)
-		imageDirs = make([]*immichserver.ImageDirectory, len(watchDirs))
+		server.ImageDirs = make([]*immichserver.ImageDirectory, len(watchDirs))
 		for i := range watchDirs {
 			idir := immichserver.NewImageDirectory(watchDirs[i])
-			imageDirs[i] = &idir
+			server.ImageDirs[i] = &idir
 		}
 		rpcServer := socketrpc.NewRPCServer()
 		rpcServer.RegisterCallback(socketrpc.CmdScanAll, func(s string) (byte, string) {
-			scanAll(imageDirs)
+			scanAll(server.ImageDirs)
 			return socketrpc.ErrOk, ""
 		})
 		rpcServer.RegisterCallback(socketrpc.CmdStatus, func(s string) (byte, string) {
 			result := ""
-			for _, d := range imageDirs {
+			for _, d := range server.ImageDirs {
 				result += d.String() + "\n"
 			}
 			return socketrpc.ErrOk, result[:len(result)-1]
@@ -62,10 +62,12 @@ var daemonCmd = &cobra.Command{
 		rpcServer.RegisterCallback(socketrpc.CmdAddDir, addDir)
 		rpcServer.RegisterCallback(socketrpc.CmdRmDir, rmDir)
 		rpcServer.RegisterCallback(socketrpc.CmdUploadFile, uploadFile)
+		rpcServer.RegisterCallback(socketrpc.CmdCreateAlbum, createAlbum)
+		rpcServer.RegisterCallback(socketrpc.CmdAddAlbum, addToAlbum)
 		rpcServer.Start()
 		go func() {
 			for {
-				scanAll(imageDirs)
+				scanAll(server.ImageDirs)
 				time.Sleep(time.Minute * time.Duration(scanInterval))
 			}
 		}()
@@ -82,7 +84,7 @@ func addDir(path string) (byte, string) {
 		return socketrpc.ErrWrongArgs, fmt.Sprintf("'%s' is not a directory", path)
 	}
 	iDir := immichserver.NewImageDirectory(path)
-	imageDirs = append(imageDirs, &iDir)
+	server.ImageDirs = append(server.ImageDirs, &iDir)
 	updateConfig()
 	return socketrpc.ErrOk, ""
 }
@@ -95,14 +97,43 @@ func rmDir(path string) (byte, string) {
 	if !stat.IsDir() {
 		return socketrpc.ErrWrongArgs, fmt.Sprintf("'%s' is not a directory", path)
 	}
-	for i := range imageDirs {
-		if imageDirs[i].Path() == path {
-			imageDirs = append(imageDirs[:i], imageDirs[i+1:]...)
+	for i := range server.ImageDirs {
+		if server.ImageDirs[i].Path() == path {
+			server.ImageDirs = append(server.ImageDirs[:i], server.ImageDirs[i+1:]...)
 			updateConfig()
 			return socketrpc.ErrOk, ""
 		}
 	}
 	return socketrpc.ErrGeneric, fmt.Sprintf("'%s' is not watched by immich-sync and could not be removed.", path)
+}
+
+func createAlbum(albumName string) (byte, string) {
+	_, err := server.CreateNewAlbum(albumName)
+	if err != nil {
+		return socketrpc.ErrGeneric, err.Error()
+	}
+	return socketrpc.ErrOk, ""
+}
+
+func addToAlbum(args string) (byte, string) {
+	splitArgs := strings.Split(args, ":")
+	if len(splitArgs) != 2 {
+		return socketrpc.ErrWrongArgs, ""
+	}
+	args, albumName := splitArgs[0], splitArgs[1]
+	imageUUID, err := server.GetImageUUIDByPath(args)
+	if err != nil {
+		return socketrpc.ErrGeneric, err.Error()
+	}
+	albumUUID, err := server.GetAlbumUUIDByName(albumName)
+	if err != nil {
+		return socketrpc.ErrGeneric, err.Error()
+	}
+	err = server.AddToAlbum([]uuid.UUID{imageUUID}, albumUUID)
+	if err != nil {
+		return socketrpc.ErrGeneric, err.Error()
+	}
+	return socketrpc.ErrOk, ""
 }
 
 func uploadFile(arg string) (byte, string) {
@@ -135,8 +166,8 @@ func uploadFile(arg string) (byte, string) {
 
 func updateConfig() {
 	paths := []string{}
-	for i := range imageDirs {
-		paths = append(paths, imageDirs[i].Path())
+	for i := range server.ImageDirs {
+		paths = append(paths, server.ImageDirs[i].Path())
 	}
 	viper.Set("watch", paths)
 	viper.WriteConfig()
