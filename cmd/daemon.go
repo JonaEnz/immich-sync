@@ -119,7 +119,7 @@ func uploadFile(arg string) (byte, string) {
 	success, failed := 0, 0
 	for _, path := range paths {
 		log.Printf("Uploading %s\n", path)
-		err := server.Upload(path, nil)
+		_, err := server.Upload(path, nil)
 		if err != nil {
 			failed += 1
 		} else {

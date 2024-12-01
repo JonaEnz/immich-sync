@@ -19,6 +19,7 @@ type ImageDirectory struct {
 type FileStat struct {
 	info     os.FileInfo
 	hashSha1 []byte
+	uuid     string
 }
 
 func (f *FileStat) HashHexString() string {
@@ -97,10 +98,12 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 		h := entry.HashHexString()
 		sem <- 1
 		go func(imagePath, h string) {
-			err := server.Upload(imagePath, &h)
+			uuid, err := server.Upload(imagePath, &h)
 			if err != nil {
 				fmt.Println(err)
 			}
+			entry.uuid = uuid
+			i.contentCache[imagePath] = entry
 			<-sem
 		}(imagePath, h)
 	}
