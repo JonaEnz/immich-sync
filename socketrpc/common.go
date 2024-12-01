@@ -10,6 +10,7 @@ var (
 	CmdCreateAlbum    = byte(0x20)
 	CmdShowAlbum      = byte(0x21)
 	CmdAddAlbum       = byte(0x22)
+	CmdDownloadAlbum  = byte(0x23)
 	CmdExit           = byte(0xFF)
 	ErrOk             = byte(0x0)
 	ErrGeneric        = byte(0x1)

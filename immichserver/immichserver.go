@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"net/textproto"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -46,6 +48,10 @@ func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
 
 func (i *ImmichServer) GetAlbumUUIDByName(name string) (uuid.UUID, error) {
 	return i.albumCache.GetAlbumUUIDByName(i, name)
+}
+
+func (i *ImmichServer) Album(albumUUID uuid.UUID) (*oapi.AlbumResponseDto, error) {
+	return i.albumCache.Album(i, albumUUID)
 }
 
 func (i *ImmichServer) CreateNewAlbum(name string) (uuid.UUID, error) {
@@ -199,6 +205,51 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 		return "", err
 	}
 	return response.Response.ID, nil
+}
+
+func (i *ImmichServer) Download(filePath string, imageUUID uuid.UUID) error {
+	stat, err := os.Stat(filePath)
+	if err != nil {
+		return err
+	}
+
+	response, err := i.oapiClient.DownloadAsset(context.Background(), oapi.DownloadAssetParams{ID: imageUUID})
+	if err != nil {
+		return err
+	}
+	if stat.IsDir() {
+		switch response.ContentType {
+		case "image/jpeg":
+			filePath = path.Join(filePath, imageUUID.String()+".jpeg")
+			break
+		case "image/png":
+			filePath = path.Join(filePath, imageUUID.String()+".png")
+			break
+
+		default:
+			// Get mime type
+			ext, err := mime.ExtensionsByType(response.ContentType)
+			if err != nil {
+				return fmt.Errorf("could not determine file extension: %w", err)
+			}
+			if len(ext) == 0 {
+				log.Printf("can't assign extension to type '%s'", response.ContentType)
+				filePath = path.Join(filePath, imageUUID.String())
+			} else {
+				filePath = path.Join(filePath, imageUUID.String()+ext[0])
+			}
+		}
+	}
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(file, response.Response)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type ImmichServerSecuritySource struct {

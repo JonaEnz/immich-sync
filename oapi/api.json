@@ -1877,7 +1877,7 @@
         "responses": {
           "200": {
             "content": {
-              "application/octet-stream": {
+              "image/*": {
                 "schema": {
                   "format": "binary",
                   "type": "string"

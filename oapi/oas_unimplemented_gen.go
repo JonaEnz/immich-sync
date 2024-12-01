@@ -279,7 +279,7 @@ func (UnimplementedHandler) DownloadArchive(ctx context.Context, req *AssetIdsDt
 // DownloadAsset implements downloadAsset operation.
 //
 // GET /assets/{id}/original
-func (UnimplementedHandler) DownloadAsset(ctx context.Context, params DownloadAssetParams) (r DownloadAssetOK, _ error) {
+func (UnimplementedHandler) DownloadAsset(ctx context.Context, params DownloadAssetParams) (r *DownloadAssetOKHeaders, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

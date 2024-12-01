@@ -64,6 +64,7 @@ var daemonCmd = &cobra.Command{
 		rpcServer.RegisterCallback(socketrpc.CmdUploadFile, uploadFile)
 		rpcServer.RegisterCallback(socketrpc.CmdCreateAlbum, createAlbum)
 		rpcServer.RegisterCallback(socketrpc.CmdAddAlbum, addToAlbum)
+		rpcServer.RegisterCallback(socketrpc.CmdDownloadAlbum, downloadAlbum)
 		rpcServer.Start()
 		go func() {
 			for {
@@ -120,8 +121,8 @@ func addToAlbum(args string) (byte, string) {
 	if len(splitArgs) != 2 {
 		return socketrpc.ErrWrongArgs, ""
 	}
-	args, albumName := splitArgs[0], splitArgs[1]
-	imageUUID, err := server.GetImageUUIDByPath(args)
+	path, albumName := splitArgs[0], splitArgs[1]
+	imageUUID, err := server.GetImageUUIDByPath(path)
 	if err != nil {
 		return socketrpc.ErrGeneric, err.Error()
 	}
@@ -132,6 +133,40 @@ func addToAlbum(args string) (byte, string) {
 	err = server.AddToAlbum([]uuid.UUID{imageUUID}, albumUUID)
 	if err != nil {
 		return socketrpc.ErrGeneric, err.Error()
+	}
+	return socketrpc.ErrOk, ""
+}
+
+func downloadAlbum(args string) (byte, string) {
+	splitArgs := strings.Split(args, ":")
+	if len(splitArgs) != 2 {
+		return socketrpc.ErrWrongArgs, ""
+	}
+	albumName, path := splitArgs[0], splitArgs[1]
+
+	// Download album
+	albumUUID, err := server.GetAlbumUUIDByName(albumName)
+	if err != nil {
+		return socketrpc.ErrGeneric, err.Error()
+	}
+	album, _ := server.Album(albumUUID)
+	for _, asset := range album.Assets {
+		if asset.IsTrashed || asset.IsArchived {
+			continue
+		}
+		imageUUID, err := uuid.Parse(asset.ID)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		err = server.Download(path, imageUUID)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return socketrpc.ErrFileNotFound, ""
+			}
+			return socketrpc.ErrGeneric, err.Error()
+		}
+
 	}
 	return socketrpc.ErrOk, ""
 }

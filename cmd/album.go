@@ -9,6 +9,7 @@ func init() {
 	albumCmd.AddCommand(album.AddAlbumCmd)
 	albumCmd.AddCommand(album.ShowAlbumCmd)
 	albumCmd.AddCommand(album.CreateAlbumCmd)
+	albumCmd.AddCommand(album.DownloadAlbumCmd)
 	rootCmd.AddCommand(albumCmd)
 }
 

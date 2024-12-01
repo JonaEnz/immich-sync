@@ -7229,7 +7229,7 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 		return
 	}
 
-	var response DownloadAssetOK
+	var response *DownloadAssetOKHeaders
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -7253,7 +7253,7 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 		type (
 			Request  = struct{}
 			Params   = DownloadAssetParams
-			Response = DownloadAssetOK
+			Response = *DownloadAssetOKHeaders
 		)
 		response, err = middleware.HookMiddleware[
 			Request,

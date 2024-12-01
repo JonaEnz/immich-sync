@@ -163,7 +163,7 @@ type Handler interface {
 	// DownloadAsset implements downloadAsset operation.
 	//
 	// GET /assets/{id}/original
-	DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error)
+	DownloadAsset(ctx context.Context, params DownloadAssetParams) (*DownloadAssetOKHeaders, error)
 	// EmptyTrash implements emptyTrash operation.
 	//
 	// POST /trash/empty

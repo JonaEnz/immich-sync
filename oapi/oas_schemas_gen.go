@@ -3334,6 +3334,32 @@ func (s DownloadAssetOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+// DownloadAssetOKHeaders wraps DownloadAssetOK with response headers.
+type DownloadAssetOKHeaders struct {
+	ContentType string
+	Response    DownloadAssetOK
+}
+
+// GetContentType returns the value of ContentType.
+func (s *DownloadAssetOKHeaders) GetContentType() string {
+	return s.ContentType
+}
+
+// GetResponse returns the value of Response.
+func (s *DownloadAssetOKHeaders) GetResponse() DownloadAssetOK {
+	return s.Response
+}
+
+// SetContentType sets the value of ContentType.
+func (s *DownloadAssetOKHeaders) SetContentType(val string) {
+	s.ContentType = val
+}
+
+// SetResponse sets the value of Response.
+func (s *DownloadAssetOKHeaders) SetResponse(val DownloadAssetOK) {
+	s.Response = val
+}
+
 // Ref: #/components/schemas/DownloadInfoDto
 type DownloadInfoDto struct {
 	AlbumId     OptUUID     `json:"albumId"`

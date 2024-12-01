@@ -179,7 +179,7 @@ type Invoker interface {
 	// DownloadAsset invokes downloadAsset operation.
 	//
 	// GET /assets/{id}/original
-	DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error)
+	DownloadAsset(ctx context.Context, params DownloadAssetParams) (*DownloadAssetOKHeaders, error)
 	// EmptyTrash invokes emptyTrash operation.
 	//
 	// POST /trash/empty
@@ -5873,12 +5873,12 @@ func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, 
 // DownloadAsset invokes downloadAsset operation.
 //
 // GET /assets/{id}/original
-func (c *Client) DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error) {
+func (c *Client) DownloadAsset(ctx context.Context, params DownloadAssetParams) (*DownloadAssetOKHeaders, error) {
 	res, err := c.sendDownloadAsset(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetParams) (res DownloadAssetOK, err error) {
+func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetParams) (res *DownloadAssetOKHeaders, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("downloadAsset"),
 		semconv.HTTPRequestMethodKey.String("GET"),

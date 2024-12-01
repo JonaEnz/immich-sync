@@ -12,7 +12,10 @@ import (
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 
+	"github.com/ogen-go/ogen/conv"
+	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
+	"github.com/ogen-go/ogen/uri"
 	"github.com/ogen-go/ogen/validate"
 )
 
@@ -1265,7 +1268,7 @@ func decodeDownloadArchiveResponse(resp *http.Response) (res DownloadArchiveOK, 
 	return res, validate.UnexpectedStatusCode(resp.StatusCode)
 }
 
-func decodeDownloadAssetResponse(resp *http.Response) (res DownloadAssetOK, _ error) {
+func decodeDownloadAssetResponse(resp *http.Response) (res *DownloadAssetOKHeaders, _ error) {
 	switch resp.StatusCode {
 	case 200:
 		// Code 200.
@@ -1274,7 +1277,7 @@ func decodeDownloadAssetResponse(resp *http.Response) (res DownloadAssetOK, _ er
 			return res, errors.Wrap(err, "parse media type")
 		}
 		switch {
-		case ct == "application/octet-stream":
+		case ht.MatchContentType("image/*", ct):
 			reader := resp.Body
 			b, err := io.ReadAll(reader)
 			if err != nil {
@@ -1282,7 +1285,42 @@ func decodeDownloadAssetResponse(resp *http.Response) (res DownloadAssetOK, _ er
 			}
 
 			response := DownloadAssetOK{Data: bytes.NewReader(b)}
-			return response, nil
+			var wrapper DownloadAssetOKHeaders
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "Content-Type" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "Content-Type",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							val, err := d.DecodeValue()
+							if err != nil {
+								return err
+							}
+
+							c, err := conv.ToString(val)
+							if err != nil {
+								return err
+							}
+
+							wrapper.ContentType = c
+							return nil
+						}); err != nil {
+							return err
+						}
+					} else {
+						return validate.ErrFieldRequired
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse Content-Type header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
