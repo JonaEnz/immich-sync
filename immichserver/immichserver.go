@@ -221,10 +221,8 @@ func (i *ImmichServer) Download(filePath string, imageUUID uuid.UUID) error {
 		switch response.ContentType {
 		case "image/jpeg":
 			filePath = path.Join(filePath, imageUUID.String()+".jpeg")
-			break
 		case "image/png":
 			filePath = path.Join(filePath, imageUUID.String()+".png")
-			break
 
 		default:
 			// Get mime type

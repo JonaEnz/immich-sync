@@ -19,3 +19,8 @@ var (
 	ErrWrongArgs      = byte(0x4)
 	ErrFileNotFound   = byte(0x5)
 )
+
+type UploadFileRequest struct {
+	Paths []string `json:"paths"`
+	Album string   `json:"album"`
+}

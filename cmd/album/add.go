@@ -21,7 +21,7 @@ var AddAlbumCmd = &cobra.Command{
 			log.Fatalln("Service daemon not running.")
 		}
 		defer rpcClient.Close()
-		_, err = rpcClient.SendMessage(socketrpc.CmdAddAlbum, args[0]+":"+args[1])
+		_, err = rpcClient.SendMessage(socketrpc.CmdAddAlbum, args[0]+"//"+args[1])
 		if err != nil {
 			fmt.Println(err)
 			return

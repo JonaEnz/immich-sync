@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -117,7 +118,7 @@ func createAlbum(albumName string) (byte, string) {
 }
 
 func addToAlbum(args string) (byte, string) {
-	splitArgs := strings.Split(args, ":")
+	splitArgs := strings.Split(args, "//")
 	if len(splitArgs) != 2 {
 		return socketrpc.ErrWrongArgs, ""
 	}
@@ -138,7 +139,7 @@ func addToAlbum(args string) (byte, string) {
 }
 
 func downloadAlbum(args string) (byte, string) {
-	splitArgs := strings.Split(args, ":")
+	splitArgs := strings.Split(args, "//")
 	if len(splitArgs) != 2 {
 		return socketrpc.ErrWrongArgs, ""
 	}
@@ -172,8 +173,13 @@ func downloadAlbum(args string) (byte, string) {
 }
 
 func uploadFile(arg string) (byte, string) {
-	paths := strings.Split(arg, ":")
-	for _, path := range paths {
+	var uploadRequest socketrpc.UploadFileRequest
+	err := json.Unmarshal([]byte(arg), &uploadRequest)
+	if err != nil {
+		return socketrpc.ErrWrongArgs, "Could not decode request"
+	}
+
+	for _, path := range uploadRequest.Paths {
 		stat, err := os.Stat(path)
 		if err != nil {
 			return socketrpc.ErrFileNotFound, fmt.Sprintf("File '%s' does not exist / could not be accessed", path)
@@ -183,9 +189,12 @@ func uploadFile(arg string) (byte, string) {
 		}
 	}
 	success, failed := 0, 0
-	for _, path := range paths {
+	uuids := make([]uuid.UUID, 0)
+	for _, path := range uploadRequest.Paths {
 		log.Printf("Uploading %s\n", path)
-		_, err := server.Upload(path, nil)
+		idString, err := server.Upload(path, nil)
+		uploadedUUID, err := uuid.Parse(idString)
+		uuids = append(uuids, uploadedUUID)
 		if err != nil {
 			failed += 1
 		} else {
@@ -195,6 +204,16 @@ func uploadFile(arg string) (byte, string) {
 	answer := fmt.Sprintf("Uploaded %d files, %d failed", success, failed)
 	if failed > 0 {
 		return socketrpc.ErrGeneric, answer
+	}
+	if len(uploadRequest.Album) > 0 {
+		albumUUID, err := server.GetAlbumUUIDByName(uploadRequest.Album)
+		if err != nil {
+			return socketrpc.ErrGeneric, err.Error()
+		}
+		err = server.AddToAlbum(uuids, albumUUID)
+		if err != nil {
+			return socketrpc.ErrGeneric, fmt.Sprintf("could not add image to album: %s", err.Error())
+		}
 	}
 	return socketrpc.ErrOk, answer
 }

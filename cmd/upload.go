@@ -1,15 +1,18 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/JonaEnz/immich-sync/immichserver"
 	"github.com/JonaEnz/immich-sync/socketrpc"
 	"github.com/spf13/cobra"
 )
 
+var albumFlag string
+
 func init() {
+	uploadCmd.PersistentFlags().StringVar(&albumFlag, "album", "", "Add uploaded image to album with this name")
 	rootCmd.AddCommand(uploadCmd)
 }
 
@@ -26,7 +29,16 @@ var uploadCmd = &cobra.Command{
 			return
 		}
 		defer rpcClient.Close()
-		answer, err := rpcClient.SendMessage(socketrpc.CmdUploadFile, strings.Join(args, ":"))
+		request := socketrpc.UploadFileRequest{
+			Paths: args,
+			Album: albumFlag,
+		}
+		jsonRequest, err := json.Marshal(request)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		answer, err := rpcClient.SendMessage(socketrpc.CmdUploadFile, string(jsonRequest))
 		if err != nil {
 			fmt.Println(err.Error())
 			return

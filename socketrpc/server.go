@@ -1,6 +1,7 @@
 package socketrpc
 
 import (
+	"io"
 	"log"
 	"net"
 	"os"
@@ -41,27 +42,32 @@ func (s *RPCServer) Start() {
 		for {
 			conn, _ := socket.Accept()
 			go func(conn net.Conn) {
-				defer conn.Close()
-				buf := make([]byte, 1<<14)
-				n, err := conn.Read(buf)
-				if err != nil || n == 0 {
-					conn.Write([]byte{ErrGeneric})
-					log.Fatal(err)
+				for {
+					defer conn.Close()
+					buf := make([]byte, 1<<14)
+					n, err := conn.Read(buf)
+					if err == io.EOF {
+						return
+					}
+					if err != nil || n == 0 {
+						conn.Write([]byte{ErrGeneric})
+						log.Fatal(err)
+					}
+					cmd := buf[0]
+					message := string(buf[1:n])
+					callbackFunc, ok := s.callbacks[cmd]
+					if !ok {
+						conn.Write([]byte{ErrUnknownCmd})
+						return
+					}
+					if callbackFunc == nil {
+						conn.Write([]byte{ErrUnsupportedCmd})
+						return
+					}
+					result, resultString := callbackFunc(message)
+					conn.Write([]byte{result})
+					conn.Write([]byte(resultString))
 				}
-				cmd := buf[0]
-				message := string(buf[1:n])
-				callbackFunc, ok := s.callbacks[cmd]
-				if !ok {
-					conn.Write([]byte{ErrUnknownCmd})
-					return
-				}
-				if callbackFunc == nil {
-					conn.Write([]byte{ErrUnsupportedCmd})
-					return
-				}
-				result, resultString := callbackFunc(message)
-				conn.Write([]byte{result})
-				conn.Write([]byte(resultString))
 			}(conn)
 			select {
 			case <-s.exit:
