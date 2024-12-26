@@ -45,7 +45,13 @@ var daemonCmd = &cobra.Command{
 		server = immichserver.NewImmichServer(apiKey, serverURL, deviceID)
 		server.ImageDirs = make([]*immichserver.ImageDirectory, len(watchDirs))
 		for i := range watchDirs {
-			idir := immichserver.NewImageDirectory(watchDirs[i])
+			idir := immichserver.NewImageDirectory(watchDirs[i].Path, false)
+			if len(watchDirs[i].Album) > 0 {
+				albumUUID, err := server.GetAlbumByUUIDOrName(watchDirs[0].Album)
+				if err == nil {
+					idir.SetAlbum(&albumUUID)
+				}
+			}
 			server.ImageDirs[i] = &idir
 		}
 		rpcServer := socketrpc.NewRPCServer()
@@ -58,7 +64,10 @@ var daemonCmd = &cobra.Command{
 			for _, d := range server.ImageDirs {
 				result += d.String() + "\n"
 			}
-			return socketrpc.ErrOk, result[:len(result)-1]
+			if len(result) > 0 {
+				result = result[:len(result)-1]
+			}
+			return socketrpc.ErrOk, result
 		})
 		rpcServer.RegisterCallback(socketrpc.CmdAddDir, addDir)
 		rpcServer.RegisterCallback(socketrpc.CmdRmDir, rmDir)
@@ -85,7 +94,7 @@ func addDir(path string) (byte, string) {
 	if !stat.IsDir() {
 		return socketrpc.ErrWrongArgs, fmt.Sprintf("'%s' is not a directory", path)
 	}
-	iDir := immichserver.NewImageDirectory(path)
+	iDir := immichserver.NewImageDirectory(path, false)
 	server.ImageDirs = append(server.ImageDirs, &iDir)
 	updateConfig()
 	return socketrpc.ErrOk, ""
@@ -127,7 +136,7 @@ func addToAlbum(args string) (byte, string) {
 	if err != nil {
 		return socketrpc.ErrGeneric, err.Error()
 	}
-	albumUUID, err := server.GetAlbumUUIDByName(albumName)
+	albumUUID, err := server.GetAlbumByUUIDOrName(albumName)
 	if err != nil {
 		return socketrpc.ErrGeneric, err.Error()
 	}
@@ -146,7 +155,7 @@ func downloadAlbum(args string) (byte, string) {
 	albumName, path := splitArgs[0], splitArgs[1]
 
 	// Download album
-	albumUUID, err := server.GetAlbumUUIDByName(albumName)
+	albumUUID, err := server.GetAlbumByUUIDOrName(albumName)
 	if err != nil {
 		return socketrpc.ErrGeneric, err.Error()
 	}
@@ -206,7 +215,7 @@ func uploadFile(arg string) (byte, string) {
 		return socketrpc.ErrGeneric, answer
 	}
 	if len(uploadRequest.Album) > 0 {
-		albumUUID, err := server.GetAlbumUUIDByName(uploadRequest.Album)
+		albumUUID, err := server.GetAlbumByUUIDOrName(uploadRequest.Album)
 		if err != nil {
 			return socketrpc.ErrGeneric, err.Error()
 		}
@@ -219,9 +228,12 @@ func uploadFile(arg string) (byte, string) {
 }
 
 func updateConfig() {
-	paths := []string{}
+	paths := []immichserver.ImageDirectoryConfig{}
 	for i := range server.ImageDirs {
-		paths = append(paths, server.ImageDirs[i].Path())
+		paths = append(paths, immichserver.ImageDirectoryConfig{
+			Path:  server.ImageDirs[i].Path(),
+			Album: server.ImageDirs[i].AlbumUUID(),
+		})
 	}
 	viper.Set("watch", paths)
 	viper.WriteConfig()

@@ -3,6 +3,7 @@ package cmd
 import (
 	"log"
 
+	"github.com/JonaEnz/immich-sync/immichserver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -13,7 +14,7 @@ var (
 	serverURL    string
 	apiKey       string
 	deviceID     string
-	watchDirs    []string
+	watchDirs    []immichserver.ImageDirectoryConfig
 	scanInterval int
 
 	rootCmd = &cobra.Command{
@@ -31,7 +32,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/immich-sync/config.yaml)")
-	viper.SetDefault("watch", []string{})
+	viper.SetDefault("watch", []immichserver.ImageDirectoryConfig{})
 	viper.SetDefault("deviceid", "defaultdeviceid")
 	viper.SetDefault("server", "")
 	viper.SetDefault("apikey", "")
@@ -59,7 +60,10 @@ func initConfig() {
 	if !viper.IsSet("server") || !viper.IsSet("apikey") {
 		log.Fatal("Server and apikey need to be set in config file!")
 	}
-	watchDirs = viper.GetStringSlice("watch")
+	err := viper.UnmarshalKey("watch", &watchDirs)
+	if err != nil {
+		log.Fatalf("failed to parse config file entry 'watch': %s", err.Error())
+	}
 	deviceID = viper.GetString("deviceid")
 	serverURL = viper.GetString("server")
 	apiKey = viper.GetString("apikey")

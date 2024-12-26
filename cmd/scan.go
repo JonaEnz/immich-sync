@@ -20,7 +20,13 @@ var scanCmd = &cobra.Command{
 		if err != nil {
 			imageDirs := make([]*immichserver.ImageDirectory, len(watchDirs))
 			for i := range watchDirs {
-				idir := immichserver.NewImageDirectory(watchDirs[i])
+				idir := immichserver.NewImageDirectory(watchDirs[i].Path, false)
+				if len(watchDirs[i].Album) > 0 {
+					albumUUID, err := server.GetAlbumByUUIDOrName(watchDirs[0].Album)
+					if err == nil {
+						idir.SetAlbum(&albumUUID)
+					}
+				}
 				imageDirs[i] = &idir
 			}
 			scanAll(imageDirs) // No daemon, scan yourself

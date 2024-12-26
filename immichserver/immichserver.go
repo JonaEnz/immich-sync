@@ -46,8 +46,12 @@ func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
 	}
 }
 
-func (i *ImmichServer) GetAlbumUUIDByName(name string) (uuid.UUID, error) {
-	return i.albumCache.GetAlbumUUIDByName(i, name)
+func (i *ImmichServer) GetAlbumByUUIDOrName(uuidOrName string) (uuid.UUID, error) {
+	u, err := uuid.Parse(uuidOrName)
+	if err == nil {
+		return u, nil
+	}
+	return i.albumCache.GetAlbumUUIDByName(i, uuidOrName)
 }
 
 func (i *ImmichServer) Album(albumUUID uuid.UUID) (*oapi.AlbumResponseDto, error) {

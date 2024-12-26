@@ -15,11 +15,11 @@ import (
 // SecurityHandler is handler for security parameters.
 type SecurityHandler interface {
 	// HandleAPIKey handles api_key security.
-	HandleAPIKey(ctx context.Context, operationName string, t APIKey) (context.Context, error)
+	HandleAPIKey(ctx context.Context, operationName OperationName, t APIKey) (context.Context, error)
 	// HandleBearer handles bearer security.
-	HandleBearer(ctx context.Context, operationName string, t Bearer) (context.Context, error)
+	HandleBearer(ctx context.Context, operationName OperationName, t Bearer) (context.Context, error)
 	// HandleCookie handles cookie security.
-	HandleCookie(ctx context.Context, operationName string, t Cookie) (context.Context, error)
+	HandleCookie(ctx context.Context, operationName OperationName, t Cookie) (context.Context, error)
 }
 
 func findAuthorization(h http.Header, prefix string) (string, bool) {
@@ -37,7 +37,7 @@ func findAuthorization(h http.Header, prefix string) (string, bool) {
 	return "", false
 }
 
-func (s *Server) securityAPIKey(ctx context.Context, operationName string, req *http.Request) (context.Context, bool, error) {
+func (s *Server) securityAPIKey(ctx context.Context, operationName OperationName, req *http.Request) (context.Context, bool, error) {
 	var t APIKey
 	const parameterName = "x-api-key"
 	value := req.Header.Get(parameterName)
@@ -53,7 +53,7 @@ func (s *Server) securityAPIKey(ctx context.Context, operationName string, req *
 	}
 	return rctx, true, err
 }
-func (s *Server) securityBearer(ctx context.Context, operationName string, req *http.Request) (context.Context, bool, error) {
+func (s *Server) securityBearer(ctx context.Context, operationName OperationName, req *http.Request) (context.Context, bool, error) {
 	var t Bearer
 	token, ok := findAuthorization(req.Header, "Bearer")
 	if !ok {
@@ -68,7 +68,7 @@ func (s *Server) securityBearer(ctx context.Context, operationName string, req *
 	}
 	return rctx, true, err
 }
-func (s *Server) securityCookie(ctx context.Context, operationName string, req *http.Request) (context.Context, bool, error) {
+func (s *Server) securityCookie(ctx context.Context, operationName OperationName, req *http.Request) (context.Context, bool, error) {
 	var t Cookie
 	const parameterName = "immich_access_token"
 	var value string
@@ -93,14 +93,14 @@ func (s *Server) securityCookie(ctx context.Context, operationName string, req *
 // SecuritySource is provider of security values (tokens, passwords, etc.).
 type SecuritySource interface {
 	// APIKey provides api_key security value.
-	APIKey(ctx context.Context, operationName string) (APIKey, error)
+	APIKey(ctx context.Context, operationName OperationName) (APIKey, error)
 	// Bearer provides bearer security value.
-	Bearer(ctx context.Context, operationName string) (Bearer, error)
+	Bearer(ctx context.Context, operationName OperationName) (Bearer, error)
 	// Cookie provides cookie security value.
-	Cookie(ctx context.Context, operationName string) (Cookie, error)
+	Cookie(ctx context.Context, operationName OperationName) (Cookie, error)
 }
 
-func (s *Client) securityAPIKey(ctx context.Context, operationName string, req *http.Request) error {
+func (s *Client) securityAPIKey(ctx context.Context, operationName OperationName, req *http.Request) error {
 	t, err := s.sec.APIKey(ctx, operationName)
 	if err != nil {
 		return errors.Wrap(err, "security source \"APIKey\"")
@@ -108,7 +108,7 @@ func (s *Client) securityAPIKey(ctx context.Context, operationName string, req *
 	req.Header.Set("x-api-key", t.APIKey)
 	return nil
 }
-func (s *Client) securityBearer(ctx context.Context, operationName string, req *http.Request) error {
+func (s *Client) securityBearer(ctx context.Context, operationName OperationName, req *http.Request) error {
 	t, err := s.sec.Bearer(ctx, operationName)
 	if err != nil {
 		return errors.Wrap(err, "security source \"Bearer\"")
@@ -116,7 +116,7 @@ func (s *Client) securityBearer(ctx context.Context, operationName string, req *
 	req.Header.Set("Authorization", "Bearer "+t.Token)
 	return nil
 }
-func (s *Client) securityCookie(ctx context.Context, operationName string, req *http.Request) error {
+func (s *Client) securityCookie(ctx context.Context, operationName OperationName, req *http.Request) error {
 	t, err := s.sec.Cookie(ctx, operationName)
 	if err != nil {
 		return errors.Wrap(err, "security source \"Cookie\"")

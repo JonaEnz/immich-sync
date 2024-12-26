@@ -9,13 +9,15 @@ Linux only, could work on Windows with minor adjustments.
 
 - [x] Upload images to Immich
 - [x] Scan local directories for new / updated images
+- [x] Add images to albums by directories
 - [x] Scan in the background in regular intervals
+- [x] Download albums from Immich
 - [ ] Delete images from Immich
-- [ ] Download images from Immich
 
 ## Installation
 
-1. Install the systemd service from the `immich-sync.service` file. Compile the binary and place it at the specified path.
+1. Install the systemd service from the `immich-sync.service` file.
+Compile the binary and place it at the specified path.
 
 2. Create the configuration file at `/etc/immich-sync/config.yaml`:
 
@@ -29,10 +31,10 @@ deviceid: "" # Device name
 
 ## Usage
 
-The service needs to be running for all commands excluding daemon and scan. 
+The service needs to be running for all commands excluding daemon and scan.
 The user config is only used for those commands.
 
-```
+```md
 A client for uploading images to Immich
 
 Usage:

@@ -4,9 +4,10 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,8 +15,15 @@ import (
 
 type ImageDirectory struct {
 	path         string
+	subdir       bool
+	album        *uuid.UUID
 	contentCache map[string]FileStat
 	lastScan     time.Time
+}
+
+type ImageDirectoryConfig struct {
+	Path  string `json:"path"`
+	Album string `json:"album"`
 }
 
 type FileStat struct {
@@ -28,9 +36,11 @@ func (f *FileStat) HashHexString() string {
 	return fmt.Sprintf("%x", f.hashSha1)
 }
 
-func NewImageDirectory(path string) ImageDirectory {
+func NewImageDirectory(path string, subdir bool) ImageDirectory {
 	return ImageDirectory{
 		path:         path,
+		album:        nil,
+		subdir:       subdir,
 		contentCache: make(map[string]FileStat),
 		lastScan:     time.Time{},
 	}
@@ -38,6 +48,17 @@ func NewImageDirectory(path string) ImageDirectory {
 
 func (i *ImageDirectory) Path() string {
 	return i.path
+}
+
+func (i *ImageDirectory) AlbumUUID() string {
+	if i.album == nil {
+		return ""
+	}
+	return (*i.album).String()
+}
+
+func (i *ImageDirectory) SetAlbum(albumUUID *uuid.UUID) {
+	i.album = albumUUID
 }
 
 func (i *ImageDirectory) Count() int {
@@ -49,17 +70,17 @@ func (i *ImageDirectory) String() string {
 }
 
 func (i *ImageDirectory) Read() (int, error) {
-	p, err := os.ReadDir(i.path)
-	if err != nil {
-		return 0, err
-	}
 	updated := 0
-	for _, entry := range p {
-		if entry.Type().IsRegular() {
-			if ok, _ := i.addOrUpdateCache(path.Join(i.path, entry.Name())); ok {
+	err := filepath.WalkDir(i.path, func(path string, d fs.DirEntry, err error) error {
+		if d.Type().IsRegular() {
+			if ok, _ := i.addOrUpdateCache(path); ok {
 				updated += 1
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 	i.lastScan = time.Now()
 	return updated, nil
@@ -102,7 +123,7 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 		go func(imagePath, h string) {
 			rawUUID, err := server.Upload(imagePath, &h)
 			if err != nil {
-				fmt.Println(err)
+				log.Printf("Failed to upload image at '%s' to server: %s\n", imagePath, err.Error())
 				<-sem
 				return
 			}
@@ -113,6 +134,14 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 			}
 			entry.uuid = u
 			i.contentCache[imagePath] = entry
+			if i.album != nil {
+				err = server.AddToAlbum([]uuid.UUID{u}, *i.album)
+			}
+			if err != nil {
+				log.Printf("Uploaded image at '%s' to server, but could not add to album '%s': %s\n", imagePath, (*i.album).String(), err.Error())
+				<-sem
+				return
+			}
 			<-sem
 		}(imagePath, h)
 	}
