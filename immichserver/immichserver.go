@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"net/textproto"
 	"os"
@@ -208,7 +207,7 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return response.Response.ID, nil
+	return response.ID, nil
 }
 
 func (i *ImmichServer) Download(filePath string, imageUUID uuid.UUID) error {
@@ -222,32 +221,14 @@ func (i *ImmichServer) Download(filePath string, imageUUID uuid.UUID) error {
 		return err
 	}
 	if stat.IsDir() {
-		switch response.ContentType {
-		case "image/jpeg":
-			filePath = path.Join(filePath, imageUUID.String()+".jpeg")
-		case "image/png":
-			filePath = path.Join(filePath, imageUUID.String()+".png")
-
-		default:
-			// Get mime type
-			ext, err := mime.ExtensionsByType(response.ContentType)
-			if err != nil {
-				return fmt.Errorf("could not determine file extension: %w", err)
-			}
-			if len(ext) == 0 {
-				log.Printf("can't assign extension to type '%s'", response.ContentType)
-				filePath = path.Join(filePath, imageUUID.String())
-			} else {
-				filePath = path.Join(filePath, imageUUID.String()+ext[0])
-			}
-		}
+		filePath = path.Join(filePath, imageUUID.String())
 	}
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	_, err = io.Copy(file, response.Response)
+	_, err = io.Copy(file, response.Data)
 	if err != nil {
 		return err
 	}

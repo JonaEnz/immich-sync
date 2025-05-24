@@ -55,6 +55,13 @@ func (UnimplementedHandler) ChangePassword(ctx context.Context, req *ChangePassw
 	return r, ht.ErrNotImplemented
 }
 
+// ChangePinCode implements changePinCode operation.
+//
+// PUT /auth/pin-code
+func (UnimplementedHandler) ChangePinCode(ctx context.Context, req *PinCodeChangeDto) error {
+	return ht.ErrNotImplemented
+}
+
 // CheckBulkUpload implements checkBulkUpload operation.
 //
 // Checks if assets exist by checksums.
@@ -94,6 +101,13 @@ func (UnimplementedHandler) CreateApiKey(ctx context.Context, req *APIKeyCreateD
 	return r, ht.ErrNotImplemented
 }
 
+// CreateFace implements createFace operation.
+//
+// POST /faces
+func (UnimplementedHandler) CreateFace(ctx context.Context, req *AssetFaceCreateDto) error {
+	return ht.ErrNotImplemented
+}
+
 // CreateJob implements createJob operation.
 //
 // POST /jobs
@@ -115,6 +129,13 @@ func (UnimplementedHandler) CreateMemory(ctx context.Context, req *MemoryCreateD
 	return r, ht.ErrNotImplemented
 }
 
+// CreateNotification implements createNotification operation.
+//
+// POST /admin/notifications
+func (UnimplementedHandler) CreateNotification(ctx context.Context, req *NotificationCreateDto) (r *NotificationDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreatePartner implements createPartner operation.
 //
 // POST /partners/{id}
@@ -133,6 +154,13 @@ func (UnimplementedHandler) CreatePerson(ctx context.Context, req *PersonCreateD
 //
 // POST /users/profile-image
 func (UnimplementedHandler) CreateProfileImage(ctx context.Context, req *CreateProfileImageDtoMultipart) (r *CreateProfileImageResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateSession implements createSession operation.
+//
+// POST /sessions
+func (UnimplementedHandler) CreateSession(ctx context.Context, req *SessionCreateDto) (r *SessionCreateResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -199,6 +227,13 @@ func (UnimplementedHandler) DeleteAssets(ctx context.Context, req *AssetBulkDele
 	return ht.ErrNotImplemented
 }
 
+// DeleteFace implements deleteFace operation.
+//
+// DELETE /faces/{id}
+func (UnimplementedHandler) DeleteFace(ctx context.Context, req *AssetFaceDeleteDto, params DeleteFaceParams) error {
+	return ht.ErrNotImplemented
+}
+
 // DeleteLibrary implements deleteLibrary operation.
 //
 // DELETE /libraries/{id}
@@ -210,6 +245,20 @@ func (UnimplementedHandler) DeleteLibrary(ctx context.Context, params DeleteLibr
 //
 // DELETE /memories/{id}
 func (UnimplementedHandler) DeleteMemory(ctx context.Context, params DeleteMemoryParams) error {
+	return ht.ErrNotImplemented
+}
+
+// DeleteNotification implements deleteNotification operation.
+//
+// DELETE /notifications/{id}
+func (UnimplementedHandler) DeleteNotification(ctx context.Context, params DeleteNotificationParams) error {
+	return ht.ErrNotImplemented
+}
+
+// DeleteNotifications implements deleteNotifications operation.
+//
+// DELETE /notifications
+func (UnimplementedHandler) DeleteNotifications(ctx context.Context, req *NotificationDeleteAllDto) error {
 	return ht.ErrNotImplemented
 }
 
@@ -248,6 +297,13 @@ func (UnimplementedHandler) DeleteStacks(ctx context.Context, req *BulkIdsDto) e
 	return ht.ErrNotImplemented
 }
 
+// DeleteSyncAck implements deleteSyncAck operation.
+//
+// DELETE /sync/ack
+func (UnimplementedHandler) DeleteSyncAck(ctx context.Context, req *SyncAckDeleteDto) error {
+	return ht.ErrNotImplemented
+}
+
 // DeleteTag implements deleteTag operation.
 //
 // DELETE /tags/{id}
@@ -279,7 +335,7 @@ func (UnimplementedHandler) DownloadArchive(ctx context.Context, req *AssetIdsDt
 // DownloadAsset implements downloadAsset operation.
 //
 // GET /assets/{id}/original
-func (UnimplementedHandler) DownloadAsset(ctx context.Context, params DownloadAssetParams) (r *DownloadAssetOKHeaders, _ error) {
+func (UnimplementedHandler) DownloadAsset(ctx context.Context, params DownloadAssetParams) (r DownloadAssetOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -295,13 +351,6 @@ func (UnimplementedHandler) EmptyTrash(ctx context.Context) (r *TrashResponseDto
 // POST /oauth/callback
 func (UnimplementedHandler) FinishOAuth(ctx context.Context, req *OAuthCallbackDto) (r *LoginResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
-}
-
-// FixAuditFiles implements fixAuditFiles operation.
-//
-// POST /reports/fix
-func (UnimplementedHandler) FixAuditFiles(ctx context.Context, req *FileReportFixDto) error {
-	return ht.ErrNotImplemented
 }
 
 // GetAboutInfo implements getAboutInfo operation.
@@ -377,7 +426,7 @@ func (UnimplementedHandler) GetAllPeople(ctx context.Context, params GetAllPeopl
 // GetAllSharedLinks implements getAllSharedLinks operation.
 //
 // GET /shared-links
-func (UnimplementedHandler) GetAllSharedLinks(ctx context.Context) (r []SharedLinkResponseDto, _ error) {
+func (UnimplementedHandler) GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) (r []SharedLinkResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -446,17 +495,10 @@ func (UnimplementedHandler) GetAssetsByOriginalPath(ctx context.Context, params 
 	return r, ht.ErrNotImplemented
 }
 
-// GetAuditDeletes implements getAuditDeletes operation.
+// GetAuthStatus implements getAuthStatus operation.
 //
-// GET /audit/deletes
-func (UnimplementedHandler) GetAuditDeletes(ctx context.Context, params GetAuditDeletesParams) (r *AuditDeletesResponseDto, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// GetAuditFiles implements getAuditFiles operation.
-//
-// GET /reports
-func (UnimplementedHandler) GetAuditFiles(ctx context.Context) (r *FileReportDto, _ error) {
+// GET /auth/status
+func (UnimplementedHandler) GetAuthStatus(ctx context.Context) (r *AuthStatusResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -502,13 +544,6 @@ func (UnimplementedHandler) GetFaces(ctx context.Context, params GetFacesParams)
 	return r, ht.ErrNotImplemented
 }
 
-// GetFileChecksums implements getFileChecksums operation.
-//
-// POST /reports/checksum
-func (UnimplementedHandler) GetFileChecksums(ctx context.Context, req *FileChecksumDto) (r []FileChecksumResponseDto, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // GetFullSyncForUser implements getFullSyncForUser operation.
 //
 // POST /sync/full-sync
@@ -544,13 +579,6 @@ func (UnimplementedHandler) GetMemory(ctx context.Context, params GetMemoryParam
 	return r, ht.ErrNotImplemented
 }
 
-// GetMemoryLane implements getMemoryLane operation.
-//
-// GET /assets/memory-lane
-func (UnimplementedHandler) GetMemoryLane(ctx context.Context, params GetMemoryLaneParams) (r []MemoryLaneResponseDto, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // GetMyPreferences implements getMyPreferences operation.
 //
 // GET /users/me/preferences
@@ -569,6 +597,27 @@ func (UnimplementedHandler) GetMySharedLink(ctx context.Context, params GetMySha
 //
 // GET /users/me
 func (UnimplementedHandler) GetMyUser(ctx context.Context) (r *UserAdminResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetNotification implements getNotification operation.
+//
+// GET /notifications/{id}
+func (UnimplementedHandler) GetNotification(ctx context.Context, params GetNotificationParams) (r *NotificationDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetNotificationTemplateAdmin implements getNotificationTemplateAdmin operation.
+//
+// POST /admin/notifications/templates/{name}
+func (UnimplementedHandler) GetNotificationTemplateAdmin(ctx context.Context, req *TemplateDto, params GetNotificationTemplateAdminParams) (r *TemplateResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetNotifications implements getNotifications operation.
+//
+// GET /notifications
+func (UnimplementedHandler) GetNotifications(ctx context.Context, params GetNotificationsParams) (r []NotificationDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -709,6 +758,20 @@ func (UnimplementedHandler) GetSupportedMediaTypes(ctx context.Context) (r *Serv
 	return r, ht.ErrNotImplemented
 }
 
+// GetSyncAck implements getSyncAck operation.
+//
+// GET /sync/ack
+func (UnimplementedHandler) GetSyncAck(ctx context.Context) (r []SyncAckDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetSyncStream implements getSyncStream operation.
+//
+// POST /sync/stream
+func (UnimplementedHandler) GetSyncStream(ctx context.Context, req *SyncStreamDto) error {
+	return ht.ErrNotImplemented
+}
+
 // GetTagById implements getTagById operation.
 //
 // GET /tags/{id}
@@ -726,14 +789,14 @@ func (UnimplementedHandler) GetTheme(ctx context.Context) (r *ServerThemeDto, _ 
 // GetTimeBucket implements getTimeBucket operation.
 //
 // GET /timeline/bucket
-func (UnimplementedHandler) GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (r []AssetResponseDto, _ error) {
+func (UnimplementedHandler) GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (r *TimeBucketAssetResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetTimeBuckets implements getTimeBuckets operation.
 //
 // GET /timeline/buckets
-func (UnimplementedHandler) GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) (r []TimeBucketResponseDto, _ error) {
+func (UnimplementedHandler) GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) (r []TimeBucketsResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -772,6 +835,13 @@ func (UnimplementedHandler) GetUserPreferencesAdmin(ctx context.Context, params 
 	return r, ht.ErrNotImplemented
 }
 
+// GetUserStatisticsAdmin implements getUserStatisticsAdmin operation.
+//
+// GET /admin/users/{id}/statistics
+func (UnimplementedHandler) GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (r *AssetStatsResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetVersionHistory implements getVersionHistory operation.
 //
 // GET /server/version-history
@@ -784,6 +854,20 @@ func (UnimplementedHandler) GetVersionHistory(ctx context.Context) (r []ServerVe
 // POST /oauth/link
 func (UnimplementedHandler) LinkOAuthAccount(ctx context.Context, req *OAuthCallbackDto) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
+}
+
+// LockAuthSession implements lockAuthSession operation.
+//
+// POST /auth/session/lock
+func (UnimplementedHandler) LockAuthSession(ctx context.Context) error {
+	return ht.ErrNotImplemented
+}
+
+// LockSession implements lockSession operation.
+//
+// POST /sessions/{id}/lock
+func (UnimplementedHandler) LockSession(ctx context.Context, params LockSessionParams) error {
+	return ht.ErrNotImplemented
 }
 
 // Login implements login operation.
@@ -893,6 +977,13 @@ func (UnimplementedHandler) ReplaceAsset(ctx context.Context, req *AssetMediaRep
 	return r, ht.ErrNotImplemented
 }
 
+// ResetPinCode implements resetPinCode operation.
+//
+// DELETE /auth/pin-code
+func (UnimplementedHandler) ResetPinCode(ctx context.Context, req *PinCodeResetDto) error {
+	return ht.ErrNotImplemented
+}
+
 // RestoreAssets implements restoreAssets operation.
 //
 // POST /trash/restore/assets
@@ -935,17 +1026,17 @@ func (UnimplementedHandler) ScanLibrary(ctx context.Context, params ScanLibraryP
 	return ht.ErrNotImplemented
 }
 
-// SearchMemories implements searchMemories operation.
+// SearchAssets implements searchAssets operation.
 //
-// GET /memories
-func (UnimplementedHandler) SearchMemories(ctx context.Context) (r []MemoryResponseDto, _ error) {
+// POST /search/metadata
+func (UnimplementedHandler) SearchAssets(ctx context.Context, req *MetadataSearchDto) (r *SearchResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// SearchMetadata implements searchMetadata operation.
+// SearchMemories implements searchMemories operation.
 //
-// POST /search/metadata
-func (UnimplementedHandler) SearchMetadata(ctx context.Context, req *MetadataSearchDto) (r *SearchResponseDto, _ error) {
+// GET /memories
+func (UnimplementedHandler) SearchMemories(ctx context.Context, params SearchMemoriesParams) (r []MemoryResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1005,10 +1096,17 @@ func (UnimplementedHandler) SendJobCommand(ctx context.Context, req *JobCommandD
 	return r, ht.ErrNotImplemented
 }
 
-// SendTestEmail implements sendTestEmail operation.
+// SendSyncAck implements sendSyncAck operation.
 //
-// POST /notifications/test-email
-func (UnimplementedHandler) SendTestEmail(ctx context.Context, req *SystemConfigSmtpDto) (r *TestEmailResponseDto, _ error) {
+// POST /sync/ack
+func (UnimplementedHandler) SendSyncAck(ctx context.Context, req *SyncAckSetDto) error {
+	return ht.ErrNotImplemented
+}
+
+// SendTestEmailAdmin implements sendTestEmailAdmin operation.
+//
+// POST /admin/notifications/test-email
+func (UnimplementedHandler) SendTestEmailAdmin(ctx context.Context, req *SystemConfigSmtpDto) (r *TestEmailResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1024,6 +1122,13 @@ func (UnimplementedHandler) SetServerLicense(ctx context.Context, req *LicenseKe
 // PUT /users/me/license
 func (UnimplementedHandler) SetUserLicense(ctx context.Context, req *LicenseKeyDto) (r *LicenseResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
+}
+
+// SetupPinCode implements setupPinCode operation.
+//
+// POST /auth/pin-code
+func (UnimplementedHandler) SetupPinCode(ctx context.Context, req *PinCodeSetupDto) error {
+	return ht.ErrNotImplemented
 }
 
 // SignUpAdmin implements signUpAdmin operation.
@@ -1052,6 +1157,13 @@ func (UnimplementedHandler) TagAssets(ctx context.Context, req *BulkIdsDto, para
 // POST /oauth/unlink
 func (UnimplementedHandler) UnlinkOAuthAccount(ctx context.Context) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
+}
+
+// UnlockAuthSession implements unlockAuthSession operation.
+//
+// POST /auth/session/unlock
+func (UnimplementedHandler) UnlockAuthSession(ctx context.Context, req *SessionUnlockDto) error {
+	return ht.ErrNotImplemented
 }
 
 // UntagAssets implements untagAssets operation.
@@ -1138,6 +1250,20 @@ func (UnimplementedHandler) UpdateMyUser(ctx context.Context, req *UserUpdateMeD
 	return r, ht.ErrNotImplemented
 }
 
+// UpdateNotification implements updateNotification operation.
+//
+// PUT /notifications/{id}
+func (UnimplementedHandler) UpdateNotification(ctx context.Context, req *NotificationUpdateDto, params UpdateNotificationParams) (r *NotificationDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateNotifications implements updateNotifications operation.
+//
+// PUT /notifications
+func (UnimplementedHandler) UpdateNotifications(ctx context.Context, req *NotificationUpdateAllDto) error {
+	return ht.ErrNotImplemented
+}
+
 // UpdatePartner implements updatePartner operation.
 //
 // PUT /partners/{id}
@@ -1197,7 +1323,7 @@ func (UnimplementedHandler) UpdateUserPreferencesAdmin(ctx context.Context, req 
 // UploadAsset implements uploadAsset operation.
 //
 // POST /assets
-func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r *AssetMediaResponseDtoStatusCode, _ error) {
+func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r *AssetMediaResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

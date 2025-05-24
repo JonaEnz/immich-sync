@@ -100,6 +100,20 @@ func encodeChangePasswordRequest(
 	return nil
 }
 
+func encodeChangePinCodeRequest(
+	req *PinCodeChangeDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeCheckBulkUploadRequest(
 	req *AssetBulkUploadCheckDto,
 	r *http.Request,
@@ -170,6 +184,20 @@ func encodeCreateApiKeyRequest(
 	return nil
 }
 
+func encodeCreateFaceRequest(
+	req *AssetFaceCreateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeCreateJobRequest(
 	req *JobCreateDto,
 	r *http.Request,
@@ -200,6 +228,20 @@ func encodeCreateLibraryRequest(
 
 func encodeCreateMemoryRequest(
 	req *MemoryCreateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeCreateNotificationRequest(
+	req *NotificationCreateDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -244,6 +286,20 @@ func encodeCreateProfileImageRequest(
 		return nil
 	})
 	ht.SetCloserBody(r, body, mime.FormatMediaType(contentType, map[string]string{"boundary": boundary}))
+	return nil
+}
+
+func encodeCreateSessionRequest(
+	req *SessionCreateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
 	return nil
 }
 
@@ -317,8 +373,50 @@ func encodeDeleteAssetsRequest(
 	return nil
 }
 
+func encodeDeleteFaceRequest(
+	req *AssetFaceDeleteDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeDeleteNotificationsRequest(
+	req *NotificationDeleteAllDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeDeleteStacksRequest(
 	req *BulkIdsDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeDeleteSyncAckRequest(
+	req *SyncAckDeleteDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -373,20 +471,6 @@ func encodeFinishOAuthRequest(
 	return nil
 }
 
-func encodeFixAuditFilesRequest(
-	req *FileReportFixDto,
-	r *http.Request,
-) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
-	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
-}
-
 func encodeGetDeltaSyncRequest(
 	req *AssetDeltaSyncDto,
 	r *http.Request,
@@ -415,8 +499,8 @@ func encodeGetDownloadInfoRequest(
 	return nil
 }
 
-func encodeGetFileChecksumsRequest(
-	req *FileChecksumDto,
+func encodeGetFullSyncForUserRequest(
+	req *AssetFullSyncDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -429,8 +513,22 @@ func encodeGetFileChecksumsRequest(
 	return nil
 }
 
-func encodeGetFullSyncForUserRequest(
-	req *AssetFullSyncDto,
+func encodeGetNotificationTemplateAdminRequest(
+	req *TemplateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeGetSyncStreamRequest(
+	req *SyncStreamDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -644,6 +742,20 @@ func encodeReplaceAssetRequest(
 	return nil
 }
 
+func encodeResetPinCodeRequest(
+	req *PinCodeResetDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeRestoreAssetsRequest(
 	req *BulkIdsDto,
 	r *http.Request,
@@ -672,7 +784,7 @@ func encodeRunAssetJobsRequest(
 	return nil
 }
 
-func encodeSearchMetadataRequest(
+func encodeSearchAssetsRequest(
 	req *MetadataSearchDto,
 	r *http.Request,
 ) error {
@@ -728,7 +840,21 @@ func encodeSendJobCommandRequest(
 	return nil
 }
 
-func encodeSendTestEmailRequest(
+func encodeSendSyncAckRequest(
+	req *SyncAckSetDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeSendTestEmailAdminRequest(
 	req *SystemConfigSmtpDto,
 	r *http.Request,
 ) error {
@@ -758,6 +884,20 @@ func encodeSetServerLicenseRequest(
 
 func encodeSetUserLicenseRequest(
 	req *LicenseKeyDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeSetupPinCodeRequest(
+	req *PinCodeSetupDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -800,6 +940,20 @@ func encodeStartOAuthRequest(
 
 func encodeTagAssetsRequest(
 	req *BulkIdsDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUnlockAuthSessionRequest(
+	req *SessionUnlockDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -980,6 +1134,34 @@ func encodeUpdateMyUserRequest(
 	return nil
 }
 
+func encodeUpdateNotificationRequest(
+	req *NotificationUpdateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUpdateNotificationsRequest(
+	req *NotificationUpdateAllDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeUpdatePartnerRequest(
 	req *UpdatePartnerDto,
 	r *http.Request,
@@ -1099,7 +1281,9 @@ func encodeUploadAssetRequest(
 	const contentType = "multipart/form-data"
 	request := req
 
-	q := uri.NewFormEncoder(map[string]string{})
+	q := uri.NewFormEncoder(map[string]string{
+		"visibility": "application/json; charset=utf-8",
+	})
 	{
 		// Encode "deviceAssetId" form field.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -1169,22 +1353,6 @@ func encodeUploadAssetRequest(
 		}
 	}
 	{
-		// Encode "isArchived" form field.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "isArchived",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := request.IsArchived.Get(); ok {
-				return e.EncodeValue(conv.BoolToString(val))
-			}
-			return nil
-		}); err != nil {
-			return errors.Wrap(err, "encode query")
-		}
-	}
-	{
 		// Encode "isFavorite" form field.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "isFavorite",
@@ -1193,22 +1361,6 @@ func encodeUploadAssetRequest(
 		}
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := request.IsFavorite.Get(); ok {
-				return e.EncodeValue(conv.BoolToString(val))
-			}
-			return nil
-		}); err != nil {
-			return errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "isVisible" form field.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "isVisible",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := request.IsVisible.Get(); ok {
 				return e.EncodeValue(conv.BoolToString(val))
 			}
 			return nil
@@ -1228,6 +1380,25 @@ func encodeUploadAssetRequest(
 				return e.EncodeValue(conv.UUIDToString(val))
 			}
 			return nil
+		}); err != nil {
+			return errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "visibility" form field.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			var enc jx.Encoder
+			func(e *jx.Encoder) {
+				if request.Visibility.Set {
+					request.Visibility.Encode(e)
+				}
+			}(&enc)
+			return e.EncodeValue(string(enc.Bytes()))
 		}); err != nil {
 			return errors.Wrap(err, "encode query")
 		}

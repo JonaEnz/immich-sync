@@ -121,14 +121,6 @@ func (s *MemoriesResponse) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *MetadataSearchDto) setDefaults() {
-	{
-		val := bool(false)
-		s.WithArchived.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *PeopleResponse) setDefaults() {
 	{
 		val := bool(true)
@@ -137,14 +129,6 @@ func (s *PeopleResponse) setDefaults() {
 	{
 		val := bool(false)
 		s.SidebarWeb = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *RandomSearchDto) setDefaults() {
-	{
-		val := bool(false)
-		s.WithArchived.SetTo(val)
 	}
 }
 
@@ -165,6 +149,14 @@ func (s *ServerStatsResponseDto) setDefaults() {
 	{
 		val := int64(0)
 		s.Usage = val
+	}
+	{
+		val := int64(0)
+		s.UsagePhotos = val
+	}
+	{
+		val := int64(0)
+		s.UsageVideos = val
 	}
 	{
 		val := int(0)
@@ -188,10 +180,14 @@ func (s *SharedLinkCreateDto) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *SmartSearchDto) setDefaults() {
+func (s *SharedLinksResponse) setDefaults() {
+	{
+		val := bool(true)
+		s.Enabled = val
+	}
 	{
 		val := bool(false)
-		s.WithArchived.SetTo(val)
+		s.SidebarWeb = val
 	}
 }
 

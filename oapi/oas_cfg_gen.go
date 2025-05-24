@@ -17,7 +17,8 @@ import (
 )
 
 var regexMap = map[string]ogenregex.Regexp{
-	"/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/": ogenregex.MustCompile("/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/"),
+	"/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/":                       ogenregex.MustCompile("/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/"),
+	"^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$": ogenregex.MustCompile("^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$"),
 }
 var (
 	// Allocate option closure once.

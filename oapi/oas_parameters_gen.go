@@ -641,6 +641,71 @@ func decodeDeleteApiKeyParams(args [1]string, argsEscaped bool, r *http.Request)
 	return params, nil
 }
 
+// DeleteFaceParams is parameters of deleteFace operation.
+type DeleteFaceParams struct {
+	ID uuid.UUID
+}
+
+func unpackDeleteFaceParams(packed middleware.Parameters) (params DeleteFaceParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeDeleteFaceParams(args [1]string, argsEscaped bool, r *http.Request) (params DeleteFaceParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // DeleteLibraryParams is parameters of deleteLibrary operation.
 type DeleteLibraryParams struct {
 	ID uuid.UUID
@@ -723,6 +788,71 @@ func unpackDeleteMemoryParams(packed middleware.Parameters) (params DeleteMemory
 }
 
 func decodeDeleteMemoryParams(args [1]string, argsEscaped bool, r *http.Request) (params DeleteMemoryParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// DeleteNotificationParams is parameters of deleteNotification operation.
+type DeleteNotificationParams struct {
+	ID uuid.UUID
+}
+
+func unpackDeleteNotificationParams(packed middleware.Parameters) (params DeleteNotificationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeDeleteNotificationParams(args [1]string, argsEscaped bool, r *http.Request) (params DeleteNotificationParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -1296,7 +1426,7 @@ func decodeGetActivitiesParams(args [0]string, argsEscaped bool, r *http.Request
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -1557,7 +1687,7 @@ func decodeGetActivityStatisticsParams(args [0]string, argsEscaped bool, r *http
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -1899,6 +2029,8 @@ func decodeGetAllAlbumsParams(args [0]string, argsEscaped bool, r *http.Request)
 
 // GetAllPeopleParams is parameters of getAllPeople operation.
 type GetAllPeopleParams struct {
+	ClosestAssetId  OptUUID
+	ClosestPersonId OptUUID
 	// Page number for pagination.
 	Page OptFloat64
 	// Number of items per page.
@@ -1907,6 +2039,24 @@ type GetAllPeopleParams struct {
 }
 
 func unpackGetAllPeopleParams(packed middleware.Parameters) (params GetAllPeopleParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "closestAssetId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.ClosestAssetId = v.(OptUUID)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "closestPersonId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.ClosestPersonId = v.(OptUUID)
+		}
+	}
 	{
 		key := middleware.ParameterKey{
 			Name: "page",
@@ -1939,6 +2089,88 @@ func unpackGetAllPeopleParams(packed middleware.Parameters) (params GetAllPeople
 
 func decodeGetAllPeopleParams(args [0]string, argsEscaped bool, r *http.Request) (params GetAllPeopleParams, _ error) {
 	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: closestAssetId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "closestAssetId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotClosestAssetIdVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotClosestAssetIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.ClosestAssetId.SetTo(paramsDotClosestAssetIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "closestAssetId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: closestPersonId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "closestPersonId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotClosestPersonIdVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotClosestPersonIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.ClosestPersonId.SetTo(paramsDotClosestPersonIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "closestPersonId",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	// Set default value for query: page.
 	{
 		val := float64(1)
@@ -2116,6 +2348,70 @@ func decodeGetAllPeopleParams(args [0]string, argsEscaped bool, r *http.Request)
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "withHidden",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// GetAllSharedLinksParams is parameters of getAllSharedLinks operation.
+type GetAllSharedLinksParams struct {
+	AlbumId OptUUID
+}
+
+func unpackGetAllSharedLinksParams(packed middleware.Parameters) (params GetAllSharedLinksParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "albumId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.AlbumId = v.(OptUUID)
+		}
+	}
+	return params
+}
+
+func decodeGetAllSharedLinksParams(args [0]string, argsEscaped bool, r *http.Request) (params GetAllSharedLinksParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: albumId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "albumId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAlbumIdVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAlbumIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.AlbumId.SetTo(paramsDotAlbumIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "albumId",
 			In:   "query",
 			Err:  err,
 		}
@@ -2372,21 +2668,12 @@ func decodeGetAssetInfoParams(args [1]string, argsEscaped bool, r *http.Request)
 
 // GetAssetStatisticsParams is parameters of getAssetStatistics operation.
 type GetAssetStatisticsParams struct {
-	IsArchived OptBool
 	IsFavorite OptBool
 	IsTrashed  OptBool
+	Visibility OptAssetVisibility
 }
 
 func unpackGetAssetStatisticsParams(packed middleware.Parameters) (params GetAssetStatisticsParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "isArchived",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.IsArchived = v.(OptBool)
-		}
-	}
 	{
 		key := middleware.ParameterKey{
 			Name: "isFavorite",
@@ -2405,52 +2692,20 @@ func unpackGetAssetStatisticsParams(packed middleware.Parameters) (params GetAss
 			params.IsTrashed = v.(OptBool)
 		}
 	}
+	{
+		key := middleware.ParameterKey{
+			Name: "visibility",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Visibility = v.(OptAssetVisibility)
+		}
+	}
 	return params
 }
 
 func decodeGetAssetStatisticsParams(args [0]string, argsEscaped bool, r *http.Request) (params GetAssetStatisticsParams, _ error) {
 	q := uri.NewQueryDecoder(r.URL.Query())
-	// Decode query: isArchived.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "isArchived",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotIsArchivedVal bool
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToBool(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotIsArchivedVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.IsArchived.SetTo(paramsDotIsArchivedVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "isArchived",
-			In:   "query",
-			Err:  err,
-		}
-	}
 	// Decode query: isFavorite.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{
@@ -2533,6 +2788,62 @@ func decodeGetAssetStatisticsParams(args [0]string, argsEscaped bool, r *http.Re
 			Err:  err,
 		}
 	}
+	// Decode query: visibility.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotVisibilityVal AssetVisibility
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotVisibilityVal = AssetVisibility(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Visibility.SetTo(paramsDotVisibilityVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Visibility.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "visibility",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	return params, nil
 }
 
@@ -2580,172 +2891,12 @@ func decodeGetAssetsByOriginalPathParams(args [0]string, argsEscaped bool, r *ht
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "path",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
-// GetAuditDeletesParams is parameters of getAuditDeletes operation.
-type GetAuditDeletesParams struct {
-	After      time.Time
-	EntityType EntityType
-	UserId     OptUUID
-}
-
-func unpackGetAuditDeletesParams(packed middleware.Parameters) (params GetAuditDeletesParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "after",
-			In:   "query",
-		}
-		params.After = packed[key].(time.Time)
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "entityType",
-			In:   "query",
-		}
-		params.EntityType = packed[key].(EntityType)
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "userId",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.UserId = v.(OptUUID)
-		}
-	}
-	return params
-}
-
-func decodeGetAuditDeletesParams(args [0]string, argsEscaped bool, r *http.Request) (params GetAuditDeletesParams, _ error) {
-	q := uri.NewQueryDecoder(r.URL.Query())
-	// Decode query: after.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "after",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToDateTime(val)
-				if err != nil {
-					return err
-				}
-
-				params.After = c
-				return nil
-			}); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "after",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: entityType.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "entityType",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.EntityType = EntityType(c)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := params.EntityType.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "entityType",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: userId.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "userId",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotUserIdVal uuid.UUID
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToUUID(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotUserIdVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.UserId.SetTo(paramsDotUserIdVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "userId",
 			In:   "query",
 			Err:  err,
 		}
@@ -2861,7 +3012,7 @@ func decodeGetFacesParams(args [0]string, argsEscaped bool, r *http.Request) (pa
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -3388,141 +3539,6 @@ func decodeGetMemoryParams(args [1]string, argsEscaped bool, r *http.Request) (p
 	return params, nil
 }
 
-// GetMemoryLaneParams is parameters of getMemoryLane operation.
-type GetMemoryLaneParams struct {
-	Day   int
-	Month int
-}
-
-func unpackGetMemoryLaneParams(packed middleware.Parameters) (params GetMemoryLaneParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "day",
-			In:   "query",
-		}
-		params.Day = packed[key].(int)
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "month",
-			In:   "query",
-		}
-		params.Month = packed[key].(int)
-	}
-	return params
-}
-
-func decodeGetMemoryLaneParams(args [0]string, argsEscaped bool, r *http.Request) (params GetMemoryLaneParams, _ error) {
-	q := uri.NewQueryDecoder(r.URL.Query())
-	// Decode query: day.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "day",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToInt(val)
-				if err != nil {
-					return err
-				}
-
-				params.Day = c
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        true,
-					Max:           31,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-				}).Validate(int64(params.Day)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "day",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: month.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "month",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToInt(val)
-				if err != nil {
-					return err
-				}
-
-				params.Month = c
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        true,
-					Max:           12,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-				}).Validate(int64(params.Month)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "month",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
 // GetMySharedLinkParams is parameters of getMySharedLink operation.
 type GetMySharedLinkParams struct {
 	Key      OptString
@@ -3689,6 +3705,383 @@ func decodeGetMySharedLinkParams(args [0]string, argsEscaped bool, r *http.Reque
 	return params, nil
 }
 
+// GetNotificationParams is parameters of getNotification operation.
+type GetNotificationParams struct {
+	ID uuid.UUID
+}
+
+func unpackGetNotificationParams(packed middleware.Parameters) (params GetNotificationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeGetNotificationParams(args [1]string, argsEscaped bool, r *http.Request) (params GetNotificationParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// GetNotificationTemplateAdminParams is parameters of getNotificationTemplateAdmin operation.
+type GetNotificationTemplateAdminParams struct {
+	Name string
+}
+
+func unpackGetNotificationTemplateAdminParams(packed middleware.Parameters) (params GetNotificationTemplateAdminParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "name",
+			In:   "path",
+		}
+		params.Name = packed[key].(string)
+	}
+	return params
+}
+
+func decodeGetNotificationTemplateAdminParams(args [1]string, argsEscaped bool, r *http.Request) (params GetNotificationTemplateAdminParams, _ error) {
+	// Decode path: name.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "name",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Name = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "name",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// GetNotificationsParams is parameters of getNotifications operation.
+type GetNotificationsParams struct {
+	ID     OptUUID
+	Level  OptNotificationLevel
+	Type   OptNotificationType
+	Unread OptBool
+}
+
+func unpackGetNotificationsParams(packed middleware.Parameters) (params GetNotificationsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.ID = v.(OptUUID)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "level",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Level = v.(OptNotificationLevel)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "type",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Type = v.(OptNotificationType)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "unread",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Unread = v.(OptBool)
+		}
+	}
+	return params
+}
+
+func decodeGetNotificationsParams(args [0]string, argsEscaped bool, r *http.Request) (params GetNotificationsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: id.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIDVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.ID.SetTo(paramsDotIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: level.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "level",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotLevelVal NotificationLevel
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotLevelVal = NotificationLevel(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Level.SetTo(paramsDotLevelVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Level.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "level",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: type.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotTypeVal NotificationType
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotTypeVal = NotificationType(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Type.SetTo(paramsDotTypeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Type.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "type",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: unread.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "unread",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotUnreadVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotUnreadVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Unread.SetTo(paramsDotUnreadVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "unread",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetPartnersParams is parameters of getPartners operation.
 type GetPartnersParams struct {
 	Direction PartnerDirection
@@ -3741,7 +4134,7 @@ func decodeGetPartnersParams(args [0]string, argsEscaped bool, r *http.Request) 
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -4410,7 +4803,7 @@ func decodeGetSearchSuggestionsParams(args [0]string, argsEscaped bool, r *http.
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -4621,16 +5014,17 @@ func decodeGetTagByIdParams(args [1]string, argsEscaped bool, r *http.Request) (
 // GetTimeBucketParams is parameters of getTimeBucket operation.
 type GetTimeBucketParams struct {
 	AlbumId      OptUUID
-	IsArchived   OptBool
 	IsFavorite   OptBool
 	IsTrashed    OptBool
 	Key          OptString
 	Order        OptAssetOrder
+	Page         OptFloat64
+	PageSize     OptFloat64
 	PersonId     OptUUID
-	Size         TimeBucketSize
 	TagId        OptUUID
 	TimeBucket   string
 	UserId       OptUUID
+	Visibility   OptAssetVisibility
 	WithPartners OptBool
 	WithStacked  OptBool
 }
@@ -4643,15 +5037,6 @@ func unpackGetTimeBucketParams(packed middleware.Parameters) (params GetTimeBuck
 		}
 		if v, ok := packed[key]; ok {
 			params.AlbumId = v.(OptUUID)
-		}
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "isArchived",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.IsArchived = v.(OptBool)
 		}
 	}
 	{
@@ -4692,19 +5077,30 @@ func unpackGetTimeBucketParams(packed middleware.Parameters) (params GetTimeBuck
 	}
 	{
 		key := middleware.ParameterKey{
+			Name: "page",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Page = v.(OptFloat64)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "pageSize",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.PageSize = v.(OptFloat64)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
 			Name: "personId",
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
 			params.PersonId = v.(OptUUID)
 		}
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "size",
-			In:   "query",
-		}
-		params.Size = packed[key].(TimeBucketSize)
 	}
 	{
 		key := middleware.ParameterKey{
@@ -4729,6 +5125,15 @@ func unpackGetTimeBucketParams(packed middleware.Parameters) (params GetTimeBuck
 		}
 		if v, ok := packed[key]; ok {
 			params.UserId = v.(OptUUID)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "visibility",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Visibility = v.(OptAssetVisibility)
 		}
 	}
 	{
@@ -4791,47 +5196,6 @@ func decodeGetTimeBucketParams(args [0]string, argsEscaped bool, r *http.Request
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "albumId",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: isArchived.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "isArchived",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotIsArchivedVal bool
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToBool(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotIsArchivedVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.IsArchived.SetTo(paramsDotIsArchivedVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "isArchived",
 			In:   "query",
 			Err:  err,
 		}
@@ -5015,6 +5379,136 @@ func decodeGetTimeBucketParams(args [0]string, argsEscaped bool, r *http.Request
 			Err:  err,
 		}
 	}
+	// Decode query: page.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "page",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPageVal float64
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToFloat64(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPageVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Page.SetTo(paramsDotPageVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Page.Get(); ok {
+					if err := func() error {
+						if err := (validate.Float{
+							MinSet:        true,
+							Min:           1,
+							MaxSet:        false,
+							Max:           0,
+							MinExclusive:  false,
+							MaxExclusive:  false,
+							MultipleOfSet: false,
+							MultipleOf:    nil,
+						}).Validate(float64(value)); err != nil {
+							return errors.Wrap(err, "float")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "page",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: pageSize.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "pageSize",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPageSizeVal float64
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToFloat64(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPageSizeVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.PageSize.SetTo(paramsDotPageSizeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.PageSize.Get(); ok {
+					if err := func() error {
+						if err := (validate.Float{
+							MinSet:        true,
+							Min:           1,
+							MaxSet:        false,
+							Max:           0,
+							MinExclusive:  false,
+							MaxExclusive:  false,
+							MultipleOfSet: false,
+							MultipleOf:    nil,
+						}).Validate(float64(value)); err != nil {
+							return errors.Wrap(err, "float")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "pageSize",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	// Decode query: personId.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{
@@ -5052,50 +5546,6 @@ func decodeGetTimeBucketParams(args [0]string, argsEscaped bool, r *http.Request
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "personId",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: size.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "size",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.Size = TimeBucketSize(c)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := params.Size.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "size",
 			In:   "query",
 			Err:  err,
 		}
@@ -5167,7 +5617,7 @@ func decodeGetTimeBucketParams(args [0]string, argsEscaped bool, r *http.Request
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -5214,6 +5664,62 @@ func decodeGetTimeBucketParams(args [0]string, argsEscaped bool, r *http.Request
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "userId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: visibility.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotVisibilityVal AssetVisibility
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotVisibilityVal = AssetVisibility(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Visibility.SetTo(paramsDotVisibilityVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Visibility.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "visibility",
 			In:   "query",
 			Err:  err,
 		}
@@ -5306,15 +5812,14 @@ func decodeGetTimeBucketParams(args [0]string, argsEscaped bool, r *http.Request
 // GetTimeBucketsParams is parameters of getTimeBuckets operation.
 type GetTimeBucketsParams struct {
 	AlbumId      OptUUID
-	IsArchived   OptBool
 	IsFavorite   OptBool
 	IsTrashed    OptBool
 	Key          OptString
 	Order        OptAssetOrder
 	PersonId     OptUUID
-	Size         TimeBucketSize
 	TagId        OptUUID
 	UserId       OptUUID
+	Visibility   OptAssetVisibility
 	WithPartners OptBool
 	WithStacked  OptBool
 }
@@ -5327,15 +5832,6 @@ func unpackGetTimeBucketsParams(packed middleware.Parameters) (params GetTimeBuc
 		}
 		if v, ok := packed[key]; ok {
 			params.AlbumId = v.(OptUUID)
-		}
-	}
-	{
-		key := middleware.ParameterKey{
-			Name: "isArchived",
-			In:   "query",
-		}
-		if v, ok := packed[key]; ok {
-			params.IsArchived = v.(OptBool)
 		}
 	}
 	{
@@ -5385,13 +5881,6 @@ func unpackGetTimeBucketsParams(packed middleware.Parameters) (params GetTimeBuc
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "size",
-			In:   "query",
-		}
-		params.Size = packed[key].(TimeBucketSize)
-	}
-	{
-		key := middleware.ParameterKey{
 			Name: "tagId",
 			In:   "query",
 		}
@@ -5406,6 +5895,15 @@ func unpackGetTimeBucketsParams(packed middleware.Parameters) (params GetTimeBuc
 		}
 		if v, ok := packed[key]; ok {
 			params.UserId = v.(OptUUID)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "visibility",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Visibility = v.(OptAssetVisibility)
 		}
 	}
 	{
@@ -5468,47 +5966,6 @@ func decodeGetTimeBucketsParams(args [0]string, argsEscaped bool, r *http.Reques
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "albumId",
-			In:   "query",
-			Err:  err,
-		}
-	}
-	// Decode query: isArchived.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "isArchived",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotIsArchivedVal bool
-				if err := func() error {
-					val, err := d.DecodeValue()
-					if err != nil {
-						return err
-					}
-
-					c, err := conv.ToBool(val)
-					if err != nil {
-						return err
-					}
-
-					paramsDotIsArchivedVal = c
-					return nil
-				}(); err != nil {
-					return err
-				}
-				params.IsArchived.SetTo(paramsDotIsArchivedVal)
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "isArchived",
 			In:   "query",
 			Err:  err,
 		}
@@ -5733,50 +6190,6 @@ func decodeGetTimeBucketsParams(args [0]string, argsEscaped bool, r *http.Reques
 			Err:  err,
 		}
 	}
-	// Decode query: size.
-	if err := func() error {
-		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "size",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.HasParam(cfg); err == nil {
-			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.Size = TimeBucketSize(c)
-				return nil
-			}); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := params.Size.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "size",
-			In:   "query",
-			Err:  err,
-		}
-	}
 	// Decode query: tagId.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{
@@ -5855,6 +6268,62 @@ func decodeGetTimeBucketsParams(args [0]string, argsEscaped bool, r *http.Reques
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "userId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: visibility.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotVisibilityVal AssetVisibility
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotVisibilityVal = AssetVisibility(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Visibility.SetTo(paramsDotVisibilityVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Visibility.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "visibility",
 			In:   "query",
 			Err:  err,
 		}
@@ -6091,6 +6560,305 @@ func unpackGetUserPreferencesAdminParams(packed middleware.Parameters) (params G
 }
 
 func decodeGetUserPreferencesAdminParams(args [1]string, argsEscaped bool, r *http.Request) (params GetUserPreferencesAdminParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// GetUserStatisticsAdminParams is parameters of getUserStatisticsAdmin operation.
+type GetUserStatisticsAdminParams struct {
+	ID         uuid.UUID
+	IsFavorite OptBool
+	IsTrashed  OptBool
+	Visibility OptAssetVisibility
+}
+
+func unpackGetUserStatisticsAdminParams(packed middleware.Parameters) (params GetUserStatisticsAdminParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "isFavorite",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.IsFavorite = v.(OptBool)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "isTrashed",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.IsTrashed = v.(OptBool)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "visibility",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Visibility = v.(OptAssetVisibility)
+		}
+	}
+	return params
+}
+
+func decodeGetUserStatisticsAdminParams(args [1]string, argsEscaped bool, r *http.Request) (params GetUserStatisticsAdminParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode query: isFavorite.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "isFavorite",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIsFavoriteVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIsFavoriteVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IsFavorite.SetTo(paramsDotIsFavoriteVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "isFavorite",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: isTrashed.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "isTrashed",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIsTrashedVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIsTrashedVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IsTrashed.SetTo(paramsDotIsTrashedVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "isTrashed",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: visibility.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotVisibilityVal AssetVisibility
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotVisibilityVal = AssetVisibility(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Visibility.SetTo(paramsDotVisibilityVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Visibility.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "visibility",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// LockSessionParams is parameters of lockSession operation.
+type LockSessionParams struct {
+	ID uuid.UUID
+}
+
+func unpackLockSessionParams(packed middleware.Parameters) (params LockSessionParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeLockSessionParams(args [1]string, argsEscaped bool, r *http.Request) (params LockSessionParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -7188,7 +7956,7 @@ func decodeReverseGeocodeParams(args [0]string, argsEscaped bool, r *http.Reques
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -7232,7 +8000,7 @@ func decodeReverseGeocodeParams(args [0]string, argsEscaped bool, r *http.Reques
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -7310,6 +8078,238 @@ func decodeScanLibraryParams(args [1]string, argsEscaped bool, r *http.Request) 
 	return params, nil
 }
 
+// SearchMemoriesParams is parameters of searchMemories operation.
+type SearchMemoriesParams struct {
+	For       OptDateTime
+	IsSaved   OptBool
+	IsTrashed OptBool
+	Type      OptMemoryType
+}
+
+func unpackSearchMemoriesParams(packed middleware.Parameters) (params SearchMemoriesParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "for",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.For = v.(OptDateTime)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "isSaved",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.IsSaved = v.(OptBool)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "isTrashed",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.IsTrashed = v.(OptBool)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "type",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Type = v.(OptMemoryType)
+		}
+	}
+	return params
+}
+
+func decodeSearchMemoriesParams(args [0]string, argsEscaped bool, r *http.Request) (params SearchMemoriesParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: for.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "for",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotForVal time.Time
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToDateTime(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotForVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.For.SetTo(paramsDotForVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "for",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: isSaved.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "isSaved",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIsSavedVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIsSavedVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IsSaved.SetTo(paramsDotIsSavedVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "isSaved",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: isTrashed.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "isTrashed",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIsTrashedVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIsTrashedVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IsTrashed.SetTo(paramsDotIsTrashedVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "isTrashed",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: type.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotTypeVal MemoryType
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotTypeVal = MemoryType(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Type.SetTo(paramsDotTypeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Type.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "type",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // SearchPersonParams is parameters of searchPerson operation.
 type SearchPersonParams struct {
 	Name       string
@@ -7364,7 +8364,7 @@ func decodeSearchPersonParams(args [0]string, argsEscaped bool, r *http.Request)
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -7462,7 +8462,7 @@ func decodeSearchPlacesParams(args [0]string, argsEscaped bool, r *http.Request)
 				return err
 			}
 		} else {
-			return validate.ErrFieldRequired
+			return err
 		}
 		return nil
 	}(); err != nil {
@@ -7477,7 +8477,7 @@ func decodeSearchPlacesParams(args [0]string, argsEscaped bool, r *http.Request)
 
 // SearchStacksParams is parameters of searchStacks operation.
 type SearchStacksParams struct {
-	PrimaryAssetId OptString
+	PrimaryAssetId OptUUID
 }
 
 func unpackSearchStacksParams(packed middleware.Parameters) (params SearchStacksParams) {
@@ -7487,7 +8487,7 @@ func unpackSearchStacksParams(packed middleware.Parameters) (params SearchStacks
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.PrimaryAssetId = v.(OptString)
+			params.PrimaryAssetId = v.(OptUUID)
 		}
 	}
 	return params
@@ -7505,14 +8505,14 @@ func decodeSearchStacksParams(args [0]string, argsEscaped bool, r *http.Request)
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotPrimaryAssetIdVal string
+				var paramsDotPrimaryAssetIdVal uuid.UUID
 				if err := func() error {
 					val, err := d.DecodeValue()
 					if err != nil {
 						return err
 					}
 
-					c, err := conv.ToString(val)
+					c, err := conv.ToUUID(val)
 					if err != nil {
 						return err
 					}
@@ -7541,10 +8541,20 @@ func decodeSearchStacksParams(args [0]string, argsEscaped bool, r *http.Request)
 
 // SearchUsersAdminParams is parameters of searchUsersAdmin operation.
 type SearchUsersAdminParams struct {
+	ID          OptUUID
 	WithDeleted OptBool
 }
 
 func unpackSearchUsersAdminParams(packed middleware.Parameters) (params SearchUsersAdminParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.ID = v.(OptUUID)
+		}
+	}
 	{
 		key := middleware.ParameterKey{
 			Name: "withDeleted",
@@ -7559,6 +8569,47 @@ func unpackSearchUsersAdminParams(packed middleware.Parameters) (params SearchUs
 
 func decodeSearchUsersAdminParams(args [0]string, argsEscaped bool, r *http.Request) (params SearchUsersAdminParams, _ error) {
 	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: id.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIDVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.ID.SetTo(paramsDotIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	// Decode query: withDeleted.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{
@@ -8201,6 +9252,71 @@ func unpackUpdateMemoryParams(packed middleware.Parameters) (params UpdateMemory
 }
 
 func decodeUpdateMemoryParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdateMemoryParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// UpdateNotificationParams is parameters of updateNotification operation.
+type UpdateNotificationParams struct {
+	ID uuid.UUID
+}
+
+func unpackUpdateNotificationParams(packed middleware.Parameters) (params UpdateNotificationParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeUpdateNotificationParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdateNotificationParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

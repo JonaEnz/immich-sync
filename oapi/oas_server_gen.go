@@ -32,6 +32,10 @@ type Handler interface {
 	//
 	// POST /auth/change-password
 	ChangePassword(ctx context.Context, req *ChangePasswordDto) (*UserAdminResponseDto, error)
+	// ChangePinCode implements changePinCode operation.
+	//
+	// PUT /auth/pin-code
+	ChangePinCode(ctx context.Context, req *PinCodeChangeDto) error
 	// CheckBulkUpload implements checkBulkUpload operation.
 	//
 	// Checks if assets exist by checksums.
@@ -56,6 +60,10 @@ type Handler interface {
 	//
 	// POST /api-keys
 	CreateApiKey(ctx context.Context, req *APIKeyCreateDto) (*APIKeyCreateResponseDto, error)
+	// CreateFace implements createFace operation.
+	//
+	// POST /faces
+	CreateFace(ctx context.Context, req *AssetFaceCreateDto) error
 	// CreateJob implements createJob operation.
 	//
 	// POST /jobs
@@ -68,6 +76,10 @@ type Handler interface {
 	//
 	// POST /memories
 	CreateMemory(ctx context.Context, req *MemoryCreateDto) (*MemoryResponseDto, error)
+	// CreateNotification implements createNotification operation.
+	//
+	// POST /admin/notifications
+	CreateNotification(ctx context.Context, req *NotificationCreateDto) (*NotificationDto, error)
 	// CreatePartner implements createPartner operation.
 	//
 	// POST /partners/{id}
@@ -80,6 +92,10 @@ type Handler interface {
 	//
 	// POST /users/profile-image
 	CreateProfileImage(ctx context.Context, req *CreateProfileImageDtoMultipart) (*CreateProfileImageResponseDto, error)
+	// CreateSession implements createSession operation.
+	//
+	// POST /sessions
+	CreateSession(ctx context.Context, req *SessionCreateDto) (*SessionCreateResponseDto, error)
 	// CreateSharedLink implements createSharedLink operation.
 	//
 	// POST /shared-links
@@ -116,6 +132,10 @@ type Handler interface {
 	//
 	// DELETE /assets
 	DeleteAssets(ctx context.Context, req *AssetBulkDeleteDto) error
+	// DeleteFace implements deleteFace operation.
+	//
+	// DELETE /faces/{id}
+	DeleteFace(ctx context.Context, req *AssetFaceDeleteDto, params DeleteFaceParams) error
 	// DeleteLibrary implements deleteLibrary operation.
 	//
 	// DELETE /libraries/{id}
@@ -124,6 +144,14 @@ type Handler interface {
 	//
 	// DELETE /memories/{id}
 	DeleteMemory(ctx context.Context, params DeleteMemoryParams) error
+	// DeleteNotification implements deleteNotification operation.
+	//
+	// DELETE /notifications/{id}
+	DeleteNotification(ctx context.Context, params DeleteNotificationParams) error
+	// DeleteNotifications implements deleteNotifications operation.
+	//
+	// DELETE /notifications
+	DeleteNotifications(ctx context.Context, req *NotificationDeleteAllDto) error
 	// DeleteProfileImage implements deleteProfileImage operation.
 	//
 	// DELETE /users/profile-image
@@ -144,6 +172,10 @@ type Handler interface {
 	//
 	// DELETE /stacks
 	DeleteStacks(ctx context.Context, req *BulkIdsDto) error
+	// DeleteSyncAck implements deleteSyncAck operation.
+	//
+	// DELETE /sync/ack
+	DeleteSyncAck(ctx context.Context, req *SyncAckDeleteDto) error
 	// DeleteTag implements deleteTag operation.
 	//
 	// DELETE /tags/{id}
@@ -163,7 +195,7 @@ type Handler interface {
 	// DownloadAsset implements downloadAsset operation.
 	//
 	// GET /assets/{id}/original
-	DownloadAsset(ctx context.Context, params DownloadAssetParams) (*DownloadAssetOKHeaders, error)
+	DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error)
 	// EmptyTrash implements emptyTrash operation.
 	//
 	// POST /trash/empty
@@ -172,10 +204,6 @@ type Handler interface {
 	//
 	// POST /oauth/callback
 	FinishOAuth(ctx context.Context, req *OAuthCallbackDto) (*LoginResponseDto, error)
-	// FixAuditFiles implements fixAuditFiles operation.
-	//
-	// POST /reports/fix
-	FixAuditFiles(ctx context.Context, req *FileReportFixDto) error
 	// GetAboutInfo implements getAboutInfo operation.
 	//
 	// GET /server/about
@@ -219,7 +247,7 @@ type Handler interface {
 	// GetAllSharedLinks implements getAllSharedLinks operation.
 	//
 	// GET /shared-links
-	GetAllSharedLinks(ctx context.Context) ([]SharedLinkResponseDto, error)
+	GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) ([]SharedLinkResponseDto, error)
 	// GetAllTags implements getAllTags operation.
 	//
 	// GET /tags
@@ -258,14 +286,10 @@ type Handler interface {
 	//
 	// GET /view/folder
 	GetAssetsByOriginalPath(ctx context.Context, params GetAssetsByOriginalPathParams) ([]AssetResponseDto, error)
-	// GetAuditDeletes implements getAuditDeletes operation.
+	// GetAuthStatus implements getAuthStatus operation.
 	//
-	// GET /audit/deletes
-	GetAuditDeletes(ctx context.Context, params GetAuditDeletesParams) (*AuditDeletesResponseDto, error)
-	// GetAuditFiles implements getAuditFiles operation.
-	//
-	// GET /reports
-	GetAuditFiles(ctx context.Context) (*FileReportDto, error)
+	// GET /auth/status
+	GetAuthStatus(ctx context.Context) (*AuthStatusResponseDto, error)
 	// GetConfig implements getConfig operation.
 	//
 	// GET /system-config
@@ -290,10 +314,6 @@ type Handler interface {
 	//
 	// GET /faces
 	GetFaces(ctx context.Context, params GetFacesParams) ([]AssetFaceResponseDto, error)
-	// GetFileChecksums implements getFileChecksums operation.
-	//
-	// POST /reports/checksum
-	GetFileChecksums(ctx context.Context, req *FileChecksumDto) ([]FileChecksumResponseDto, error)
 	// GetFullSyncForUser implements getFullSyncForUser operation.
 	//
 	// POST /sync/full-sync
@@ -314,10 +334,6 @@ type Handler interface {
 	//
 	// GET /memories/{id}
 	GetMemory(ctx context.Context, params GetMemoryParams) (*MemoryResponseDto, error)
-	// GetMemoryLane implements getMemoryLane operation.
-	//
-	// GET /assets/memory-lane
-	GetMemoryLane(ctx context.Context, params GetMemoryLaneParams) ([]MemoryLaneResponseDto, error)
 	// GetMyPreferences implements getMyPreferences operation.
 	//
 	// GET /users/me/preferences
@@ -330,6 +346,18 @@ type Handler interface {
 	//
 	// GET /users/me
 	GetMyUser(ctx context.Context) (*UserAdminResponseDto, error)
+	// GetNotification implements getNotification operation.
+	//
+	// GET /notifications/{id}
+	GetNotification(ctx context.Context, params GetNotificationParams) (*NotificationDto, error)
+	// GetNotificationTemplateAdmin implements getNotificationTemplateAdmin operation.
+	//
+	// POST /admin/notifications/templates/{name}
+	GetNotificationTemplateAdmin(ctx context.Context, req *TemplateDto, params GetNotificationTemplateAdminParams) (*TemplateResponseDto, error)
+	// GetNotifications implements getNotifications operation.
+	//
+	// GET /notifications
+	GetNotifications(ctx context.Context, params GetNotificationsParams) ([]NotificationDto, error)
 	// GetPartners implements getPartners operation.
 	//
 	// GET /partners
@@ -410,6 +438,14 @@ type Handler interface {
 	//
 	// GET /server/media-types
 	GetSupportedMediaTypes(ctx context.Context) (*ServerMediaTypesResponseDto, error)
+	// GetSyncAck implements getSyncAck operation.
+	//
+	// GET /sync/ack
+	GetSyncAck(ctx context.Context) ([]SyncAckDto, error)
+	// GetSyncStream implements getSyncStream operation.
+	//
+	// POST /sync/stream
+	GetSyncStream(ctx context.Context, req *SyncStreamDto) error
 	// GetTagById implements getTagById operation.
 	//
 	// GET /tags/{id}
@@ -421,11 +457,11 @@ type Handler interface {
 	// GetTimeBucket implements getTimeBucket operation.
 	//
 	// GET /timeline/bucket
-	GetTimeBucket(ctx context.Context, params GetTimeBucketParams) ([]AssetResponseDto, error)
+	GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (*TimeBucketAssetResponseDto, error)
 	// GetTimeBuckets implements getTimeBuckets operation.
 	//
 	// GET /timeline/buckets
-	GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketResponseDto, error)
+	GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketsResponseDto, error)
 	// GetUniqueOriginalPaths implements getUniqueOriginalPaths operation.
 	//
 	// GET /view/folder/unique-paths
@@ -446,6 +482,10 @@ type Handler interface {
 	//
 	// GET /admin/users/{id}/preferences
 	GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
+	// GetUserStatisticsAdmin implements getUserStatisticsAdmin operation.
+	//
+	// GET /admin/users/{id}/statistics
+	GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error)
 	// GetVersionHistory implements getVersionHistory operation.
 	//
 	// GET /server/version-history
@@ -454,6 +494,14 @@ type Handler interface {
 	//
 	// POST /oauth/link
 	LinkOAuthAccount(ctx context.Context, req *OAuthCallbackDto) (*UserAdminResponseDto, error)
+	// LockAuthSession implements lockAuthSession operation.
+	//
+	// POST /auth/session/lock
+	LockAuthSession(ctx context.Context) error
+	// LockSession implements lockSession operation.
+	//
+	// POST /sessions/{id}/lock
+	LockSession(ctx context.Context, params LockSessionParams) error
 	// Login implements login operation.
 	//
 	// POST /auth/login
@@ -516,6 +564,10 @@ type Handler interface {
 	//
 	// PUT /assets/{id}/original
 	ReplaceAsset(ctx context.Context, req *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (*AssetMediaResponseDto, error)
+	// ResetPinCode implements resetPinCode operation.
+	//
+	// DELETE /auth/pin-code
+	ResetPinCode(ctx context.Context, req *PinCodeResetDto) error
 	// RestoreAssets implements restoreAssets operation.
 	//
 	// POST /trash/restore/assets
@@ -540,14 +592,14 @@ type Handler interface {
 	//
 	// POST /libraries/{id}/scan
 	ScanLibrary(ctx context.Context, params ScanLibraryParams) error
+	// SearchAssets implements searchAssets operation.
+	//
+	// POST /search/metadata
+	SearchAssets(ctx context.Context, req *MetadataSearchDto) (*SearchResponseDto, error)
 	// SearchMemories implements searchMemories operation.
 	//
 	// GET /memories
-	SearchMemories(ctx context.Context) ([]MemoryResponseDto, error)
-	// SearchMetadata implements searchMetadata operation.
-	//
-	// POST /search/metadata
-	SearchMetadata(ctx context.Context, req *MetadataSearchDto) (*SearchResponseDto, error)
+	SearchMemories(ctx context.Context, params SearchMemoriesParams) ([]MemoryResponseDto, error)
 	// SearchPerson implements searchPerson operation.
 	//
 	// GET /search/person
@@ -580,10 +632,14 @@ type Handler interface {
 	//
 	// PUT /jobs/{id}
 	SendJobCommand(ctx context.Context, req *JobCommandDto, params SendJobCommandParams) (*JobStatusDto, error)
-	// SendTestEmail implements sendTestEmail operation.
+	// SendSyncAck implements sendSyncAck operation.
 	//
-	// POST /notifications/test-email
-	SendTestEmail(ctx context.Context, req *SystemConfigSmtpDto) (*TestEmailResponseDto, error)
+	// POST /sync/ack
+	SendSyncAck(ctx context.Context, req *SyncAckSetDto) error
+	// SendTestEmailAdmin implements sendTestEmailAdmin operation.
+	//
+	// POST /admin/notifications/test-email
+	SendTestEmailAdmin(ctx context.Context, req *SystemConfigSmtpDto) (*TestEmailResponseDto, error)
 	// SetServerLicense implements setServerLicense operation.
 	//
 	// PUT /server/license
@@ -592,6 +648,10 @@ type Handler interface {
 	//
 	// PUT /users/me/license
 	SetUserLicense(ctx context.Context, req *LicenseKeyDto) (*LicenseResponseDto, error)
+	// SetupPinCode implements setupPinCode operation.
+	//
+	// POST /auth/pin-code
+	SetupPinCode(ctx context.Context, req *PinCodeSetupDto) error
 	// SignUpAdmin implements signUpAdmin operation.
 	//
 	// POST /auth/admin-sign-up
@@ -608,6 +668,10 @@ type Handler interface {
 	//
 	// POST /oauth/unlink
 	UnlinkOAuthAccount(ctx context.Context) (*UserAdminResponseDto, error)
+	// UnlockAuthSession implements unlockAuthSession operation.
+	//
+	// POST /auth/session/unlock
+	UnlockAuthSession(ctx context.Context, req *SessionUnlockDto) error
 	// UntagAssets implements untagAssets operation.
 	//
 	// DELETE /tags/{id}/assets
@@ -656,6 +720,14 @@ type Handler interface {
 	//
 	// PUT /users/me
 	UpdateMyUser(ctx context.Context, req *UserUpdateMeDto) (*UserAdminResponseDto, error)
+	// UpdateNotification implements updateNotification operation.
+	//
+	// PUT /notifications/{id}
+	UpdateNotification(ctx context.Context, req *NotificationUpdateDto, params UpdateNotificationParams) (*NotificationDto, error)
+	// UpdateNotifications implements updateNotifications operation.
+	//
+	// PUT /notifications
+	UpdateNotifications(ctx context.Context, req *NotificationUpdateAllDto) error
 	// UpdatePartner implements updatePartner operation.
 	//
 	// PUT /partners/{id}
@@ -691,7 +763,7 @@ type Handler interface {
 	// UploadAsset implements uploadAsset operation.
 	//
 	// POST /assets
-	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDtoStatusCode, error)
+	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error)
 	// UpsertTags implements upsertTags operation.
 	//
 	// PUT /tags
