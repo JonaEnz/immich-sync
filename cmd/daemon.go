@@ -202,9 +202,9 @@ func uploadFile(arg string) (byte, string) {
 	for _, path := range uploadRequest.Paths {
 		log.Printf("Uploading %s\n", path)
 		idString, err := server.Upload(path, nil)
-		uploadedUUID, err := uuid.Parse(idString)
+		uploadedUUID, err2 := uuid.Parse(idString)
 		uuids = append(uuids, uploadedUUID)
-		if err != nil {
+		if err != nil || err2 != nil {
 			failed += 1
 		} else {
 			success += 1

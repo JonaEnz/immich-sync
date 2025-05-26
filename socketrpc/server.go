@@ -27,7 +27,7 @@ func NewRPCServer() RPCServer {
 
 func (s *RPCServer) Start() {
 	s.mu.Lock()
-	s.exit = make(chan interface{})
+	s.exit = make(chan any)
 	s.mu.Unlock()
 
 	if err := os.RemoveAll(socketAddr); err != nil {

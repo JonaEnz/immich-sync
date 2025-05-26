@@ -8114,8 +8114,8 @@ func decodeUpdateUserPreferencesAdminResponse(resp *http.Response) (res *UserPre
 
 func decodeUploadAssetResponse(resp *http.Response) (res *AssetMediaResponseDto, _ error) {
 	switch resp.StatusCode {
-	case 201:
-		// Code 201.
+	case 200:
+		// Code 200.
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")
