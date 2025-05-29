@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -117,10 +118,11 @@ func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 
 func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 	sem := make(chan int, concurrentUploads)
+	mu := sync.Mutex{}
 	for imagePath, entry := range i.contentCache {
 		h := entry.HashHexString()
 		sem <- 1
-		go func(imagePath, h string) {
+		go func(imagePath, h string, mu *sync.Mutex) {
 			rawUUID, err := server.Upload(imagePath, &h)
 			if err != nil {
 				log.Printf("Failed to upload image at '%s' to server: %s\n", imagePath, err.Error())
@@ -133,7 +135,9 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 				return
 			}
 			entry.uuid = u
+			mu.Lock()
 			i.contentCache[imagePath] = entry
+			mu.Unlock()
 			if i.album != nil {
 				err = server.AddToAlbum([]uuid.UUID{u}, *i.album)
 			}
@@ -143,6 +147,6 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 				return
 			}
 			<-sem
-		}(imagePath, h)
+		}(imagePath, h, &mu)
 	}
 }

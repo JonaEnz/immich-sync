@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -110,7 +111,7 @@ func rmDir(path string) (byte, string) {
 	}
 	for i := range server.ImageDirs {
 		if server.ImageDirs[i].Path() == path {
-			server.ImageDirs = append(server.ImageDirs[:i], server.ImageDirs[i+1:]...)
+			server.ImageDirs = slices.Delete(server.ImageDirs, i, i+1)
 			updateConfig()
 			return socketrpc.ErrOk, ""
 		}
