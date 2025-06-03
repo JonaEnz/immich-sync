@@ -896,6 +896,20 @@ func encodeSetUserLicenseRequest(
 	return nil
 }
 
+func encodeSetUserOnboardingRequest(
+	req *OnboardingDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeSetupPinCodeRequest(
 	req *PinCodeSetupDto,
 	r *http.Request,
@@ -1281,9 +1295,7 @@ func encodeUploadAssetRequest(
 	const contentType = "multipart/form-data"
 	request := req
 
-	q := uri.NewFormEncoder(map[string]string{
-		"visibility": "application/json; charset=utf-8",
-	})
+	q := uri.NewFormEncoder(map[string]string{})
 	{
 		// Encode "deviceAssetId" form field.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -1384,26 +1396,28 @@ func encodeUploadAssetRequest(
 			return errors.Wrap(err, "encode query")
 		}
 	}
-	// {
-	// 	// Encode "visibility" form field.
-	// 	cfg := uri.QueryParameterEncodingConfig{
-	// 		Name:    "visibility",
-	// 		Style:   uri.QueryStyleForm,
-	// 		Explode: true,
-	// 	}
-	// 	if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-	// 		var enc jx.Encoder
-	// 		func(e *jx.Encoder) {
-	// 			if request.Visibility.Set {
-	// 				request.Visibility.Encode(e)
-	// 			}
-	// 		}(&enc)
-	// 		return e.EncodeValue("timeline")
-	// 		return e.EncodeValue(string(enc.Bytes()))
-	// 	}); err != nil {
-	// 		return errors.Wrap(err, "encode query")
-	// 	}
-	// }
+	{
+		// Encode "visibility" form field.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			var enc jx.Encoder
+			func(e *jx.Encoder) {
+				if request.Visibility.Set {
+					request.Visibility.Encode(e)
+				}
+			}(&enc)
+			if request.Visibility.Set {
+				return e.EncodeValue(string(enc.Bytes()))
+			}
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "encode query")
+		}
+	}
 	body, boundary := ht.CreateMultipartBody(func(w *multipart.Writer) error {
 		if err := request.AssetData.WriteMultipart("assetData", w); err != nil {
 			return errors.Wrap(err, "write \"assetData\"")

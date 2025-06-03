@@ -151,17 +151,28 @@ func (s *APIKeyResponseDto) SetUpdatedAt(val time.Time) {
 
 // Ref: #/components/schemas/APIKeyUpdateDto
 type APIKeyUpdateDto struct {
-	Name string `json:"name"`
+	Name        OptString    `json:"name"`
+	Permissions []Permission `json:"permissions"`
 }
 
 // GetName returns the value of Name.
-func (s *APIKeyUpdateDto) GetName() string {
+func (s *APIKeyUpdateDto) GetName() OptString {
 	return s.Name
 }
 
+// GetPermissions returns the value of Permissions.
+func (s *APIKeyUpdateDto) GetPermissions() []Permission {
+	return s.Permissions
+}
+
 // SetName sets the value of Name.
-func (s *APIKeyUpdateDto) SetName(val string) {
+func (s *APIKeyUpdateDto) SetName(val OptString) {
 	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *APIKeyUpdateDto) SetPermissions(val []Permission) {
+	s.Permissions = val
 }
 
 // Ref: #/components/schemas/ActivityCreateDto
@@ -3043,6 +3054,36 @@ func (s *CQMode) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/CastResponse
+type CastResponse struct {
+	GCastEnabled bool `json:"gCastEnabled"`
+}
+
+// GetGCastEnabled returns the value of GCastEnabled.
+func (s *CastResponse) GetGCastEnabled() bool {
+	return s.GCastEnabled
+}
+
+// SetGCastEnabled sets the value of GCastEnabled.
+func (s *CastResponse) SetGCastEnabled(val bool) {
+	s.GCastEnabled = val
+}
+
+// Ref: #/components/schemas/CastUpdate
+type CastUpdate struct {
+	GCastEnabled OptBool `json:"gCastEnabled"`
+}
+
+// GetGCastEnabled returns the value of GCastEnabled.
+func (s *CastUpdate) GetGCastEnabled() OptBool {
+	return s.GCastEnabled
+}
+
+// SetGCastEnabled sets the value of GCastEnabled.
+func (s *CastUpdate) SetGCastEnabled(val OptBool) {
+	s.GCastEnabled = val
+}
+
 // Ref: #/components/schemas/ChangePasswordDto
 type ChangePasswordDto struct {
 	NewPassword string `json:"newPassword"`
@@ -3424,6 +3465,9 @@ type DeleteTagNoContent struct{}
 
 // DeleteUserLicenseOK is response for DeleteUserLicense operation.
 type DeleteUserLicenseOK struct{}
+
+// DeleteUserOnboardingOK is response for DeleteUserOnboarding operation.
+type DeleteUserOnboardingOK struct{}
 
 // Ref: #/components/schemas/DownloadArchiveInfo
 type DownloadArchiveInfo struct {
@@ -4851,6 +4895,7 @@ func (s *LoginCredentialDto) SetPassword(val string) {
 type LoginResponseDto struct {
 	AccessToken          string `json:"accessToken"`
 	IsAdmin              bool   `json:"isAdmin"`
+	IsOnboarded          bool   `json:"isOnboarded"`
 	Name                 string `json:"name"`
 	ProfileImagePath     string `json:"profileImagePath"`
 	ShouldChangePassword bool   `json:"shouldChangePassword"`
@@ -4866,6 +4911,11 @@ func (s *LoginResponseDto) GetAccessToken() string {
 // GetIsAdmin returns the value of IsAdmin.
 func (s *LoginResponseDto) GetIsAdmin() bool {
 	return s.IsAdmin
+}
+
+// GetIsOnboarded returns the value of IsOnboarded.
+func (s *LoginResponseDto) GetIsOnboarded() bool {
+	return s.IsOnboarded
 }
 
 // GetName returns the value of Name.
@@ -4901,6 +4951,11 @@ func (s *LoginResponseDto) SetAccessToken(val string) {
 // SetIsAdmin sets the value of IsAdmin.
 func (s *LoginResponseDto) SetIsAdmin(val bool) {
 	s.IsAdmin = val
+}
+
+// SetIsOnboarded sets the value of IsOnboarded.
+func (s *LoginResponseDto) SetIsOnboarded(val bool) {
+	s.IsOnboarded = val
 }
 
 // SetName sets the value of Name.
@@ -6692,6 +6747,36 @@ func (s *OnThisDayDto) SetYear(val float64) {
 	s.Year = val
 }
 
+// Ref: #/components/schemas/OnboardingDto
+type OnboardingDto struct {
+	IsOnboarded bool `json:"isOnboarded"`
+}
+
+// GetIsOnboarded returns the value of IsOnboarded.
+func (s *OnboardingDto) GetIsOnboarded() bool {
+	return s.IsOnboarded
+}
+
+// SetIsOnboarded sets the value of IsOnboarded.
+func (s *OnboardingDto) SetIsOnboarded(val bool) {
+	s.IsOnboarded = val
+}
+
+// Ref: #/components/schemas/OnboardingResponseDto
+type OnboardingResponseDto struct {
+	IsOnboarded bool `json:"isOnboarded"`
+}
+
+// GetIsOnboarded returns the value of IsOnboarded.
+func (s *OnboardingResponseDto) GetIsOnboarded() bool {
+	return s.IsOnboarded
+}
+
+// SetIsOnboarded sets the value of IsOnboarded.
+func (s *OnboardingResponseDto) SetIsOnboarded(val bool) {
+	s.IsOnboarded = val
+}
+
 // NewOptAlbumResponseDto returns new OptAlbumResponseDto with value set to v.
 func NewOptAlbumResponseDto(v AlbumResponseDto) OptAlbumResponseDto {
 	return OptAlbumResponseDto{
@@ -7192,6 +7277,52 @@ func (o OptBulkIdResponseDtoError) Get() (v BulkIdResponseDtoError, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBulkIdResponseDtoError) Or(d BulkIdResponseDtoError) BulkIdResponseDtoError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCastUpdate returns new OptCastUpdate with value set to v.
+func NewOptCastUpdate(v CastUpdate) OptCastUpdate {
+	return OptCastUpdate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCastUpdate is optional CastUpdate.
+type OptCastUpdate struct {
+	Value CastUpdate
+	Set   bool
+}
+
+// IsSet returns true if OptCastUpdate was set.
+func (o OptCastUpdate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCastUpdate) Reset() {
+	var v CastUpdate
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCastUpdate) SetTo(v CastUpdate) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCastUpdate) Get() (v CastUpdate, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCastUpdate) Or(d CastUpdate) CastUpdate {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -11373,6 +11504,54 @@ func (s *ServerAboutResponseDto) SetVersion(val string) {
 // SetVersionUrl sets the value of VersionUrl.
 func (s *ServerAboutResponseDto) SetVersionUrl(val string) {
 	s.VersionUrl = val
+}
+
+// Ref: #/components/schemas/ServerApkLinksDto
+type ServerApkLinksDto struct {
+	Arm64v8a   string `json:"arm64v8a"`
+	Armeabiv7a string `json:"armeabiv7a"`
+	Universal  string `json:"universal"`
+	X8664      string `json:"x86_64"`
+}
+
+// GetArm64v8a returns the value of Arm64v8a.
+func (s *ServerApkLinksDto) GetArm64v8a() string {
+	return s.Arm64v8a
+}
+
+// GetArmeabiv7a returns the value of Armeabiv7a.
+func (s *ServerApkLinksDto) GetArmeabiv7a() string {
+	return s.Armeabiv7a
+}
+
+// GetUniversal returns the value of Universal.
+func (s *ServerApkLinksDto) GetUniversal() string {
+	return s.Universal
+}
+
+// GetX8664 returns the value of X8664.
+func (s *ServerApkLinksDto) GetX8664() string {
+	return s.X8664
+}
+
+// SetArm64v8a sets the value of Arm64v8a.
+func (s *ServerApkLinksDto) SetArm64v8a(val string) {
+	s.Arm64v8a = val
+}
+
+// SetArmeabiv7a sets the value of Armeabiv7a.
+func (s *ServerApkLinksDto) SetArmeabiv7a(val string) {
+	s.Armeabiv7a = val
+}
+
+// SetUniversal sets the value of Universal.
+func (s *ServerApkLinksDto) SetUniversal(val string) {
+	s.Universal = val
+}
+
+// SetX8664 sets the value of X8664.
+func (s *ServerApkLinksDto) SetX8664(val string) {
+	s.X8664 = val
 }
 
 // Ref: #/components/schemas/ServerConfigDto
@@ -15929,6 +16108,14 @@ func (s *UpdatePartnerDto) SetInTimeline(val bool) {
 	s.InTimeline = val
 }
 
+type UploadAssetCreated AssetMediaResponseDto
+
+func (*UploadAssetCreated) uploadAssetRes() {}
+
+type UploadAssetOK AssetMediaResponseDto
+
+func (*UploadAssetOK) uploadAssetRes() {}
+
 // Ref: #/components/schemas/UsageByUserDto
 type UsageByUserDto struct {
 	Photos           int      `json:"photos"`
@@ -16548,6 +16735,7 @@ func (s *UserLicense) SetLicenseKey(val string) {
 
 // Ref: #/components/schemas/UserPreferencesResponseDto
 type UserPreferencesResponseDto struct {
+	Cast               CastResponse               `json:"cast"`
 	Download           DownloadResponse           `json:"download"`
 	EmailNotifications EmailNotificationsResponse `json:"emailNotifications"`
 	Folders            FoldersResponse            `json:"folders"`
@@ -16557,6 +16745,11 @@ type UserPreferencesResponseDto struct {
 	Ratings            RatingsResponse            `json:"ratings"`
 	SharedLinks        SharedLinksResponse        `json:"sharedLinks"`
 	Tags               TagsResponse               `json:"tags"`
+}
+
+// GetCast returns the value of Cast.
+func (s *UserPreferencesResponseDto) GetCast() CastResponse {
+	return s.Cast
 }
 
 // GetDownload returns the value of Download.
@@ -16602,6 +16795,11 @@ func (s *UserPreferencesResponseDto) GetSharedLinks() SharedLinksResponse {
 // GetTags returns the value of Tags.
 func (s *UserPreferencesResponseDto) GetTags() TagsResponse {
 	return s.Tags
+}
+
+// SetCast sets the value of Cast.
+func (s *UserPreferencesResponseDto) SetCast(val CastResponse) {
+	s.Cast = val
 }
 
 // SetDownload sets the value of Download.
@@ -16652,6 +16850,7 @@ func (s *UserPreferencesResponseDto) SetTags(val TagsResponse) {
 // Ref: #/components/schemas/UserPreferencesUpdateDto
 type UserPreferencesUpdateDto struct {
 	Avatar             OptAvatarUpdate             `json:"avatar"`
+	Cast               OptCastUpdate               `json:"cast"`
 	Download           OptDownloadUpdate           `json:"download"`
 	EmailNotifications OptEmailNotificationsUpdate `json:"emailNotifications"`
 	Folders            OptFoldersUpdate            `json:"folders"`
@@ -16666,6 +16865,11 @@ type UserPreferencesUpdateDto struct {
 // GetAvatar returns the value of Avatar.
 func (s *UserPreferencesUpdateDto) GetAvatar() OptAvatarUpdate {
 	return s.Avatar
+}
+
+// GetCast returns the value of Cast.
+func (s *UserPreferencesUpdateDto) GetCast() OptCastUpdate {
+	return s.Cast
 }
 
 // GetDownload returns the value of Download.
@@ -16716,6 +16920,11 @@ func (s *UserPreferencesUpdateDto) GetTags() OptTagsUpdate {
 // SetAvatar sets the value of Avatar.
 func (s *UserPreferencesUpdateDto) SetAvatar(val OptAvatarUpdate) {
 	s.Avatar = val
+}
+
+// SetCast sets the value of Cast.
+func (s *UserPreferencesUpdateDto) SetCast(val OptCastUpdate) {
+	s.Cast = val
 }
 
 // SetDownload sets the value of Download.
@@ -17021,6 +17230,32 @@ func (s *ValidateLibraryResponseDto) GetImportPaths() []ValidateLibraryImportPat
 // SetImportPaths sets the value of ImportPaths.
 func (s *ValidateLibraryResponseDto) SetImportPaths(val []ValidateLibraryImportPathResponseDto) {
 	s.ImportPaths = val
+}
+
+// Ref: #/components/schemas/VersionCheckStateResponseDto
+type VersionCheckStateResponseDto struct {
+	CheckedAt      NilString `json:"checkedAt"`
+	ReleaseVersion NilString `json:"releaseVersion"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *VersionCheckStateResponseDto) GetCheckedAt() NilString {
+	return s.CheckedAt
+}
+
+// GetReleaseVersion returns the value of ReleaseVersion.
+func (s *VersionCheckStateResponseDto) GetReleaseVersion() NilString {
+	return s.ReleaseVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *VersionCheckStateResponseDto) SetCheckedAt(val NilString) {
+	s.CheckedAt = val
+}
+
+// SetReleaseVersion sets the value of ReleaseVersion.
+func (s *VersionCheckStateResponseDto) SetReleaseVersion(val NilString) {
+	s.ReleaseVersion = val
 }
 
 // Ref: #/components/schemas/VideoCodec

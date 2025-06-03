@@ -4,3 +4,7 @@ package oapi
 type GetServerLicenseRes interface {
 	getServerLicenseRes()
 }
+
+type UploadAssetRes interface {
+	uploadAssetRes()
+}

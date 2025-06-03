@@ -325,6 +325,13 @@ func (UnimplementedHandler) DeleteUserLicense(ctx context.Context) error {
 	return ht.ErrNotImplemented
 }
 
+// DeleteUserOnboarding implements deleteUserOnboarding operation.
+//
+// DELETE /users/me/onboarding
+func (UnimplementedHandler) DeleteUserOnboarding(ctx context.Context) error {
+	return ht.ErrNotImplemented
+}
+
 // DownloadArchive implements downloadArchive operation.
 //
 // POST /download/archive
@@ -457,6 +464,13 @@ func (UnimplementedHandler) GetApiKey(ctx context.Context, params GetApiKeyParam
 //
 // GET /api-keys
 func (UnimplementedHandler) GetApiKeys(ctx context.Context) (r []APIKeyResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetApkLinks implements getApkLinks operation.
+//
+// GET /server/apk-links
+func (UnimplementedHandler) GetApkLinks(ctx context.Context) (r *ServerApkLinksDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -828,6 +842,13 @@ func (UnimplementedHandler) GetUserLicense(ctx context.Context) (r *LicenseRespo
 	return r, ht.ErrNotImplemented
 }
 
+// GetUserOnboarding implements getUserOnboarding operation.
+//
+// GET /users/me/onboarding
+func (UnimplementedHandler) GetUserOnboarding(ctx context.Context) (r *OnboardingResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetUserPreferencesAdmin implements getUserPreferencesAdmin operation.
 //
 // GET /admin/users/{id}/preferences
@@ -839,6 +860,20 @@ func (UnimplementedHandler) GetUserPreferencesAdmin(ctx context.Context, params 
 //
 // GET /admin/users/{id}/statistics
 func (UnimplementedHandler) GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (r *AssetStatsResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetVersionCheck implements getVersionCheck operation.
+//
+// GET /server/version-check
+func (UnimplementedHandler) GetVersionCheck(ctx context.Context) (r *VersionCheckStateResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetVersionCheckState implements getVersionCheckState operation.
+//
+// GET /system-metadata/version-check-state
+func (UnimplementedHandler) GetVersionCheckState(ctx context.Context) (r *VersionCheckStateResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1124,6 +1159,13 @@ func (UnimplementedHandler) SetUserLicense(ctx context.Context, req *LicenseKeyD
 	return r, ht.ErrNotImplemented
 }
 
+// SetUserOnboarding implements setUserOnboarding operation.
+//
+// PUT /users/me/onboarding
+func (UnimplementedHandler) SetUserOnboarding(ctx context.Context, req *OnboardingDto) (r *OnboardingResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SetupPinCode implements setupPinCode operation.
 //
 // POST /auth/pin-code
@@ -1323,7 +1365,7 @@ func (UnimplementedHandler) UpdateUserPreferencesAdmin(ctx context.Context, req 
 // UploadAsset implements uploadAsset operation.
 //
 // POST /assets
-func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r *AssetMediaResponseDto, _ error) {
+func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r UploadAssetRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

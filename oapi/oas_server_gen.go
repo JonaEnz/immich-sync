@@ -188,6 +188,10 @@ type Handler interface {
 	//
 	// DELETE /users/me/license
 	DeleteUserLicense(ctx context.Context) error
+	// DeleteUserOnboarding implements deleteUserOnboarding operation.
+	//
+	// DELETE /users/me/onboarding
+	DeleteUserOnboarding(ctx context.Context) error
 	// DownloadArchive implements downloadArchive operation.
 	//
 	// POST /download/archive
@@ -266,6 +270,10 @@ type Handler interface {
 	//
 	// GET /api-keys
 	GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error)
+	// GetApkLinks implements getApkLinks operation.
+	//
+	// GET /server/apk-links
+	GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error)
 	// GetAssetDuplicates implements getAssetDuplicates operation.
 	//
 	// GET /duplicates
@@ -478,6 +486,10 @@ type Handler interface {
 	//
 	// GET /users/me/license
 	GetUserLicense(ctx context.Context) (*LicenseResponseDto, error)
+	// GetUserOnboarding implements getUserOnboarding operation.
+	//
+	// GET /users/me/onboarding
+	GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error)
 	// GetUserPreferencesAdmin implements getUserPreferencesAdmin operation.
 	//
 	// GET /admin/users/{id}/preferences
@@ -486,6 +498,14 @@ type Handler interface {
 	//
 	// GET /admin/users/{id}/statistics
 	GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error)
+	// GetVersionCheck implements getVersionCheck operation.
+	//
+	// GET /server/version-check
+	GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error)
+	// GetVersionCheckState implements getVersionCheckState operation.
+	//
+	// GET /system-metadata/version-check-state
+	GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionHistory implements getVersionHistory operation.
 	//
 	// GET /server/version-history
@@ -648,6 +668,10 @@ type Handler interface {
 	//
 	// PUT /users/me/license
 	SetUserLicense(ctx context.Context, req *LicenseKeyDto) (*LicenseResponseDto, error)
+	// SetUserOnboarding implements setUserOnboarding operation.
+	//
+	// PUT /users/me/onboarding
+	SetUserOnboarding(ctx context.Context, req *OnboardingDto) (*OnboardingResponseDto, error)
 	// SetupPinCode implements setupPinCode operation.
 	//
 	// POST /auth/pin-code
@@ -763,7 +787,7 @@ type Handler interface {
 	// UploadAsset implements uploadAsset operation.
 	//
 	// POST /assets
-	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error)
+	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
 	// UpsertTags implements upsertTags operation.
 	//
 	// PUT /tags

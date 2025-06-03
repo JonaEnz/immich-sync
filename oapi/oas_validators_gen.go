@@ -121,6 +121,54 @@ func (s *APIKeyResponseDto) Validate() error {
 	return nil
 }
 
+func (s *APIKeyUpdateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Permissions == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Permissions)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *ActivityCreateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -1484,6 +1532,9 @@ func (s *CreateLibraryDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.ExclusionPatterns == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
@@ -1503,6 +1554,9 @@ func (s *CreateLibraryDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.ImportPaths == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
@@ -5539,6 +5593,9 @@ func (s *TimeBucketAssetResponseDto) Validate() error {
 		var failures []validate.FieldError
 		for i, elem := range s.Stack {
 			if err := func() error {
+				if elem == nil {
+					return nil // null
+				}
 				if err := (validate.Array{
 					MinLength:    2,
 					MinLengthSet: true,
@@ -5812,6 +5869,9 @@ func (s *UpdateLibraryDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.ExclusionPatterns == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
@@ -5831,6 +5891,9 @@ func (s *UpdateLibraryDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.ImportPaths == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
@@ -5851,6 +5914,22 @@ func (s *UpdateLibraryDto) Validate() error {
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *UploadAssetCreated) Validate() error {
+	alias := (*AssetMediaResponseDto)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *UploadAssetOK) Validate() error {
+	alias := (*AssetMediaResponseDto)(s)
+	if err := alias.Validate(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -6222,6 +6301,9 @@ func (s *ValidateLibraryDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.ExclusionPatterns == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,
@@ -6241,6 +6323,9 @@ func (s *ValidateLibraryDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.ImportPaths == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    0,
 			MinLengthSet: false,

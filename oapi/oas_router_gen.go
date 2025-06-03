@@ -2360,24 +2360,58 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 						switch elem[0] {
-						case 'a': // Prefix: "about"
+						case 'a': // Prefix: "a"
 
-							if l := len("about"); len(elem) >= l && elem[0:l] == "about" {
+							if l := len("a"); len(elem) >= l && elem[0:l] == "a" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "GET":
-									s.handleGetAboutInfoRequest([0]string{}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, "GET")
+								break
+							}
+							switch elem[0] {
+							case 'b': // Prefix: "bout"
+
+								if l := len("bout"); len(elem) >= l && elem[0:l] == "bout" {
+									elem = elem[l:]
+								} else {
+									break
 								}
 
-								return
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleGetAboutInfoRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
+							case 'p': // Prefix: "pk-links"
+
+								if l := len("pk-links"); len(elem) >= l && elem[0:l] == "pk-links" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleGetApkLinksRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
 							}
 
 						case 'c': // Prefix: "config"
@@ -2577,24 +2611,58 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 							switch elem[0] {
-							case '-': // Prefix: "-history"
+							case '-': // Prefix: "-"
 
-								if l := len("-history"); len(elem) >= l && elem[0:l] == "-history" {
+								if l := len("-"); len(elem) >= l && elem[0:l] == "-" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "GET":
-										s.handleGetVersionHistoryRequest([0]string{}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "GET")
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "check"
+
+									if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
+										elem = elem[l:]
+									} else {
+										break
 									}
 
-									return
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleGetVersionCheckRequest([0]string{}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
+									}
+
+								case 'h': // Prefix: "history"
+
+									if l := len("history"); len(elem) >= l && elem[0:l] == "history" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleGetVersionHistoryRequest([0]string{}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
+									}
+
 								}
 
 							}
@@ -3114,6 +3182,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
+							case 'v': // Prefix: "version-check-state"
+
+								if l := len("version-check-state"); len(elem) >= l && elem[0:l] == "version-check-state" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleGetVersionCheckStateRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET")
+									}
+
+									return
+								}
+
 							}
 
 						}
@@ -3450,6 +3538,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										s.handleGetUserLicenseRequest([0]string{}, elemIsEscaped, w, r)
 									case "PUT":
 										s.handleSetUserLicenseRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "DELETE,GET,PUT")
+									}
+
+									return
+								}
+
+							case 'o': // Prefix: "onboarding"
+
+								if l := len("onboarding"); len(elem) >= l && elem[0:l] == "onboarding" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "DELETE":
+										s.handleDeleteUserOnboardingRequest([0]string{}, elemIsEscaped, w, r)
+									case "GET":
+										s.handleGetUserOnboardingRequest([0]string{}, elemIsEscaped, w, r)
+									case "PUT":
+										s.handleSetUserOnboardingRequest([0]string{}, elemIsEscaped, w, r)
 									default:
 										s.notAllowed(w, r, "DELETE,GET,PUT")
 									}
@@ -6426,28 +6538,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 						switch elem[0] {
-						case 'a': // Prefix: "about"
+						case 'a': // Prefix: "a"
 
-							if l := len("about"); len(elem) >= l && elem[0:l] == "about" {
+							if l := len("a"); len(elem) >= l && elem[0:l] == "a" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
 							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "GET":
-									r.name = GetAboutInfoOperation
-									r.summary = ""
-									r.operationID = "getAboutInfo"
-									r.pathPattern = "/server/about"
-									r.args = args
-									r.count = 0
-									return r, true
-								default:
-									return
+								break
+							}
+							switch elem[0] {
+							case 'b': // Prefix: "bout"
+
+								if l := len("bout"); len(elem) >= l && elem[0:l] == "bout" {
+									elem = elem[l:]
+								} else {
+									break
 								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = GetAboutInfoOperation
+										r.summary = ""
+										r.operationID = "getAboutInfo"
+										r.pathPattern = "/server/about"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'p': // Prefix: "pk-links"
+
+								if l := len("pk-links"); len(elem) >= l && elem[0:l] == "pk-links" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = GetApkLinksOperation
+										r.summary = ""
+										r.operationID = "getApkLinks"
+										r.pathPattern = "/server/apk-links"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
 							}
 
 						case 'c': // Prefix: "config"
@@ -6695,28 +6845,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 							}
 							switch elem[0] {
-							case '-': // Prefix: "-history"
+							case '-': // Prefix: "-"
 
-								if l := len("-history"); len(elem) >= l && elem[0:l] == "-history" {
+								if l := len("-"); len(elem) >= l && elem[0:l] == "-" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "GET":
-										r.name = GetVersionHistoryOperation
-										r.summary = ""
-										r.operationID = "getVersionHistory"
-										r.pathPattern = "/server/version-history"
-										r.args = args
-										r.count = 0
-										return r, true
-									default:
-										return
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "check"
+
+									if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
+										elem = elem[l:]
+									} else {
+										break
 									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = GetVersionCheckOperation
+											r.summary = ""
+											r.operationID = "getVersionCheck"
+											r.pathPattern = "/server/version-check"
+											r.args = args
+											r.count = 0
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'h': // Prefix: "history"
+
+									if l := len("history"); len(elem) >= l && elem[0:l] == "history" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = GetVersionHistoryOperation
+											r.summary = ""
+											r.operationID = "getVersionHistory"
+											r.pathPattern = "/server/version-history"
+											r.args = args
+											r.count = 0
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							}
@@ -7372,6 +7560,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
+							case 'v': // Prefix: "version-check-state"
+
+								if l := len("version-check-state"); len(elem) >= l && elem[0:l] == "version-check-state" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = GetVersionCheckStateOperation
+										r.summary = ""
+										r.operationID = "getVersionCheckState"
+										r.pathPattern = "/system-metadata/version-check-state"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
 							}
 
 						}
@@ -7793,6 +8005,46 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										r.summary = ""
 										r.operationID = "setUserLicense"
 										r.pathPattern = "/users/me/license"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'o': // Prefix: "onboarding"
+
+								if l := len("onboarding"); len(elem) >= l && elem[0:l] == "onboarding" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "DELETE":
+										r.name = DeleteUserOnboardingOperation
+										r.summary = ""
+										r.operationID = "deleteUserOnboarding"
+										r.pathPattern = "/users/me/onboarding"
+										r.args = args
+										r.count = 0
+										return r, true
+									case "GET":
+										r.name = GetUserOnboardingOperation
+										r.summary = ""
+										r.operationID = "getUserOnboarding"
+										r.pathPattern = "/users/me/onboarding"
+										r.args = args
+										r.count = 0
+										return r, true
+									case "PUT":
+										r.name = SetUserOnboardingOperation
+										r.summary = ""
+										r.operationID = "setUserOnboarding"
+										r.pathPattern = "/users/me/onboarding"
 										r.args = args
 										r.count = 0
 										return r, true

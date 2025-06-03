@@ -119,7 +119,8 @@ func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 	sem := make(chan int, concurrentUploads)
 	mu := sync.Mutex{}
-	for imagePath, entry := range i.contentCache {
+	copiedCache := i.contentCache
+	for imagePath, entry := range copiedCache {
 		h := entry.HashHexString()
 		sem <- 1
 		go func(imagePath, h string, mu *sync.Mutex) {

@@ -209,6 +209,10 @@ type Invoker interface {
 	//
 	// DELETE /users/me/license
 	DeleteUserLicense(ctx context.Context) error
+	// DeleteUserOnboarding invokes deleteUserOnboarding operation.
+	//
+	// DELETE /users/me/onboarding
+	DeleteUserOnboarding(ctx context.Context) error
 	// DownloadArchive invokes downloadArchive operation.
 	//
 	// POST /download/archive
@@ -287,6 +291,10 @@ type Invoker interface {
 	//
 	// GET /api-keys
 	GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error)
+	// GetApkLinks invokes getApkLinks operation.
+	//
+	// GET /server/apk-links
+	GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error)
 	// GetAssetDuplicates invokes getAssetDuplicates operation.
 	//
 	// GET /duplicates
@@ -499,6 +507,10 @@ type Invoker interface {
 	//
 	// GET /users/me/license
 	GetUserLicense(ctx context.Context) (*LicenseResponseDto, error)
+	// GetUserOnboarding invokes getUserOnboarding operation.
+	//
+	// GET /users/me/onboarding
+	GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error)
 	// GetUserPreferencesAdmin invokes getUserPreferencesAdmin operation.
 	//
 	// GET /admin/users/{id}/preferences
@@ -507,6 +519,14 @@ type Invoker interface {
 	//
 	// GET /admin/users/{id}/statistics
 	GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error)
+	// GetVersionCheck invokes getVersionCheck operation.
+	//
+	// GET /server/version-check
+	GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error)
+	// GetVersionCheckState invokes getVersionCheckState operation.
+	//
+	// GET /system-metadata/version-check-state
+	GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionHistory invokes getVersionHistory operation.
 	//
 	// GET /server/version-history
@@ -669,6 +689,10 @@ type Invoker interface {
 	//
 	// PUT /users/me/license
 	SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error)
+	// SetUserOnboarding invokes setUserOnboarding operation.
+	//
+	// PUT /users/me/onboarding
+	SetUserOnboarding(ctx context.Context, request *OnboardingDto) (*OnboardingResponseDto, error)
 	// SetupPinCode invokes setupPinCode operation.
 	//
 	// POST /auth/pin-code
@@ -784,7 +808,7 @@ type Invoker interface {
 	// UploadAsset invokes uploadAsset operation.
 	//
 	// POST /assets
-	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error)
+	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
 	// UpsertTags invokes upsertTags operation.
 	//
 	// PUT /tags
@@ -6864,6 +6888,133 @@ func (c *Client) sendDeleteUserLicense(ctx context.Context) (res *DeleteUserLice
 	return result, nil
 }
 
+// DeleteUserOnboarding invokes deleteUserOnboarding operation.
+//
+// DELETE /users/me/onboarding
+func (c *Client) DeleteUserOnboarding(ctx context.Context) error {
+	_, err := c.sendDeleteUserOnboarding(ctx)
+	return err
+}
+
+func (c *Client) sendDeleteUserOnboarding(ctx context.Context) (res *DeleteUserOnboardingOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteUserOnboarding"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/users/me/onboarding"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteUserOnboardingOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/users/me/onboarding"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteUserOnboardingResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DownloadArchive invokes downloadArchive operation.
 //
 // POST /download/archive
@@ -9643,6 +9794,133 @@ func (c *Client) sendGetApiKeys(ctx context.Context) (res []APIKeyResponseDto, e
 
 	stage = "DecodeResponse"
 	result, err := decodeGetApiKeysResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetApkLinks invokes getApkLinks operation.
+//
+// GET /server/apk-links
+func (c *Client) GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error) {
+	res, err := c.sendGetApkLinks(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetApkLinks(ctx context.Context) (res *ServerApkLinksDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getApkLinks"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/server/apk-links"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetApkLinksOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/server/apk-links"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetApkLinksOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetApkLinksOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetApkLinksOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetApkLinksResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -16108,40 +16386,6 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 		}
 	}
 	{
-		// Encode "page" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "page",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Page.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "pageSize" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "pageSize",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.PageSize.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
 		// Encode "personId" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "personId",
@@ -17200,6 +17444,133 @@ func (c *Client) sendGetUserLicense(ctx context.Context) (res *LicenseResponseDt
 	return result, nil
 }
 
+// GetUserOnboarding invokes getUserOnboarding operation.
+//
+// GET /users/me/onboarding
+func (c *Client) GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error) {
+	res, err := c.sendGetUserOnboarding(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetUserOnboarding(ctx context.Context) (res *OnboardingResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getUserOnboarding"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/users/me/onboarding"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetUserOnboardingOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/users/me/onboarding"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetUserOnboardingResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetUserPreferencesAdmin invokes getUserPreferencesAdmin operation.
 //
 // GET /admin/users/{id}/preferences
@@ -17540,6 +17911,260 @@ func (c *Client) sendGetUserStatisticsAdmin(ctx context.Context, params GetUserS
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserStatisticsAdminResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetVersionCheck invokes getVersionCheck operation.
+//
+// GET /server/version-check
+func (c *Client) GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error) {
+	res, err := c.sendGetVersionCheck(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetVersionCheck(ctx context.Context) (res *VersionCheckStateResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getVersionCheck"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/server/version-check"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetVersionCheckOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/server/version-check"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetVersionCheckOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetVersionCheckOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetVersionCheckOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetVersionCheckResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetVersionCheckState invokes getVersionCheckState operation.
+//
+// GET /system-metadata/version-check-state
+func (c *Client) GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error) {
+	res, err := c.sendGetVersionCheckState(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetVersionCheckState(ctx context.Context) (res *VersionCheckStateResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getVersionCheckState"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/system-metadata/version-check-state"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetVersionCheckStateOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/system-metadata/version-check-state"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetVersionCheckStateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetVersionCheckStateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetVersionCheckStateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetVersionCheckStateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -23039,6 +23664,136 @@ func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto)
 	return result, nil
 }
 
+// SetUserOnboarding invokes setUserOnboarding operation.
+//
+// PUT /users/me/onboarding
+func (c *Client) SetUserOnboarding(ctx context.Context, request *OnboardingDto) (*OnboardingResponseDto, error) {
+	res, err := c.sendSetUserOnboarding(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendSetUserOnboarding(ctx context.Context, request *OnboardingDto) (res *OnboardingResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("setUserOnboarding"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/users/me/onboarding"),
+	}
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SetUserOnboardingOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/users/me/onboarding"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeSetUserOnboardingRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SetUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SetUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SetUserOnboardingOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeSetUserOnboardingResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // SetupPinCode invokes setupPinCode operation.
 //
 // POST /auth/pin-code
@@ -26875,12 +27630,12 @@ func (c *Client) sendUpdateUserPreferencesAdmin(ctx context.Context, request *Us
 // UploadAsset invokes uploadAsset operation.
 //
 // POST /assets
-func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error) {
+func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error) {
 	res, err := c.sendUploadAsset(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (res *AssetMediaResponseDto, err error) {
+func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (res UploadAssetRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("uploadAsset"),
 		semconv.HTTPRequestMethodKey.String("POST"),

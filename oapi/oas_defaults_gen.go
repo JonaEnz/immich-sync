@@ -3,6 +3,14 @@
 package oapi
 
 // setDefaults set default value of fields.
+func (s *CastResponse) setDefaults() {
+	{
+		val := bool(false)
+		s.GCastEnabled = val
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *DownloadResponse) setDefaults() {
 	{
 		val := bool(false)
