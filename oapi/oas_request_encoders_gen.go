@@ -1384,25 +1384,26 @@ func encodeUploadAssetRequest(
 			return errors.Wrap(err, "encode query")
 		}
 	}
-	{
-		// Encode "visibility" form field.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "visibility",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			var enc jx.Encoder
-			func(e *jx.Encoder) {
-				if request.Visibility.Set {
-					request.Visibility.Encode(e)
-				}
-			}(&enc)
-			return e.EncodeValue(string(enc.Bytes()))
-		}); err != nil {
-			return errors.Wrap(err, "encode query")
-		}
-	}
+	// {
+	// 	// Encode "visibility" form field.
+	// 	cfg := uri.QueryParameterEncodingConfig{
+	// 		Name:    "visibility",
+	// 		Style:   uri.QueryStyleForm,
+	// 		Explode: true,
+	// 	}
+	// 	if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+	// 		var enc jx.Encoder
+	// 		func(e *jx.Encoder) {
+	// 			if request.Visibility.Set {
+	// 				request.Visibility.Encode(e)
+	// 			}
+	// 		}(&enc)
+	// 		return e.EncodeValue("timeline")
+	// 		return e.EncodeValue(string(enc.Bytes()))
+	// 	}); err != nil {
+	// 		return errors.Wrap(err, "encode query")
+	// 	}
+	// }
 	body, boundary := ht.CreateMultipartBody(func(w *multipart.Writer) error {
 		if err := request.AssetData.WriteMultipart("assetData", w); err != nil {
 			return errors.Wrap(err, "write \"assetData\"")
