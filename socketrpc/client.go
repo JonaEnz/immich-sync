@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const ResponseTimout = time.Second
+
 type RPCClient struct {
 	mu   *sync.Mutex
 	conn net.Conn
@@ -44,7 +46,7 @@ func (c *RPCClient) SendMessage(cmd byte, jsonMsg string) (string, error) {
 		c.conn.Write([]byte(jsonMsg))
 	}
 
-	c.conn.SetReadDeadline(time.Now().Add(time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(ResponseTimout))
 	buf := make([]byte, 1<<14)
 	n, err := c.conn.Read(buf)
 	if err != nil || n == 0 {

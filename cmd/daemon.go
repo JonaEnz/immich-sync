@@ -57,7 +57,7 @@ var daemonCmd = &cobra.Command{
 		}
 		rpcServer := socketrpc.NewRPCServer()
 		rpcServer.RegisterCallback(socketrpc.CmdScanAll, func(s string) (byte, string) {
-			scanAll(server.ImageDirs)
+			go scanAll(server.ImageDirs)
 			return socketrpc.ErrOk, ""
 		})
 		rpcServer.RegisterCallback(socketrpc.CmdStatus, func(s string) (byte, string) {
