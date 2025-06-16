@@ -1,0 +1,294 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go get github.com/ogen-go/ogen/gen@v1.14.0
+    # - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+
+# archives:
+#   - formats: [tar.gz]
+#     # this name template makes the OS and Arch compatible with the results of `uname`.
+#     name_template: >-
+#       {{ .ProjectName }}_
+#       {{- title .Os }}_
+#       {{- if eq .Arch "amd64" }}x86_64
+#       {{- else if eq .Arch "386" }}i386
+#       {{- else }}{{ .Arch }}{{ end }}
+#       {{- if .Arm }}v{{ .Arm }}{{ end }}
+#     # use zip for windows archives
+#     format_overrides:
+#       - goos: windows
+#         formats: [zip]
+
+nfpms:
+  # note that this is an array of nfpm configs
+  - #
+    # ID of the nfpm config, must be unique.
+    #
+    # Default: 'default'.
+    id: immich-sync
+
+    # Name of the package.
+    #
+    # Default: ProjectName.
+    # Templates: allowed.
+    package_name: immich-sync
+
+    # You can change the file name of the package.
+    #
+    # Default: '{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'.
+    # Templates: allowed.
+    file_name_template: "{{ .ConventionalFileName }}"
+
+    # Your app's vendor.
+    vendor: Jona Enzinger
+
+    # Your app's homepage.
+    #
+    # Default: inferred from global metadata.
+    homepage: https://github.com/JonaEnz/immich-sync
+
+    # Your app's maintainer (probably you).
+    #
+    # Default: inferred from global metadata.
+    maintainer: Jona Enzinger <jona_enzinger@outlook.com>
+
+    # Your app's description.
+    #
+    # Default: inferred from global metadata.
+    description: |-
+      A service to sync images from a local directory to your immich server.
+
+    # Your app's license.
+    #
+    # Default: inferred from global metadata.
+    license: MIT
+
+    # Formats to be generated.
+    formats:
+      # - apk
+      - deb
+      - rpm
+      # - termux.deb
+      - archlinux
+
+    # Umask to be used on files without explicit mode set. (overridable)
+    #
+    # Default: 0o002 (will remove world-writable permissions).
+    umask: 0o002
+
+    # Packages your package depends on. (overridable)
+    dependencies:
+      - git
+      - zsh
+
+    # Packages it provides. (overridable)
+    provides:
+      - immich-sync
+
+    # Path that the binaries should be installed.
+    #
+    # Default: '/usr/bin'.
+    bindir: /usr/bin
+
+    # Version Metadata (previously deb.metadata).
+    # Setting metadata might interfere with version comparisons depending on the
+    # packager.
+    #
+    # Default: extracted from `version` if it is semver compatible.
+    version_metadata: git
+
+    # Version Release.
+    release: 0.1.0
+
+    # Section.
+    section: default
+
+    # Priority.
+    priority: extra
+
+    # Makes a meta package - an empty package that contains only supporting
+    # files and dependencies.
+    # When set to `true`, the `builds` option is ignored.
+    meta: false
+
+    # Changelog YAML file, see: https://github.com/goreleaser/chglog
+    #
+    # You can use goreleaser/chglog to create the changelog for your project,
+    # pass that changelog yaml file to GoReleaser,
+    # and it should in turn setup it accordingly for the given available
+    # formats (deb and rpm at the moment).
+    #
+    # Experimental.
+    # changelog: ./foo.yml
+
+    # Contents to add to the package.
+    # GoReleaser will automatically add the binaries.
+    contents:
+      # Basic file that applies to all packagers
+      - src: immich-sync.service
+        dst: /etc/systemd/system/immich-sync.service
+
+    # Date to be used as mtime for the package itself, and its internal files.
+    # You may also want to set the mtime on its contents.
+    #
+    # Since: v2.6.
+    # Templates: allowed.
+    mtime: "{{ .CommitDate }}"
+
+    # Custom configuration applied only to the RPM packager.
+    rpm:
+      # Prefixes for relocatable packages.
+      prefixes:
+        - /usr/bin
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  # Repo in which the release will be created.
+  # Default: extracted from the origin remote URL or empty if its private hosted.
+  github:
+    owner: JonaEnz
+    name: immich-sync
+
+  # IDs of the archives to use.
+  # Empty means all IDs.
+  #
+  # Default: [].
+  ids: []
+
+  # If set to true, will not auto-publish the release.
+  # Note: all GitHub releases start as drafts while artifacts are uploaded.
+  # Available only for GitHub and Gitea.
+  draft: true
+
+  # Whether to remove existing draft releases with the same name before creating
+  # a new one.
+  #
+  # Only effective if `draft` is set to true.
+  # Available only for GitHub.
+  replace_existing_draft: true
+
+  # Whether to use an existing draft release as the target release.
+  #
+  # Available only for GitHub.
+  # Since: v2.5.
+  use_existing_draft: true
+
+  # Whether to remove an artifact that already exists.
+  #
+  # Available only for GitHub.
+  # This might be a bit expensive (rate-limiting speaking), so it is only done
+  # when the upload of an artifact fails with a 422 (which means it already
+  # exists in the release).
+  # We then grab the list of artifacts from the release, and delete the file
+  # that matches the one we're trying to upload.
+  # GoReleaser will then retry its upload.
+  replace_existing_artifacts: true
+
+  # Useful if you want to delay the creation of the tag in the remote.
+  # You can create the tag locally, but not push it, and run GoReleaser.
+  # It'll then set the `target_commitish` portion of the GitHub release to the
+  # value of this field.
+  # Only works on GitHub.
+  #
+  # Default: ''.
+  # Templates: allowed.
+  target_commitish: "{{ .Commit }}"
+
+  # If set, will create a release discussion in the category specified.
+  #
+  # Warning: do not use categories in the 'Announcement' format.
+  #  Check https://github.com/goreleaser/goreleaser/issues/2304 for more info.
+  #
+  # Default: ''.
+  discussion_category_name: General
+
+  # If set to auto, will mark the release as not ready for production
+  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+  # If set to true, will mark the release as not ready for production.
+  # Default: false.
+  prerelease: auto
+
+  # If set to false, will NOT mark the release as "latest".
+  # This prevents it from being shown at the top of the release list,
+  # and from being returned when calling https://api.github.com/repos/OWNER/REPO/releases/latest.
+  #
+  # Available only for GitHub.
+  #
+  # Default: true.
+  # Templates: allowed. (Since v2.6)
+  make_latest: true
+
+  # What to do with the release notes in case there the release already exists.
+  #
+  # Valid options are:
+  # - `keep-existing`: keep the existing notes
+  # - `append`: append the current release notes to the existing notes
+  # - `prepend`: prepend the current release notes to the existing notes
+  # - `replace`: replace existing notes
+  #
+  # Default: `keep-existing`.
+  mode: append
+
+  # Header for the release body.
+  #
+  # Templates: allowed.
+  header: |
+    ## Some title ({{ .Date }})
+
+    Welcome to this new release!
+  # Footer for the release body.
+  #
+  # Templates: allowed.
+  footer: |
+    ## Thanks
+
+    Those were the changes on {{ .Tag }}!
+
+  # You can change the name of the release.
+  #
+  # Default: '{{.Tag}}' ('{{.PrefixedTag}}' on Pro).
+  # Templates: allowed.
+  name_template: "{{.ProjectName}}-v{{.Version}} {{.Env.USER}}"
+
+  # You can disable this pipe in order to not create the release on any SCM.
+  # Keep in mind that this might also break things that depend on the release
+  # URL, for instance, homebrew taps.
+  #
+  # Templates: allowed.
+  disable: false
+
+  # Set this to true if you want to disable just the artifact upload to the SCM.
+  # If this is true, GoReleaser will still create the release with the
+  # changelog, but won't upload anything to it.
+  #
+  # Templates: allowed.
+  skip_upload: false
+
+  # Upload metadata.json and artifacts.json to the release as well.
+  include_meta: true
