@@ -207,14 +207,7 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if r, ok := response.(*oapi.UploadAssetCreated); ok {
-		return r.ID, nil
-	}
-	if r, ok := response.(*oapi.UploadAssetOK); ok {
-		return r.ID, nil
-	}
-
-	return "", err
+	return response.ID, nil
 }
 
 func (i *ImmichServer) Download(filePath string, imageUUID uuid.UUID) error {

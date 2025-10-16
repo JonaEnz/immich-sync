@@ -8,16 +8,15 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.opentelemetry.io/otel/trace"
-
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/otelogen"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type codeRecorder struct {
@@ -31,6 +30,8 @@ func (c *codeRecorder) WriteHeader(status int) {
 }
 
 // handleAddAssetsToAlbumRequest handles addAssetsToAlbum operation.
+//
+// This endpoint requires the `albumAsset.create` permission.
 //
 // PUT /albums/{id}/assets
 func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -84,7 +85,7 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -192,7 +193,9 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeAddAssetsToAlbumRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAddAssetsToAlbumRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -216,6 +219,7 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "addAssetsToAlbum",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -225,6 +229,10 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -265,7 +273,249 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 	}
 }
 
+// handleAddAssetsToAlbumsRequest handles addAssetsToAlbums operation.
+//
+// This endpoint requires the `albumAsset.create` permission.
+//
+// PUT /albums/assets
+func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("addAssetsToAlbums"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/albums/assets"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), AddAssetsToAlbumsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: AddAssetsToAlbumsOperation,
+			ID:   "addAssetsToAlbums",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, AddAssetsToAlbumsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, AddAssetsToAlbumsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, AddAssetsToAlbumsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeAddAssetsToAlbumsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAddAssetsToAlbumsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *AlbumsAddAssetsResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    AddAssetsToAlbumsOperation,
+			OperationSummary: "",
+			OperationID:      "addAssetsToAlbums",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *AlbumsAddAssetsDto
+			Params   = AddAssetsToAlbumsParams
+			Response = *AlbumsAddAssetsResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackAddAssetsToAlbumsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.AddAssetsToAlbums(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.AddAssetsToAlbums(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeAddAssetsToAlbumsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleAddMemoryAssetsRequest handles addMemoryAssets operation.
+//
+// This endpoint requires the `memoryAsset.create` permission.
 //
 // PUT /memories/{id}/assets
 func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -319,7 +569,7 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -427,7 +677,9 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeAddMemoryAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAddMemoryAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -451,6 +703,7 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "addMemoryAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -550,7 +803,7 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -658,7 +911,9 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeAddSharedLinkAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAddSharedLinkAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -682,6 +937,7 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "addSharedLinkAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -691,6 +947,10 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -732,6 +992,8 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 }
 
 // handleAddUsersToAlbumRequest handles addUsersToAlbum operation.
+//
+// This endpoint requires the `albumUser.create` permission.
 //
 // PUT /albums/{id}/users
 func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -785,7 +1047,7 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -893,7 +1155,9 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeAddUsersToAlbumRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAddUsersToAlbumRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -917,6 +1181,7 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "addUsersToAlbum",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -963,6 +1228,8 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 }
 
 // handleBulkTagAssetsRequest handles bulkTagAssets operation.
+//
+// This endpoint requires the `tag.asset` permission.
 //
 // PUT /tags/assets
 func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1016,7 +1283,7 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1114,7 +1381,9 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeBulkTagAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeBulkTagAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1138,6 +1407,7 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "bulkTagAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -1179,6 +1449,8 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleChangePasswordRequest handles changePassword operation.
+//
+// This endpoint requires the `auth.changePassword` permission.
 //
 // POST /auth/change-password
 func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1232,7 +1504,7 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1330,7 +1602,9 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 			return
 		}
 	}
-	request, close, err := s.decodeChangePasswordRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeChangePasswordRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1354,6 +1628,7 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "changePassword",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -1395,6 +1670,8 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 }
 
 // handleChangePinCodeRequest handles changePinCode operation.
+//
+// This endpoint requires the `pinCode.update` permission.
 //
 // PUT /auth/pin-code
 func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1448,7 +1725,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1546,7 +1823,9 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeChangePinCodeRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeChangePinCodeRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1562,7 +1841,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 		}
 	}()
 
-	var response *ChangePinCodeOK
+	var response *ChangePinCodeNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -1570,6 +1849,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "changePinCode",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -1577,7 +1857,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 		type (
 			Request  = *PinCodeChangeDto
 			Params   = struct{}
-			Response = *ChangePinCodeOK
+			Response = *ChangePinCodeNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -1612,7 +1892,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 
 // handleCheckBulkUploadRequest handles checkBulkUpload operation.
 //
-// Checks if assets exist by checksums.
+// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
 //
 // POST /assets/bulk-upload-check
 func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1666,7 +1946,7 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1764,7 +2044,9 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 			return
 		}
 	}
-	request, close, err := s.decodeCheckBulkUploadRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCheckBulkUploadRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -1788,6 +2070,7 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "checkBulkUpload",
 			OperationID:      "checkBulkUpload",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -1884,7 +2167,7 @@ func (s *Server) handleCheckExistingAssetsRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -1982,7 +2265,9 @@ func (s *Server) handleCheckExistingAssetsRequest(args [0]string, argsEscaped bo
 			return
 		}
 	}
-	request, close, err := s.decodeCheckExistingAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCheckExistingAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -2006,6 +2291,7 @@ func (s *Server) handleCheckExistingAssetsRequest(args [0]string, argsEscaped bo
 			OperationSummary: "checkExistingAssets",
 			OperationID:      "checkExistingAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -2047,6 +2333,8 @@ func (s *Server) handleCheckExistingAssetsRequest(args [0]string, argsEscaped bo
 }
 
 // handleCreateActivityRequest handles createActivity operation.
+//
+// This endpoint requires the `activity.create` permission.
 //
 // POST /activities
 func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2100,7 +2388,7 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -2198,7 +2486,9 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 			return
 		}
 	}
-	request, close, err := s.decodeCreateActivityRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateActivityRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -2222,6 +2512,7 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "createActivity",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -2263,6 +2554,8 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 }
 
 // handleCreateAlbumRequest handles createAlbum operation.
+//
+// This endpoint requires the `album.create` permission.
 //
 // POST /albums
 func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2316,7 +2609,7 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -2414,7 +2707,9 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 			return
 		}
 	}
-	request, close, err := s.decodeCreateAlbumRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateAlbumRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -2438,6 +2733,7 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "createAlbum",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -2479,6 +2775,8 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleCreateApiKeyRequest handles createApiKey operation.
+//
+// This endpoint requires the `apiKey.create` permission.
 //
 // POST /api-keys
 func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2532,7 +2830,7 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -2630,7 +2928,9 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeCreateApiKeyRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateApiKeyRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -2654,6 +2954,7 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "createApiKey",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -2695,6 +2996,8 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleCreateFaceRequest handles createFace operation.
+//
+// This endpoint requires the `face.create` permission.
 //
 // POST /faces
 func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2748,7 +3051,7 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -2846,7 +3149,9 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 			return
 		}
 	}
-	request, close, err := s.decodeCreateFaceRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateFaceRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -2870,6 +3175,7 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "createFace",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -2911,6 +3217,8 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 }
 
 // handleCreateJobRequest handles createJob operation.
+//
+// This endpoint is an admin-only route, and requires the `job.create` permission.
 //
 // POST /jobs
 func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2964,7 +3272,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -3062,7 +3370,9 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 			return
 		}
 	}
-	request, close, err := s.decodeCreateJobRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateJobRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -3078,7 +3388,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 		}
 	}()
 
-	var response *CreateJobCreated
+	var response *CreateJobNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -3086,6 +3396,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "createJob",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -3093,7 +3404,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 		type (
 			Request  = *JobCreateDto
 			Params   = struct{}
-			Response = *CreateJobCreated
+			Response = *CreateJobNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -3127,6 +3438,8 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 }
 
 // handleCreateLibraryRequest handles createLibrary operation.
+//
+// This endpoint is an admin-only route, and requires the `library.create` permission.
 //
 // POST /libraries
 func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3180,7 +3493,7 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -3278,7 +3591,9 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeCreateLibraryRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateLibraryRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -3302,6 +3617,7 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "createLibrary",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -3343,6 +3659,8 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleCreateMemoryRequest handles createMemory operation.
+//
+// This endpoint requires the `memory.create` permission.
 //
 // POST /memories
 func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3396,7 +3714,7 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -3494,7 +3812,9 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeCreateMemoryRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateMemoryRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -3518,6 +3838,7 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "createMemory",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -3612,7 +3933,7 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -3710,7 +4031,9 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 			return
 		}
 	}
-	request, close, err := s.decodeCreateNotificationRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateNotificationRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -3734,6 +4057,7 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "createNotification",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -3776,14 +4100,16 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 
 // handleCreatePartnerRequest handles createPartner operation.
 //
-// POST /partners/{id}
-func (s *Server) handleCreatePartnerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// This endpoint requires the `partner.create` permission.
+//
+// POST /partners
+func (s *Server) handleCreatePartnerRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createPartner"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/partners/{id}"),
+		semconv.HTTPRouteKey.String("/partners"),
 	}
 
 	// Start a span for this request.
@@ -3828,7 +4154,7 @@ func (s *Server) handleCreatePartnerRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -3926,16 +4252,23 @@ func (s *Server) handleCreatePartnerRequest(args [1]string, argsEscaped bool, w 
 			return
 		}
 	}
-	params, err := decodeCreatePartnerParams(args, argsEscaped, r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreatePartnerRequest(r)
 	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
+		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
 			Err:              err,
 		}
-		defer recordError("DecodeParams", err)
+		defer recordError("DecodeRequest", err)
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
 
 	var response *PartnerResponseDto
 	if m := s.cfg.Middleware; m != nil {
@@ -3944,19 +4277,15 @@ func (s *Server) handleCreatePartnerRequest(args [1]string, argsEscaped bool, w 
 			OperationName:    CreatePartnerOperation,
 			OperationSummary: "",
 			OperationID:      "createPartner",
-			Body:             nil,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-			},
-			Raw: r,
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
 		}
 
 		type (
-			Request  = struct{}
-			Params   = CreatePartnerParams
+			Request  = *PartnerCreateDto
+			Params   = struct{}
 			Response = *PartnerResponseDto
 		)
 		response, err = middleware.HookMiddleware[
@@ -3966,14 +4295,14 @@ func (s *Server) handleCreatePartnerRequest(args [1]string, argsEscaped bool, w 
 		](
 			m,
 			mreq,
-			unpackCreatePartnerParams,
+			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.CreatePartner(ctx, params)
+				response, err = s.h.CreatePartner(ctx, request)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.CreatePartner(ctx, params)
+		response, err = s.h.CreatePartner(ctx, request)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -3990,7 +4319,232 @@ func (s *Server) handleCreatePartnerRequest(args [1]string, argsEscaped bool, w 
 	}
 }
 
+// handleCreatePartnerDeprecatedRequest handles createPartnerDeprecated operation.
+//
+// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// POST /partners/{id}
+func (s *Server) handleCreatePartnerDeprecatedRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("createPartnerDeprecated"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/partners/{id}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), CreatePartnerDeprecatedOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreatePartnerDeprecatedOperation,
+			ID:   "createPartnerDeprecated",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, CreatePartnerDeprecatedOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, CreatePartnerDeprecatedOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, CreatePartnerDeprecatedOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeCreatePartnerDeprecatedParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *PartnerResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreatePartnerDeprecatedOperation,
+			OperationSummary: "",
+			OperationID:      "createPartnerDeprecated",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = CreatePartnerDeprecatedParams
+			Response = *PartnerResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreatePartnerDeprecatedParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreatePartnerDeprecated(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreatePartnerDeprecated(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreatePartnerDeprecatedResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCreatePersonRequest handles createPerson operation.
+//
+// This endpoint requires the `person.create` permission.
 //
 // POST /people
 func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4044,7 +4598,7 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -4142,7 +4696,9 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeCreatePersonRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreatePersonRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -4166,6 +4722,7 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "createPerson",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -4207,6 +4764,8 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleCreateProfileImageRequest handles createProfileImage operation.
+//
+// This endpoint requires the `userProfileImage.update` permission.
 //
 // POST /users/profile-image
 func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4260,7 +4819,7 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -4358,7 +4917,9 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 			return
 		}
 	}
-	request, close, err := s.decodeCreateProfileImageRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateProfileImageRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -4382,6 +4943,7 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "createProfileImage",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -4423,6 +4985,8 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 }
 
 // handleCreateSessionRequest handles createSession operation.
+//
+// This endpoint requires the `session.create` permission.
 //
 // POST /sessions
 func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4476,7 +5040,7 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -4574,7 +5138,9 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeCreateSessionRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateSessionRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -4598,6 +5164,7 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "createSession",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -4639,6 +5206,8 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleCreateSharedLinkRequest handles createSharedLink operation.
+//
+// This endpoint requires the `sharedLink.create` permission.
 //
 // POST /shared-links
 func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4692,7 +5261,7 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -4790,7 +5359,9 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 			return
 		}
 	}
-	request, close, err := s.decodeCreateSharedLinkRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateSharedLinkRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -4814,6 +5385,7 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "createSharedLink",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -4855,6 +5427,8 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 }
 
 // handleCreateStackRequest handles createStack operation.
+//
+// This endpoint requires the `stack.create` permission.
 //
 // POST /stacks
 func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4908,7 +5482,7 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -5006,7 +5580,9 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 			return
 		}
 	}
-	request, close, err := s.decodeCreateStackRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateStackRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -5030,6 +5606,7 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "createStack",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -5071,6 +5648,8 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleCreateTagRequest handles createTag operation.
+//
+// This endpoint requires the `tag.create` permission.
 //
 // POST /tags
 func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5124,7 +5703,7 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -5222,7 +5801,9 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 			return
 		}
 	}
-	request, close, err := s.decodeCreateTagRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateTagRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -5246,6 +5827,7 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "createTag",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -5287,6 +5869,8 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 }
 
 // handleCreateUserAdminRequest handles createUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
 //
 // POST /admin/users
 func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5340,7 +5924,7 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -5438,7 +6022,9 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 			return
 		}
 	}
-	request, close, err := s.decodeCreateUserAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateUserAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -5462,6 +6048,7 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "createUserAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -5503,6 +6090,8 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleDeleteActivityRequest handles deleteActivity operation.
+//
+// This endpoint requires the `activity.delete` permission.
 //
 // DELETE /activities/{id}
 func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5556,7 +6145,7 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -5665,6 +6254,8 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteActivityNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -5673,6 +6264,7 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "deleteActivity",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -5719,6 +6311,8 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 }
 
 // handleDeleteAlbumRequest handles deleteAlbum operation.
+//
+// This endpoint requires the `album.delete` permission.
 //
 // DELETE /albums/{id}
 func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5772,7 +6366,7 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -5881,7 +6475,9 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 		return
 	}
 
-	var response *DeleteAlbumOK
+	var rawBody []byte
+
+	var response *DeleteAlbumNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -5889,6 +6485,7 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "deleteAlbum",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -5901,7 +6498,7 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 		type (
 			Request  = struct{}
 			Params   = DeleteAlbumParams
-			Response = *DeleteAlbumOK
+			Response = *DeleteAlbumNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -5935,6 +6532,8 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 }
 
 // handleDeleteAllSessionsRequest handles deleteAllSessions operation.
+//
+// This endpoint requires the `session.delete` permission.
 //
 // DELETE /sessions
 func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5988,7 +6587,7 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -6087,6 +6686,8 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 		}
 	}
 
+	var rawBody []byte
+
 	var response *DeleteAllSessionsNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -6095,6 +6696,7 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "deleteAllSessions",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -6136,6 +6738,8 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 }
 
 // handleDeleteApiKeyRequest handles deleteApiKey operation.
+//
+// This endpoint requires the `apiKey.delete` permission.
 //
 // DELETE /api-keys/{id}
 func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6189,7 +6793,7 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -6298,6 +6902,8 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteApiKeyNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -6306,6 +6912,7 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "deleteApiKey",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -6351,7 +6958,234 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleDeleteAssetMetadataRequest handles deleteAssetMetadata operation.
+//
+// This endpoint requires the `asset.update` permission.
+//
+// DELETE /assets/{id}/metadata/{key}
+func (s *Server) handleDeleteAssetMetadataRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/assets/{id}/metadata/{key}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteAssetMetadataOperation,
+			ID:   "deleteAssetMetadata",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeDeleteAssetMetadataParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *DeleteAssetMetadataNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteAssetMetadataOperation,
+			OperationSummary: "",
+			OperationID:      "deleteAssetMetadata",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "path",
+				}: params.Key,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeleteAssetMetadataParams
+			Response = *DeleteAssetMetadataNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteAssetMetadataParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteAssetMetadata(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteAssetMetadata(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteAssetMetadataResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteAssetsRequest handles deleteAssets operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // DELETE /assets
 func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6405,7 +7239,7 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -6503,7 +7337,9 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeDeleteAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -6527,6 +7363,7 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "deleteAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -6567,7 +7404,451 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleDeleteDuplicateRequest handles deleteDuplicate operation.
+//
+// This endpoint requires the `duplicate.delete` permission.
+//
+// DELETE /duplicates/{id}
+func (s *Server) handleDeleteDuplicateRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteDuplicate"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/duplicates/{id}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteDuplicateOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteDuplicateOperation,
+			ID:   "deleteDuplicate",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteDuplicateOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteDuplicateOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteDuplicateOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeDeleteDuplicateParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *DeleteDuplicateNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteDuplicateOperation,
+			OperationSummary: "",
+			OperationID:      "deleteDuplicate",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeleteDuplicateParams
+			Response = *DeleteDuplicateNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteDuplicateParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteDuplicate(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteDuplicate(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteDuplicateResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleDeleteDuplicatesRequest handles deleteDuplicates operation.
+//
+// This endpoint requires the `duplicate.delete` permission.
+//
+// DELETE /duplicates
+func (s *Server) handleDeleteDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteDuplicates"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/duplicates"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteDuplicatesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteDuplicatesOperation,
+			ID:   "deleteDuplicates",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteDuplicatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteDuplicatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteDuplicatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteDuplicatesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *DeleteDuplicatesNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteDuplicatesOperation,
+			OperationSummary: "",
+			OperationID:      "deleteDuplicates",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *BulkIdsDto
+			Params   = struct{}
+			Response = *DeleteDuplicatesNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteDuplicates(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteDuplicates(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteDuplicatesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteFaceRequest handles deleteFace operation.
+//
+// This endpoint requires the `face.delete` permission.
 //
 // DELETE /faces/{id}
 func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6621,7 +7902,7 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -6729,7 +8010,9 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeDeleteFaceRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteFaceRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -6745,7 +8028,7 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 		}
 	}()
 
-	var response *DeleteFaceOK
+	var response *DeleteFaceNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -6753,6 +8036,7 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "deleteFace",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -6765,7 +8049,7 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 		type (
 			Request  = *AssetFaceDeleteDto
 			Params   = DeleteFaceParams
-			Response = *DeleteFaceOK
+			Response = *DeleteFaceNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -6799,6 +8083,8 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 }
 
 // handleDeleteLibraryRequest handles deleteLibrary operation.
+//
+// This endpoint is an admin-only route, and requires the `library.delete` permission.
 //
 // DELETE /libraries/{id}
 func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6852,7 +8138,7 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -6961,6 +8247,8 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteLibraryNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -6969,6 +8257,7 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "deleteLibrary",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -7015,6 +8304,8 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleDeleteMemoryRequest handles deleteMemory operation.
+//
+// This endpoint requires the `memory.delete` permission.
 //
 // DELETE /memories/{id}
 func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7068,7 +8359,7 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -7177,6 +8468,8 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteMemoryNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -7185,6 +8478,7 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "deleteMemory",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -7231,6 +8525,8 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 }
 
 // handleDeleteNotificationRequest handles deleteNotification operation.
+//
+// This endpoint requires the `notification.delete` permission.
 //
 // DELETE /notifications/{id}
 func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7284,7 +8580,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -7393,7 +8689,9 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		return
 	}
 
-	var response *DeleteNotificationOK
+	var rawBody []byte
+
+	var response *DeleteNotificationNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -7401,6 +8699,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "deleteNotification",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -7413,7 +8712,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		type (
 			Request  = struct{}
 			Params   = DeleteNotificationParams
-			Response = *DeleteNotificationOK
+			Response = *DeleteNotificationNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -7447,6 +8746,8 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 }
 
 // handleDeleteNotificationsRequest handles deleteNotifications operation.
+//
+// This endpoint requires the `notification.delete` permission.
 //
 // DELETE /notifications
 func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7500,7 +8801,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -7598,7 +8899,9 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 			return
 		}
 	}
-	request, close, err := s.decodeDeleteNotificationsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteNotificationsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -7614,7 +8917,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 		}
 	}()
 
-	var response *DeleteNotificationsOK
+	var response *DeleteNotificationsNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -7622,6 +8925,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "deleteNotifications",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -7629,7 +8933,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 		type (
 			Request  = *NotificationDeleteAllDto
 			Params   = struct{}
-			Response = *DeleteNotificationsOK
+			Response = *DeleteNotificationsNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -7662,7 +8966,451 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 	}
 }
 
+// handleDeletePeopleRequest handles deletePeople operation.
+//
+// This endpoint requires the `person.delete` permission.
+//
+// DELETE /people
+func (s *Server) handleDeletePeopleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deletePeople"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/people"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeletePeopleOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeletePeopleOperation,
+			ID:   "deletePeople",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeletePeopleOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeletePeopleOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeletePeopleOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeletePeopleRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *DeletePeopleNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeletePeopleOperation,
+			OperationSummary: "",
+			OperationID:      "deletePeople",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *BulkIdsDto
+			Params   = struct{}
+			Response = *DeletePeopleNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeletePeople(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeletePeople(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeletePeopleResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleDeletePersonRequest handles deletePerson operation.
+//
+// This endpoint requires the `person.delete` permission.
+//
+// DELETE /people/{id}
+func (s *Server) handleDeletePersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deletePerson"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/people/{id}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeletePersonOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeletePersonOperation,
+			ID:   "deletePerson",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeletePersonOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeletePersonOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeletePersonOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeDeletePersonParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *DeletePersonNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeletePersonOperation,
+			OperationSummary: "",
+			OperationID:      "deletePerson",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeletePersonParams
+			Response = *DeletePersonNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeletePersonParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeletePerson(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeletePerson(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeletePersonResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteProfileImageRequest handles deleteProfileImage operation.
+//
+// This endpoint requires the `userProfileImage.delete` permission.
 //
 // DELETE /users/profile-image
 func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7716,7 +9464,7 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -7815,6 +9563,8 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 		}
 	}
 
+	var rawBody []byte
+
 	var response *DeleteProfileImageNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -7823,6 +9573,7 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "deleteProfileImage",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -7864,6 +9615,8 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 }
 
 // handleDeleteServerLicenseRequest handles deleteServerLicense operation.
+//
+// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
 //
 // DELETE /server/license
 func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7917,7 +9670,7 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -8016,7 +9769,9 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 		}
 	}
 
-	var response *DeleteServerLicenseOK
+	var rawBody []byte
+
+	var response *DeleteServerLicenseNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -8024,6 +9779,7 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "deleteServerLicense",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -8031,7 +9787,7 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *DeleteServerLicenseOK
+			Response = *DeleteServerLicenseNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -8065,6 +9821,8 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 }
 
 // handleDeleteSessionRequest handles deleteSession operation.
+//
+// This endpoint requires the `session.delete` permission.
 //
 // DELETE /sessions/{id}
 func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8118,7 +9876,7 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -8227,6 +9985,8 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteSessionNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -8235,6 +9995,7 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "deleteSession",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -8281,6 +10042,8 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleDeleteStackRequest handles deleteStack operation.
+//
+// This endpoint requires the `stack.delete` permission.
 //
 // DELETE /stacks/{id}
 func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8334,7 +10097,7 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -8443,6 +10206,8 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteStackNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -8451,6 +10216,7 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "deleteStack",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -8497,6 +10263,8 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 }
 
 // handleDeleteStacksRequest handles deleteStacks operation.
+//
+// This endpoint requires the `stack.delete` permission.
 //
 // DELETE /stacks
 func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8550,7 +10318,7 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -8648,7 +10416,9 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeDeleteStacksRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteStacksRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -8672,6 +10442,7 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "deleteStacks",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -8713,6 +10484,8 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleDeleteSyncAckRequest handles deleteSyncAck operation.
+//
+// This endpoint requires the `syncCheckpoint.delete` permission.
 //
 // DELETE /sync/ack
 func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8766,7 +10539,7 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -8864,7 +10637,9 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeDeleteSyncAckRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteSyncAckRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -8888,6 +10663,7 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "deleteSyncAck",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -8929,6 +10705,8 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleDeleteTagRequest handles deleteTag operation.
+//
+// This endpoint requires the `tag.delete` permission.
 //
 // DELETE /tags/{id}
 func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8982,7 +10760,7 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -9091,6 +10869,8 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 		return
 	}
 
+	var rawBody []byte
+
 	var response *DeleteTagNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -9099,6 +10879,7 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "deleteTag",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -9145,6 +10926,8 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 }
 
 // handleDeleteUserAdminRequest handles deleteUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
 //
 // DELETE /admin/users/{id}
 func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9198,7 +10981,7 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -9306,7 +11089,9 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeDeleteUserAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteUserAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -9330,6 +11115,7 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "deleteUserAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -9376,6 +11162,8 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 }
 
 // handleDeleteUserLicenseRequest handles deleteUserLicense operation.
+//
+// This endpoint requires the `userLicense.delete` permission.
 //
 // DELETE /users/me/license
 func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9429,7 +11217,7 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -9528,7 +11316,9 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 		}
 	}
 
-	var response *DeleteUserLicenseOK
+	var rawBody []byte
+
+	var response *DeleteUserLicenseNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -9536,6 +11326,7 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "deleteUserLicense",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -9543,7 +11334,7 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *DeleteUserLicenseOK
+			Response = *DeleteUserLicenseNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -9577,6 +11368,8 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 }
 
 // handleDeleteUserOnboardingRequest handles deleteUserOnboarding operation.
+//
+// This endpoint requires the `userOnboarding.delete` permission.
 //
 // DELETE /users/me/onboarding
 func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9630,7 +11423,7 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -9729,7 +11522,9 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 		}
 	}
 
-	var response *DeleteUserOnboardingOK
+	var rawBody []byte
+
+	var response *DeleteUserOnboardingNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -9737,6 +11532,7 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 			OperationSummary: "",
 			OperationID:      "deleteUserOnboarding",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -9744,7 +11540,7 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *DeleteUserOnboardingOK
+			Response = *DeleteUserOnboardingNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -9778,6 +11574,8 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 }
 
 // handleDownloadArchiveRequest handles downloadArchive operation.
+//
+// This endpoint requires the `asset.download` permission.
 //
 // POST /download/archive
 func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9831,7 +11629,7 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -9939,7 +11737,9 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeDownloadArchiveRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDownloadArchiveRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -9963,11 +11763,16 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "downloadArchive",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -10009,6 +11814,8 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleDownloadAssetRequest handles downloadAsset operation.
+//
+// This endpoint requires the `asset.download` permission.
 //
 // GET /assets/{id}/original
 func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10062,7 +11869,7 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -10171,6 +11978,8 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 		return
 	}
 
+	var rawBody []byte
+
 	var response DownloadAssetOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -10179,6 +11988,7 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "downloadAsset",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -10188,6 +11998,10 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -10229,6 +12043,8 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleEmptyTrashRequest handles emptyTrash operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // POST /trash/empty
 func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10282,7 +12098,7 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -10381,6 +12197,8 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 		}
 	}
 
+	var rawBody []byte
+
 	var response *TrashResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -10389,6 +12207,7 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "emptyTrash",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -10483,7 +12302,7 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -10501,7 +12320,9 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 			ID:   "finishOAuth",
 		}
 	)
-	request, close, err := s.decodeFinishOAuthRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeFinishOAuthRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -10525,6 +12346,7 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "finishOAuth",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -10566,6 +12388,8 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleGetAboutInfoRequest handles getAboutInfo operation.
+//
+// This endpoint requires the `server.about` permission.
 //
 // GET /server/about
 func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10619,7 +12443,7 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -10718,6 +12542,8 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 		}
 	}
 
+	var rawBody []byte
+
 	var response *ServerAboutResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -10726,6 +12552,7 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getAboutInfo",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -10767,6 +12594,8 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleGetActivitiesRequest handles getActivities operation.
+//
+// This endpoint requires the `activity.read` permission.
 //
 // GET /activities
 func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10820,7 +12649,7 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -10929,6 +12758,8 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 		return
 	}
 
+	var rawBody []byte
+
 	var response []ActivityResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -10937,6 +12768,7 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "getActivities",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "albumId",
@@ -11000,6 +12832,8 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 
 // handleGetActivityStatisticsRequest handles getActivityStatistics operation.
 //
+// This endpoint requires the `activity.statistics` permission.
+//
 // GET /activities/statistics
 func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -11052,7 +12886,7 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -11161,6 +12995,8 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 		return
 	}
 
+	var rawBody []byte
+
 	var response *ActivityStatisticsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -11169,6 +13005,7 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 			OperationSummary: "",
 			OperationID:      "getActivityStatistics",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "albumId",
@@ -11219,6 +13056,8 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 }
 
 // handleGetAdminOnboardingRequest handles getAdminOnboarding operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 //
 // GET /system-metadata/admin-onboarding
 func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11272,7 +13111,7 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -11371,6 +13210,8 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 		}
 	}
 
+	var rawBody []byte
+
 	var response *AdminOnboardingUpdateDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -11379,6 +13220,7 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "getAdminOnboarding",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -11420,6 +13262,8 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 }
 
 // handleGetAlbumInfoRequest handles getAlbumInfo operation.
+//
+// This endpoint requires the `album.read` permission.
 //
 // GET /albums/{id}
 func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11473,7 +13317,7 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -11582,6 +13426,8 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response *AlbumResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -11590,6 +13436,7 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getAlbumInfo",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -11599,6 +13446,10 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 				{
 					Name: "withoutAssets",
 					In:   "query",
@@ -11644,6 +13495,8 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 }
 
 // handleGetAlbumStatisticsRequest handles getAlbumStatistics operation.
+//
+// This endpoint requires the `album.statistics` permission.
 //
 // GET /albums/statistics
 func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11697,7 +13550,7 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -11796,6 +13649,8 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 		}
 	}
 
+	var rawBody []byte
+
 	var response *AlbumStatisticsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -11804,6 +13659,7 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "getAlbumStatistics",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -11845,6 +13701,8 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 }
 
 // handleGetAllAlbumsRequest handles getAllAlbums operation.
+//
+// This endpoint requires the `album.read` permission.
 //
 // GET /albums
 func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11898,7 +13756,7 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -12007,6 +13865,8 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response []AlbumResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -12015,6 +13875,7 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getAllAlbums",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "assetId",
@@ -12065,6 +13926,8 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleGetAllJobsStatusRequest handles getAllJobsStatus operation.
+//
+// This endpoint is an admin-only route, and requires the `job.read` permission.
 //
 // GET /jobs
 func (s *Server) handleGetAllJobsStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12118,7 +13981,7 @@ func (s *Server) handleGetAllJobsStatusRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -12217,6 +14080,8 @@ func (s *Server) handleGetAllJobsStatusRequest(args [0]string, argsEscaped bool,
 		}
 	}
 
+	var rawBody []byte
+
 	var response *AllJobStatusResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -12225,6 +14090,7 @@ func (s *Server) handleGetAllJobsStatusRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "getAllJobsStatus",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -12266,6 +14132,8 @@ func (s *Server) handleGetAllJobsStatusRequest(args [0]string, argsEscaped bool,
 }
 
 // handleGetAllLibrariesRequest handles getAllLibraries operation.
+//
+// This endpoint is an admin-only route, and requires the `library.read` permission.
 //
 // GET /libraries
 func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12319,7 +14187,7 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -12418,6 +14286,8 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 		}
 	}
 
+	var rawBody []byte
+
 	var response []LibraryResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -12426,6 +14296,7 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getAllLibraries",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -12467,6 +14338,8 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleGetAllPeopleRequest handles getAllPeople operation.
+//
+// This endpoint requires the `person.read` permission.
 //
 // GET /people
 func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12520,7 +14393,7 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -12629,6 +14502,8 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response *PeopleResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -12637,6 +14512,7 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getAllPeople",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "closestAssetId",
@@ -12700,6 +14576,8 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 
 // handleGetAllSharedLinksRequest handles getAllSharedLinks operation.
 //
+// This endpoint requires the `sharedLink.read` permission.
+//
 // GET /shared-links
 func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -12752,7 +14630,7 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -12861,6 +14739,8 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 		return
 	}
 
+	var rawBody []byte
+
 	var response []SharedLinkResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -12869,6 +14749,7 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "getAllSharedLinks",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "albumId",
@@ -12915,6 +14796,8 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 }
 
 // handleGetAllTagsRequest handles getAllTags operation.
+//
+// This endpoint requires the `tag.read` permission.
 //
 // GET /tags
 func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12968,7 +14851,7 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -13067,6 +14950,8 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 		}
 	}
 
+	var rawBody []byte
+
 	var response []TagResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -13075,6 +14960,7 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "getAllTags",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -13171,7 +15057,7 @@ func (s *Server) handleGetAllUserAssetsByDeviceIdRequest(args [1]string, argsEsc
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -13280,6 +15166,8 @@ func (s *Server) handleGetAllUserAssetsByDeviceIdRequest(args [1]string, argsEsc
 		return
 	}
 
+	var rawBody []byte
+
 	var response []string
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -13288,6 +15176,7 @@ func (s *Server) handleGetAllUserAssetsByDeviceIdRequest(args [1]string, argsEsc
 			OperationSummary: "getAllUserAssetsByDeviceId",
 			OperationID:      "getAllUserAssetsByDeviceId",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "deviceId",
@@ -13334,6 +15223,8 @@ func (s *Server) handleGetAllUserAssetsByDeviceIdRequest(args [1]string, argsEsc
 }
 
 // handleGetApiKeyRequest handles getApiKey operation.
+//
+// This endpoint requires the `apiKey.read` permission.
 //
 // GET /api-keys/{id}
 func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13387,7 +15278,7 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -13496,6 +15387,8 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 		return
 	}
 
+	var rawBody []byte
+
 	var response *APIKeyResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -13504,6 +15397,7 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "getApiKey",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -13550,6 +15444,8 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 }
 
 // handleGetApiKeysRequest handles getApiKeys operation.
+//
+// This endpoint requires the `apiKey.read` permission.
 //
 // GET /api-keys
 func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13603,7 +15499,7 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -13702,6 +15598,8 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 		}
 	}
 
+	var rawBody []byte
+
 	var response []APIKeyResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -13710,6 +15608,7 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "getApiKeys",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -13751,6 +15650,8 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 }
 
 // handleGetApkLinksRequest handles getApkLinks operation.
+//
+// This endpoint requires the `server.apkLinks` permission.
 //
 // GET /server/apk-links
 func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13804,7 +15705,7 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -13903,6 +15804,8 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 		}
 	}
 
+	var rawBody []byte
+
 	var response *ServerApkLinksDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -13911,6 +15814,7 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "getApkLinks",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -13952,6 +15856,8 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleGetAssetDuplicatesRequest handles getAssetDuplicates operation.
+//
+// This endpoint requires the `duplicate.read` permission.
 //
 // GET /duplicates
 func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14005,7 +15911,7 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -14104,6 +16010,8 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 		}
 	}
 
+	var rawBody []byte
+
 	var response []DuplicateResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -14112,6 +16020,7 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "getAssetDuplicates",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -14153,6 +16062,8 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 }
 
 // handleGetAssetInfoRequest handles getAssetInfo operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /assets/{id}
 func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14206,7 +16117,7 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -14315,6 +16226,8 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response *AssetResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -14323,6 +16236,7 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getAssetInfo",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -14332,6 +16246,10 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -14372,7 +16290,455 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleGetAssetMetadataRequest handles getAssetMetadata operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/metadata
+func (s *Server) handleGetAssetMetadataRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/assets/{id}/metadata"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetAssetMetadataOperation,
+			ID:   "getAssetMetadata",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetAssetMetadataParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []AssetMetadataResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetAssetMetadataOperation,
+			OperationSummary: "",
+			OperationID:      "getAssetMetadata",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetAssetMetadataParams
+			Response = []AssetMetadataResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetAssetMetadataParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetAssetMetadata(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetAssetMetadata(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetAssetMetadataResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetAssetMetadataByKeyRequest handles getAssetMetadataByKey operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/metadata/{key}
+func (s *Server) handleGetAssetMetadataByKeyRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAssetMetadataByKey"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/assets/{id}/metadata/{key}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetMetadataByKeyOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetAssetMetadataByKeyOperation,
+			ID:   "getAssetMetadataByKey",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetAssetMetadataByKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetAssetMetadataByKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetAssetMetadataByKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetAssetMetadataByKeyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *AssetMetadataResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetAssetMetadataByKeyOperation,
+			OperationSummary: "",
+			OperationID:      "getAssetMetadataByKey",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "path",
+				}: params.Key,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetAssetMetadataByKeyParams
+			Response = *AssetMetadataResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetAssetMetadataByKeyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetAssetMetadataByKey(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetAssetMetadataByKey(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetAssetMetadataByKeyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetAssetStatisticsRequest handles getAssetStatistics operation.
+//
+// This endpoint requires the `asset.statistics` permission.
 //
 // GET /assets/statistics
 func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14426,7 +16792,7 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -14535,6 +16901,8 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 		return
 	}
 
+	var rawBody []byte
+
 	var response *AssetStatsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -14543,6 +16911,7 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "getAssetStatistics",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "isFavorite",
@@ -14598,6 +16967,8 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 
 // handleGetAssetsByCityRequest handles getAssetsByCity operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /search/cities
 func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -14650,7 +17021,7 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -14749,6 +17120,8 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 		}
 	}
 
+	var rawBody []byte
+
 	var response []AssetResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -14757,6 +17130,7 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getAssetsByCity",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -14851,7 +17225,7 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -14960,6 +17334,8 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 		return
 	}
 
+	var rawBody []byte
+
 	var response []AssetResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -14968,6 +17344,7 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 			OperationSummary: "",
 			OperationID:      "getAssetsByOriginalPath",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "path",
@@ -15067,7 +17444,7 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -15166,6 +17543,8 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 		}
 	}
 
+	var rawBody []byte
+
 	var response *AuthStatusResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -15174,6 +17553,7 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "getAuthStatus",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -15215,6 +17595,8 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleGetConfigRequest handles getConfig operation.
+//
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 //
 // GET /system-config
 func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15268,7 +17650,7 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -15367,6 +17749,8 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 		}
 	}
 
+	var rawBody []byte
+
 	var response *SystemConfigDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -15375,6 +17759,7 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "getConfig",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -15416,6 +17801,8 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 }
 
 // handleGetConfigDefaultsRequest handles getConfigDefaults operation.
+//
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 //
 // GET /system-config/defaults
 func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15469,7 +17856,7 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -15568,6 +17955,8 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 		}
 	}
 
+	var rawBody []byte
+
 	var response *SystemConfigDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -15576,6 +17965,7 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "getConfigDefaults",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -15670,7 +18060,7 @@ func (s *Server) handleGetDeltaSyncRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -15768,7 +18158,9 @@ func (s *Server) handleGetDeltaSyncRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeGetDeltaSyncRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeGetDeltaSyncRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -15792,6 +18184,7 @@ func (s *Server) handleGetDeltaSyncRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getDeltaSync",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -15833,6 +18226,8 @@ func (s *Server) handleGetDeltaSyncRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleGetDownloadInfoRequest handles getDownloadInfo operation.
+//
+// This endpoint requires the `asset.download` permission.
 //
 // POST /download/info
 func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15886,7 +18281,7 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -15994,7 +18389,9 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeGetDownloadInfoRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeGetDownloadInfoRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -16018,11 +18415,16 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getDownloadInfo",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -16064,6 +18466,8 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleGetExploreDataRequest handles getExploreData operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /search/explore
 func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16117,7 +18521,7 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -16216,6 +18620,8 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 		}
 	}
 
+	var rawBody []byte
+
 	var response []SearchExploreResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -16224,6 +18630,7 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "getExploreData",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -16265,6 +18672,8 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 }
 
 // handleGetFacesRequest handles getFaces operation.
+//
+// This endpoint requires the `face.read` permission.
 //
 // GET /faces
 func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16318,7 +18727,7 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -16427,6 +18836,8 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 		return
 	}
 
+	var rawBody []byte
+
 	var response []AssetFaceResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -16435,6 +18846,7 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 			OperationSummary: "",
 			OperationID:      "getFaces",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -16534,7 +18946,7 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -16632,7 +19044,9 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 			return
 		}
 	}
-	request, close, err := s.decodeGetFullSyncForUserRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeGetFullSyncForUserRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -16656,6 +19070,7 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "getFullSyncForUser",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -16697,6 +19112,8 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 }
 
 // handleGetLibraryRequest handles getLibrary operation.
+//
+// This endpoint is an admin-only route, and requires the `library.read` permission.
 //
 // GET /libraries/{id}
 func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16750,7 +19167,7 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -16859,6 +19276,8 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 		return
 	}
 
+	var rawBody []byte
+
 	var response *LibraryResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -16867,6 +19286,7 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "getLibrary",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -16913,6 +19333,8 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 }
 
 // handleGetLibraryStatisticsRequest handles getLibraryStatistics operation.
+//
+// This endpoint is an admin-only route, and requires the `library.statistics` permission.
 //
 // GET /libraries/{id}/statistics
 func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16966,7 +19388,7 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -17075,6 +19497,8 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 		return
 	}
 
+	var rawBody []byte
+
 	var response *LibraryStatsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -17083,6 +19507,7 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 			OperationSummary: "",
 			OperationID:      "getLibraryStatistics",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -17182,7 +19607,7 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -17291,6 +19716,8 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 		return
 	}
 
+	var rawBody []byte
+
 	var response []MapMarkerResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -17299,15 +19726,8 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "getMapMarkers",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
-				{
-					Name: "fileCreatedAfter",
-					In:   "query",
-				}: params.FileCreatedAfter,
-				{
-					Name: "fileCreatedBefore",
-					In:   "query",
-				}: params.FileCreatedBefore,
 				{
 					Name: "isArchived",
 					In:   "query",
@@ -17316,6 +19736,14 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 					Name: "isFavorite",
 					In:   "query",
 				}: params.IsFavorite,
+				{
+					Name: "fileCreatedAfter",
+					In:   "query",
+				}: params.FileCreatedAfter,
+				{
+					Name: "fileCreatedBefore",
+					In:   "query",
+				}: params.FileCreatedBefore,
 				{
 					Name: "withPartners",
 					In:   "query",
@@ -17365,6 +19793,8 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleGetMemoryRequest handles getMemory operation.
+//
+// This endpoint requires the `memory.read` permission.
 //
 // GET /memories/{id}
 func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17418,7 +19848,7 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -17527,6 +19957,8 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 		return
 	}
 
+	var rawBody []byte
+
 	var response *MemoryResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -17535,6 +19967,7 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "getMemory",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -17580,7 +20013,213 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 	}
 }
 
+// handleGetMyApiKeyRequest handles getMyApiKey operation.
+//
+// GET /api-keys/me
+func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMyApiKey"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/api-keys/me"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMyApiKeyOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetMyApiKeyOperation,
+			ID:   "getMyApiKey",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetMyApiKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetMyApiKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetMyApiKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *APIKeyResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetMyApiKeyOperation,
+			OperationSummary: "",
+			OperationID:      "getMyApiKey",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *APIKeyResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetMyApiKey(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetMyApiKey(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetMyApiKeyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetMyPreferencesRequest handles getMyPreferences operation.
+//
+// This endpoint requires the `userPreference.read` permission.
 //
 // GET /users/me/preferences
 func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17634,7 +20273,7 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -17733,6 +20372,8 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 		}
 	}
 
+	var rawBody []byte
+
 	var response *UserPreferencesResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -17741,6 +20382,7 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "getMyPreferences",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -17835,7 +20477,7 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -17944,6 +20586,8 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 		return
 	}
 
+	var rawBody []byte
+
 	var response *SharedLinkResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -17952,11 +20596,8 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getMySharedLink",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
-				{
-					Name: "key",
-					In:   "query",
-				}: params.Key,
 				{
 					Name: "password",
 					In:   "query",
@@ -17965,6 +20606,14 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 					Name: "token",
 					In:   "query",
 				}: params.Token,
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -18006,6 +20655,8 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleGetMyUserRequest handles getMyUser operation.
+//
+// This endpoint requires the `user.read` permission.
 //
 // GET /users/me
 func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18059,7 +20710,7 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -18158,6 +20809,8 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 		}
 	}
 
+	var rawBody []byte
+
 	var response *UserAdminResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -18166,6 +20819,7 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "getMyUser",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -18207,6 +20861,8 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 }
 
 // handleGetNotificationRequest handles getNotification operation.
+//
+// This endpoint requires the `notification.read` permission.
 //
 // GET /notifications/{id}
 func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18260,7 +20916,7 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -18369,6 +21025,8 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 		return
 	}
 
+	var rawBody []byte
+
 	var response *NotificationDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -18377,6 +21035,7 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getNotification",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -18476,7 +21135,7 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -18584,7 +21243,9 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeGetNotificationTemplateAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeGetNotificationTemplateAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -18608,6 +21269,7 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 			OperationSummary: "",
 			OperationID:      "getNotificationTemplateAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "name",
@@ -18654,6 +21316,8 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 }
 
 // handleGetNotificationsRequest handles getNotifications operation.
+//
+// This endpoint requires the `notification.read` permission.
 //
 // GET /notifications
 func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18707,7 +21371,7 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -18816,6 +21480,8 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 		return
 	}
 
+	var rawBody []byte
+
 	var response []NotificationDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -18824,6 +21490,7 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "getNotifications",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -18883,6 +21550,8 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 
 // handleGetPartnersRequest handles getPartners operation.
 //
+// This endpoint requires the `partner.read` permission.
+//
 // GET /partners
 func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -18935,7 +21604,7 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -19044,6 +21713,8 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 		return
 	}
 
+	var rawBody []byte
+
 	var response []PartnerResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -19052,6 +21723,7 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "getPartners",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "direction",
@@ -19098,6 +21770,8 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleGetPersonRequest handles getPerson operation.
+//
+// This endpoint requires the `person.read` permission.
 //
 // GET /people/{id}
 func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19151,7 +21825,7 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -19260,6 +21934,8 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 		return
 	}
 
+	var rawBody []byte
+
 	var response *PersonResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -19268,6 +21944,7 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "getPerson",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -19314,6 +21991,8 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 }
 
 // handleGetPersonStatisticsRequest handles getPersonStatistics operation.
+//
+// This endpoint requires the `person.statistics` permission.
 //
 // GET /people/{id}/statistics
 func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19367,7 +22046,7 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -19476,6 +22155,8 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 		return
 	}
 
+	var rawBody []byte
+
 	var response *PersonStatisticsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -19484,6 +22165,7 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "getPersonStatistics",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -19530,6 +22212,8 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 }
 
 // handleGetPersonThumbnailRequest handles getPersonThumbnail operation.
+//
+// This endpoint requires the `person.read` permission.
 //
 // GET /people/{id}/thumbnail
 func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19583,7 +22267,7 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -19692,6 +22376,8 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 		return
 	}
 
+	var rawBody []byte
+
 	var response GetPersonThumbnailOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -19700,6 +22386,7 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "getPersonThumbnail",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -19746,6 +22433,8 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 }
 
 // handleGetProfileImageRequest handles getProfileImage operation.
+//
+// This endpoint requires the `userProfileImage.read` permission.
 //
 // GET /users/{id}/profile-image
 func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19799,7 +22488,7 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -19908,6 +22597,8 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 		return
 	}
 
+	var rawBody []byte
+
 	var response GetProfileImageOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -19916,6 +22607,7 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getProfileImage",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -19963,7 +22655,7 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 
 // handleGetRandomRequest handles getRandom operation.
 //
-// This property was deprecated in v1.116.0.
+// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
 //
 // Deprecated: schema marks this operation as deprecated.
 //
@@ -20019,7 +22711,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -20128,6 +22820,8 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 		return
 	}
 
+	var rawBody []byte
+
 	var response []AssetResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -20136,6 +22830,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "getRandom",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "count",
@@ -20182,6 +22877,8 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 }
 
 // handleGetReverseGeocodingStateRequest handles getReverseGeocodingState operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 //
 // GET /system-metadata/reverse-geocoding-state
 func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20235,7 +22932,7 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -20334,6 +23031,8 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 		}
 	}
 
+	var rawBody []byte
+
 	var response *ReverseGeocodingStateResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -20342,6 +23041,7 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 			OperationSummary: "",
 			OperationID:      "getReverseGeocodingState",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -20383,6 +23083,8 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 }
 
 // handleGetSearchSuggestionsRequest handles getSearchSuggestions operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /search/suggestions
 func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20436,7 +23138,7 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -20545,6 +23247,8 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 		return
 	}
 
+	var rawBody []byte
+
 	var response []string
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -20553,6 +23257,7 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 			OperationSummary: "",
 			OperationID:      "getSearchSuggestions",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "country",
@@ -20672,7 +23377,7 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -20687,6 +23392,8 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *ServerConfigDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -20695,6 +23402,7 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getServerConfig",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -20789,7 +23497,7 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -20804,6 +23512,8 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *ServerFeaturesDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -20812,6 +23522,7 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "getServerFeatures",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -20853,6 +23564,8 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 }
 
 // handleGetServerLicenseRequest handles getServerLicense operation.
+//
+// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
 //
 // GET /server/license
 func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20906,7 +23619,7 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -21005,6 +23718,8 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 		}
 	}
 
+	var rawBody []byte
+
 	var response GetServerLicenseRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -21013,6 +23728,7 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "getServerLicense",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -21054,6 +23770,8 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 }
 
 // handleGetServerStatisticsRequest handles getServerStatistics operation.
+//
+// This endpoint is an admin-only route, and requires the `server.statistics` permission.
 //
 // GET /server/statistics
 func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21107,7 +23825,7 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -21206,6 +23924,8 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 		}
 	}
 
+	var rawBody []byte
+
 	var response *ServerStatsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -21214,6 +23934,7 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "getServerStatistics",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -21308,7 +24029,7 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -21323,6 +24044,8 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *ServerVersionResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -21331,6 +24054,7 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "getServerVersion",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -21372,6 +24096,8 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 }
 
 // handleGetSessionsRequest handles getSessions operation.
+//
+// This endpoint requires the `session.read` permission.
 //
 // GET /sessions
 func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21425,7 +24151,7 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -21524,6 +24250,8 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 		}
 	}
 
+	var rawBody []byte
+
 	var response []SessionResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -21532,6 +24260,7 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "getSessions",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -21573,6 +24302,8 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleGetSharedLinkByIdRequest handles getSharedLinkById operation.
+//
+// This endpoint requires the `sharedLink.read` permission.
 //
 // GET /shared-links/{id}
 func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21626,7 +24357,7 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -21735,6 +24466,8 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 		return
 	}
 
+	var rawBody []byte
+
 	var response *SharedLinkResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -21743,6 +24476,7 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "getSharedLinkById",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -21789,6 +24523,8 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 }
 
 // handleGetStackRequest handles getStack operation.
+//
+// This endpoint requires the `stack.read` permission.
 //
 // GET /stacks/{id}
 func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21842,7 +24578,7 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -21951,6 +24687,8 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 		return
 	}
 
+	var rawBody []byte
+
 	var response *StackResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -21959,6 +24697,7 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 			OperationSummary: "",
 			OperationID:      "getStack",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -22005,6 +24744,8 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 }
 
 // handleGetStorageRequest handles getStorage operation.
+//
+// This endpoint requires the `server.storage` permission.
 //
 // GET /server/storage
 func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22058,7 +24799,7 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -22157,6 +24898,8 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 		}
 	}
 
+	var rawBody []byte
+
 	var response *ServerStorageResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -22165,6 +24908,7 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "getStorage",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -22206,6 +24950,8 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 }
 
 // handleGetStorageTemplateOptionsRequest handles getStorageTemplateOptions operation.
+//
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 //
 // GET /system-config/storage-template-options
 func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22259,7 +25005,7 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -22358,6 +25104,8 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 		}
 	}
 
+	var rawBody []byte
+
 	var response *SystemConfigTemplateStorageOptionDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -22366,6 +25114,7 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 			OperationSummary: "",
 			OperationID:      "getStorageTemplateOptions",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -22460,7 +25209,7 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -22475,6 +25224,8 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *ServerMediaTypesResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -22483,6 +25234,7 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 			OperationSummary: "",
 			OperationID:      "getSupportedMediaTypes",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -22524,6 +25276,8 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 }
 
 // handleGetSyncAckRequest handles getSyncAck operation.
+//
+// This endpoint requires the `syncCheckpoint.read` permission.
 //
 // GET /sync/ack
 func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22577,7 +25331,7 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -22676,6 +25430,8 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 		}
 	}
 
+	var rawBody []byte
+
 	var response []SyncAckDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -22684,6 +25440,7 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "getSyncAck",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -22725,6 +25482,8 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 }
 
 // handleGetSyncStreamRequest handles getSyncStream operation.
+//
+// This endpoint requires the `sync.stream` permission.
 //
 // POST /sync/stream
 func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22778,7 +25537,7 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -22876,7 +25635,9 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeGetSyncStreamRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeGetSyncStreamRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -22900,6 +25661,7 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "getSyncStream",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -22941,6 +25703,8 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleGetTagByIdRequest handles getTagById operation.
+//
+// This endpoint requires the `tag.read` permission.
 //
 // GET /tags/{id}
 func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22994,7 +25758,7 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -23103,6 +25867,8 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 		return
 	}
 
+	var rawBody []byte
+
 	var response *TagResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -23111,6 +25877,7 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "getTagById",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -23210,7 +25977,7 @@ func (s *Server) handleGetThemeRequest(args [0]string, argsEscaped bool, w http.
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -23225,6 +25992,8 @@ func (s *Server) handleGetThemeRequest(args [0]string, argsEscaped bool, w http.
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *ServerThemeDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -23233,6 +26002,7 @@ func (s *Server) handleGetThemeRequest(args [0]string, argsEscaped bool, w http.
 			OperationSummary: "",
 			OperationID:      "getTheme",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -23274,6 +26044,8 @@ func (s *Server) handleGetThemeRequest(args [0]string, argsEscaped bool, w http.
 }
 
 // handleGetTimeBucketRequest handles getTimeBucket operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /timeline/bucket
 func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23327,7 +26099,7 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -23436,6 +26208,8 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 		return
 	}
 
+	var rawBody []byte
+
 	var response *TimeBucketAssetResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -23444,6 +26218,7 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "getTimeBucket",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "albumId",
@@ -23470,6 +26245,10 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 					In:   "query",
 				}: params.PersonId,
 				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+				{
 					Name: "tagId",
 					In:   "query",
 				}: params.TagId,
@@ -23485,6 +26264,10 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 					Name: "visibility",
 					In:   "query",
 				}: params.Visibility,
+				{
+					Name: "withCoordinates",
+					In:   "query",
+				}: params.WithCoordinates,
 				{
 					Name: "withPartners",
 					In:   "query",
@@ -23534,6 +26317,8 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleGetTimeBucketsRequest handles getTimeBuckets operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /timeline/buckets
 func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23587,7 +26372,7 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -23696,6 +26481,8 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 		return
 	}
 
+	var rawBody []byte
+
 	var response []TimeBucketsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -23704,6 +26491,7 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "getTimeBuckets",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "albumId",
@@ -23730,6 +26518,10 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 					In:   "query",
 				}: params.PersonId,
 				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+				{
 					Name: "tagId",
 					In:   "query",
 				}: params.TagId,
@@ -23741,6 +26533,10 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 					Name: "visibility",
 					In:   "query",
 				}: params.Visibility,
+				{
+					Name: "withCoordinates",
+					In:   "query",
+				}: params.WithCoordinates,
 				{
 					Name: "withPartners",
 					In:   "query",
@@ -23843,7 +26639,7 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -23942,6 +26738,8 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 		}
 	}
 
+	var rawBody []byte
+
 	var response []string
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -23950,6 +26748,7 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 			OperationSummary: "",
 			OperationID:      "getUniqueOriginalPaths",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -23991,6 +26790,8 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 }
 
 // handleGetUserRequest handles getUser operation.
+//
+// This endpoint requires the `user.read` permission.
 //
 // GET /users/{id}
 func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24044,7 +26845,7 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -24153,6 +26954,8 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 		return
 	}
 
+	var rawBody []byte
+
 	var response *UserResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -24161,6 +26964,7 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 			OperationSummary: "",
 			OperationID:      "getUser",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -24207,6 +27011,8 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 }
 
 // handleGetUserAdminRequest handles getUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 //
 // GET /admin/users/{id}
 func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24260,7 +27066,7 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -24369,6 +27175,8 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response *UserAdminResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -24377,6 +27185,7 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "getUserAdmin",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -24423,6 +27232,8 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 }
 
 // handleGetUserLicenseRequest handles getUserLicense operation.
+//
+// This endpoint requires the `userLicense.read` permission.
 //
 // GET /users/me/license
 func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24476,7 +27287,7 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -24575,6 +27386,8 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		}
 	}
 
+	var rawBody []byte
+
 	var response *LicenseResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -24583,6 +27396,7 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "getUserLicense",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -24624,6 +27438,8 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 }
 
 // handleGetUserOnboardingRequest handles getUserOnboarding operation.
+//
+// This endpoint requires the `userOnboarding.read` permission.
 //
 // GET /users/me/onboarding
 func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24677,7 +27493,7 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -24776,6 +27592,8 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 		}
 	}
 
+	var rawBody []byte
+
 	var response *OnboardingResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -24784,6 +27602,7 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "getUserOnboarding",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -24825,6 +27644,8 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 }
 
 // handleGetUserPreferencesAdminRequest handles getUserPreferencesAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 //
 // GET /admin/users/{id}/preferences
 func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24878,7 +27699,7 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -24987,6 +27808,8 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 		return
 	}
 
+	var rawBody []byte
+
 	var response *UserPreferencesResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -24995,6 +27818,7 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 			OperationSummary: "",
 			OperationID:      "getUserPreferencesAdmin",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -25041,6 +27865,8 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 }
 
 // handleGetUserStatisticsAdminRequest handles getUserStatisticsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 //
 // GET /admin/users/{id}/statistics
 func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25094,7 +27920,7 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -25203,6 +28029,8 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 		return
 	}
 
+	var rawBody []byte
+
 	var response *AssetStatsResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -25211,6 +28039,7 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 			OperationSummary: "",
 			OperationID:      "getUserStatisticsAdmin",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -25270,6 +28099,8 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 
 // handleGetVersionCheckRequest handles getVersionCheck operation.
 //
+// This endpoint requires the `server.versionCheck` permission.
+//
 // GET /server/version-check
 func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -25322,7 +28153,7 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -25421,6 +28252,8 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 		}
 	}
 
+	var rawBody []byte
+
 	var response *VersionCheckStateResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -25429,6 +28262,7 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "getVersionCheck",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -25470,6 +28304,8 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleGetVersionCheckStateRequest handles getVersionCheckState operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 //
 // GET /system-metadata/version-check-state
 func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25523,7 +28359,7 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -25622,6 +28458,8 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 		}
 	}
 
+	var rawBody []byte
+
 	var response *VersionCheckStateResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -25630,6 +28468,7 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 			OperationSummary: "",
 			OperationID:      "getVersionCheckState",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -25724,7 +28563,7 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -25739,6 +28578,8 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 		err error
 	)
 
+	var rawBody []byte
+
 	var response []ServerVersionHistoryResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -25747,6 +28588,7 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "getVersionHistory",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -25841,7 +28683,7 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -25939,7 +28781,9 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 			return
 		}
 	}
-	request, close, err := s.decodeLinkOAuthAccountRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeLinkOAuthAccountRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -25963,6 +28807,7 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "linkOAuthAccount",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -26057,7 +28902,7 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -26156,7 +29001,9 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 		}
 	}
 
-	var response *LockAuthSessionOK
+	var rawBody []byte
+
+	var response *LockAuthSessionNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -26164,6 +29011,7 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "lockAuthSession",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -26171,7 +29019,7 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *LockAuthSessionOK
+			Response = *LockAuthSessionNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -26205,6 +29053,8 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 }
 
 // handleLockSessionRequest handles lockSession operation.
+//
+// This endpoint requires the `session.lock` permission.
 //
 // POST /sessions/{id}/lock
 func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26258,7 +29108,7 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -26367,6 +29217,8 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 		return
 	}
 
+	var rawBody []byte
+
 	var response *LockSessionNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -26375,6 +29227,7 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "lockSession",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -26474,7 +29327,7 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -26492,7 +29345,9 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 			ID:   "login",
 		}
 	)
-	request, close, err := s.decodeLoginRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeLoginRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -26516,6 +29371,7 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 			OperationSummary: "",
 			OperationID:      "login",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -26610,7 +29466,7 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -26709,6 +29565,8 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 		}
 	}
 
+	var rawBody []byte
+
 	var response *LogoutResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -26717,6 +29575,7 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 			OperationSummary: "",
 			OperationID:      "logout",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -26757,7 +29616,242 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 	}
 }
 
+// handleMemoriesStatisticsRequest handles memoriesStatistics operation.
+//
+// This endpoint requires the `memory.statistics` permission.
+//
+// GET /memories/statistics
+func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("memoriesStatistics"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/memories/statistics"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), MemoriesStatisticsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: MemoriesStatisticsOperation,
+			ID:   "memoriesStatistics",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, MemoriesStatisticsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, MemoriesStatisticsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, MemoriesStatisticsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeMemoriesStatisticsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *MemoryStatisticsResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    MemoriesStatisticsOperation,
+			OperationSummary: "",
+			OperationID:      "memoriesStatistics",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "for",
+					In:   "query",
+				}: params.For,
+				{
+					Name: "isSaved",
+					In:   "query",
+				}: params.IsSaved,
+				{
+					Name: "isTrashed",
+					In:   "query",
+				}: params.IsTrashed,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = MemoriesStatisticsParams
+			Response = *MemoryStatisticsResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackMemoriesStatisticsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.MemoriesStatistics(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.MemoriesStatistics(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeMemoriesStatisticsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleMergePersonRequest handles mergePerson operation.
+//
+// This endpoint requires the `person.merge` permission.
 //
 // POST /people/{id}/merge
 func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26811,7 +29905,7 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -26919,7 +30013,9 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeMergePersonRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeMergePersonRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -26943,6 +30039,7 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "mergePerson",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -27042,7 +30139,7 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -27057,6 +30154,8 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *ServerPingResponse
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -27065,6 +30164,7 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "pingServer",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -27106,6 +30206,8 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 }
 
 // handlePlayAssetVideoRequest handles playAssetVideo operation.
+//
+// This endpoint requires the `asset.view` permission.
 //
 // GET /assets/{id}/video/playback
 func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27159,7 +30261,7 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -27268,6 +30370,8 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 		return
 	}
 
+	var rawBody []byte
+
 	var response PlayAssetVideoOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -27276,6 +30380,7 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "playAssetVideo",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -27285,6 +30390,10 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -27326,6 +30435,8 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 }
 
 // handleReassignFacesRequest handles reassignFaces operation.
+//
+// This endpoint requires the `person.reassign` permission.
 //
 // PUT /people/{id}/reassign
 func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27379,7 +30490,7 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -27487,7 +30598,9 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeReassignFacesRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReassignFacesRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -27511,6 +30624,7 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "reassignFaces",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -27557,6 +30671,8 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleReassignFacesByIdRequest handles reassignFacesById operation.
+//
+// This endpoint requires the `face.update` permission.
 //
 // PUT /faces/{id}
 func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27610,7 +30726,7 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -27718,7 +30834,9 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeReassignFacesByIdRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReassignFacesByIdRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -27742,6 +30860,7 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "reassignFacesById",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -27841,7 +30960,7 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -27856,6 +30975,8 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 		err error
 	)
 
+	var rawBody []byte
+
 	var response *RedirectOAuthToMobileOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -27864,6 +30985,7 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 			OperationSummary: "",
 			OperationID:      "redirectOAuthToMobile",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -27905,6 +31027,8 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 }
 
 // handleRemoveAssetFromAlbumRequest handles removeAssetFromAlbum operation.
+//
+// This endpoint requires the `albumAsset.delete` permission.
 //
 // DELETE /albums/{id}/assets
 func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27958,7 +31082,7 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -28066,7 +31190,9 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeRemoveAssetFromAlbumRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRemoveAssetFromAlbumRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -28090,6 +31216,7 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 			OperationSummary: "",
 			OperationID:      "removeAssetFromAlbum",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -28135,7 +31262,234 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 	}
 }
 
+// handleRemoveAssetFromStackRequest handles removeAssetFromStack operation.
+//
+// This endpoint requires the `stack.update` permission.
+//
+// DELETE /stacks/{id}/assets/{assetId}
+func (s *Server) handleRemoveAssetFromStackRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("removeAssetFromStack"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/stacks/{id}/assets/{assetId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveAssetFromStackOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RemoveAssetFromStackOperation,
+			ID:   "removeAssetFromStack",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, RemoveAssetFromStackOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, RemoveAssetFromStackOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, RemoveAssetFromStackOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeRemoveAssetFromStackParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *RemoveAssetFromStackNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RemoveAssetFromStackOperation,
+			OperationSummary: "",
+			OperationID:      "removeAssetFromStack",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "assetId",
+					In:   "path",
+				}: params.AssetId,
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = RemoveAssetFromStackParams
+			Response = *RemoveAssetFromStackNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRemoveAssetFromStackParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.RemoveAssetFromStack(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.RemoveAssetFromStack(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRemoveAssetFromStackResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleRemoveMemoryAssetsRequest handles removeMemoryAssets operation.
+//
+// This endpoint requires the `memoryAsset.delete` permission.
 //
 // DELETE /memories/{id}/assets
 func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28189,7 +31543,7 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -28297,7 +31651,9 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeRemoveMemoryAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRemoveMemoryAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -28321,6 +31677,7 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "removeMemoryAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -28367,6 +31724,8 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 }
 
 // handleRemovePartnerRequest handles removePartner operation.
+//
+// This endpoint requires the `partner.delete` permission.
 //
 // DELETE /partners/{id}
 func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28420,7 +31779,7 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -28529,7 +31888,9 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 		return
 	}
 
-	var response *RemovePartnerOK
+	var rawBody []byte
+
+	var response *RemovePartnerNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -28537,6 +31898,7 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "removePartner",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -28549,7 +31911,7 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 		type (
 			Request  = struct{}
 			Params   = RemovePartnerParams
-			Response = *RemovePartnerOK
+			Response = *RemovePartnerNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -28583,6 +31945,8 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleRemoveSharedLinkRequest handles removeSharedLink operation.
+//
+// This endpoint requires the `sharedLink.delete` permission.
 //
 // DELETE /shared-links/{id}
 func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28636,7 +32000,7 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -28745,7 +32109,9 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 		return
 	}
 
-	var response *RemoveSharedLinkOK
+	var rawBody []byte
+
+	var response *RemoveSharedLinkNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -28753,6 +32119,7 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "removeSharedLink",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -28765,7 +32132,7 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 		type (
 			Request  = struct{}
 			Params   = RemoveSharedLinkParams
-			Response = *RemoveSharedLinkOK
+			Response = *RemoveSharedLinkNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -28852,7 +32219,7 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -28960,7 +32327,9 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeRemoveSharedLinkAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRemoveSharedLinkAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -28984,6 +32353,7 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 			OperationSummary: "",
 			OperationID:      "removeSharedLinkAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -28993,6 +32363,10 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -29034,6 +32408,8 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 }
 
 // handleRemoveUserFromAlbumRequest handles removeUserFromAlbum operation.
+//
+// This endpoint requires the `albumUser.delete` permission.
 //
 // DELETE /albums/{id}/user/{userId}
 func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29087,7 +32463,7 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -29196,7 +32572,9 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 		return
 	}
 
-	var response *RemoveUserFromAlbumOK
+	var rawBody []byte
+
+	var response *RemoveUserFromAlbumNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -29204,6 +32582,7 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "removeUserFromAlbum",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -29220,7 +32599,7 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 		type (
 			Request  = struct{}
 			Params   = RemoveUserFromAlbumParams
-			Response = *RemoveUserFromAlbumOK
+			Response = *RemoveUserFromAlbumNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -29255,7 +32634,11 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 
 // handleReplaceAssetRequest handles replaceAsset operation.
 //
-// Replace the asset with new file, without changing its id.
+// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
+//
+//	This endpoint requires the `asset.replace` permission.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets/{id}/original
 func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29309,7 +32692,7 @@ func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -29417,7 +32800,9 @@ func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w h
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeReplaceAssetRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReplaceAssetRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -29438,9 +32823,10 @@ func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReplaceAssetOperation,
-			OperationSummary: "replaceAsset",
+			OperationSummary: "Replace the asset with new file, without changing its id",
 			OperationID:      "replaceAsset",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -29450,6 +32836,10 @@ func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w h
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -29491,6 +32881,8 @@ func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w h
 }
 
 // handleResetPinCodeRequest handles resetPinCode operation.
+//
+// This endpoint requires the `pinCode.delete` permission.
 //
 // DELETE /auth/pin-code
 func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29544,7 +32936,7 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -29642,7 +33034,9 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeResetPinCodeRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeResetPinCodeRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -29658,7 +33052,7 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 		}
 	}()
 
-	var response *ResetPinCodeOK
+	var response *ResetPinCodeNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -29666,6 +33060,7 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "resetPinCode",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -29673,7 +33068,7 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 		type (
 			Request  = *PinCodeResetDto
 			Params   = struct{}
-			Response = *ResetPinCodeOK
+			Response = *ResetPinCodeNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -29707,6 +33102,8 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleRestoreAssetsRequest handles restoreAssets operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // POST /trash/restore/assets
 func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29760,7 +33157,7 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -29858,7 +33255,9 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 			return
 		}
 	}
-	request, close, err := s.decodeRestoreAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRestoreAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -29882,6 +33281,7 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "restoreAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -29923,6 +33323,8 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 }
 
 // handleRestoreTrashRequest handles restoreTrash operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // POST /trash/restore
 func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29976,7 +33378,7 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -30075,6 +33477,8 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 		}
 	}
 
+	var rawBody []byte
+
 	var response *TrashResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -30083,6 +33487,7 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "restoreTrash",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -30124,6 +33529,8 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleRestoreUserAdminRequest handles restoreUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
 //
 // POST /admin/users/{id}/restore
 func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30177,7 +33584,7 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -30286,6 +33693,8 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 		return
 	}
 
+	var rawBody []byte
+
 	var response *UserAdminResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -30294,6 +33703,7 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "restoreUserAdmin",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -30393,7 +33803,7 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -30502,6 +33912,8 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 		return
 	}
 
+	var rawBody []byte
+
 	var response []MapReverseGeocodeResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -30510,6 +33922,7 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "reverseGeocode",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "lat",
@@ -30613,7 +34026,7 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -30711,7 +34124,9 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeRunAssetJobsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRunAssetJobsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -30735,6 +34150,7 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "runAssetJobs",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -30776,6 +34192,8 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleScanLibraryRequest handles scanLibrary operation.
+//
+// This endpoint is an admin-only route, and requires the `library.update` permission.
 //
 // POST /libraries/{id}/scan
 func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30829,7 +34247,7 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -30938,6 +34356,8 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 		return
 	}
 
+	var rawBody []byte
+
 	var response *ScanLibraryNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -30946,6 +34366,7 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "scanLibrary",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -30991,7 +34412,230 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 	}
 }
 
+// handleSearchAssetStatisticsRequest handles searchAssetStatistics operation.
+//
+// This endpoint requires the `asset.statistics` permission.
+//
+// POST /search/statistics
+func (s *Server) handleSearchAssetStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchAssetStatistics"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/search/statistics"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchAssetStatisticsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SearchAssetStatisticsOperation,
+			ID:   "searchAssetStatistics",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SearchAssetStatisticsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SearchAssetStatisticsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SearchAssetStatisticsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSearchAssetStatisticsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *SearchStatisticsResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SearchAssetStatisticsOperation,
+			OperationSummary: "",
+			OperationID:      "searchAssetStatistics",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *StatisticsSearchDto
+			Params   = struct{}
+			Response = *SearchStatisticsResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SearchAssetStatistics(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SearchAssetStatistics(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSearchAssetStatisticsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSearchAssetsRequest handles searchAssets operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // POST /search/metadata
 func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31045,7 +34689,7 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -31143,7 +34787,9 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeSearchAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSearchAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -31167,6 +34813,7 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "searchAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -31207,7 +34854,350 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleSearchLargeAssetsRequest handles searchLargeAssets operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// POST /search/large-assets
+func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchLargeAssets"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/search/large-assets"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchLargeAssetsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SearchLargeAssetsOperation,
+			ID:   "searchLargeAssets",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SearchLargeAssetsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SearchLargeAssetsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SearchLargeAssetsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeSearchLargeAssetsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []AssetResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SearchLargeAssetsOperation,
+			OperationSummary: "",
+			OperationID:      "searchLargeAssets",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "albumIds",
+					In:   "query",
+				}: params.AlbumIds,
+				{
+					Name: "city",
+					In:   "query",
+				}: params.City,
+				{
+					Name: "country",
+					In:   "query",
+				}: params.Country,
+				{
+					Name: "createdAfter",
+					In:   "query",
+				}: params.CreatedAfter,
+				{
+					Name: "createdBefore",
+					In:   "query",
+				}: params.CreatedBefore,
+				{
+					Name: "deviceId",
+					In:   "query",
+				}: params.DeviceId,
+				{
+					Name: "isEncoded",
+					In:   "query",
+				}: params.IsEncoded,
+				{
+					Name: "isFavorite",
+					In:   "query",
+				}: params.IsFavorite,
+				{
+					Name: "isMotion",
+					In:   "query",
+				}: params.IsMotion,
+				{
+					Name: "isNotInAlbum",
+					In:   "query",
+				}: params.IsNotInAlbum,
+				{
+					Name: "isOffline",
+					In:   "query",
+				}: params.IsOffline,
+				{
+					Name: "lensModel",
+					In:   "query",
+				}: params.LensModel,
+				{
+					Name: "libraryId",
+					In:   "query",
+				}: params.LibraryId,
+				{
+					Name: "make",
+					In:   "query",
+				}: params.Make,
+				{
+					Name: "minFileSize",
+					In:   "query",
+				}: params.MinFileSize,
+				{
+					Name: "model",
+					In:   "query",
+				}: params.Model,
+				{
+					Name: "personIds",
+					In:   "query",
+				}: params.PersonIds,
+				{
+					Name: "rating",
+					In:   "query",
+				}: params.Rating,
+				{
+					Name: "size",
+					In:   "query",
+				}: params.Size,
+				{
+					Name: "state",
+					In:   "query",
+				}: params.State,
+				{
+					Name: "tagIds",
+					In:   "query",
+				}: params.TagIds,
+				{
+					Name: "takenAfter",
+					In:   "query",
+				}: params.TakenAfter,
+				{
+					Name: "takenBefore",
+					In:   "query",
+				}: params.TakenBefore,
+				{
+					Name: "trashedAfter",
+					In:   "query",
+				}: params.TrashedAfter,
+				{
+					Name: "trashedBefore",
+					In:   "query",
+				}: params.TrashedBefore,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+				{
+					Name: "updatedAfter",
+					In:   "query",
+				}: params.UpdatedAfter,
+				{
+					Name: "updatedBefore",
+					In:   "query",
+				}: params.UpdatedBefore,
+				{
+					Name: "visibility",
+					In:   "query",
+				}: params.Visibility,
+				{
+					Name: "withDeleted",
+					In:   "query",
+				}: params.WithDeleted,
+				{
+					Name: "withExif",
+					In:   "query",
+				}: params.WithExif,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = SearchLargeAssetsParams
+			Response = []AssetResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSearchLargeAssetsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SearchLargeAssets(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SearchLargeAssets(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSearchLargeAssetsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSearchMemoriesRequest handles searchMemories operation.
+//
+// This endpoint requires the `memory.read` permission.
 //
 // GET /memories
 func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31261,7 +35251,7 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -31370,6 +35360,8 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 		return
 	}
 
+	var rawBody []byte
+
 	var response []MemoryResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -31378,6 +35370,7 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "searchMemories",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "for",
@@ -31437,6 +35430,8 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 
 // handleSearchPersonRequest handles searchPerson operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /search/person
 func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -31489,7 +35484,7 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -31598,6 +35593,8 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response []PersonResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -31606,6 +35603,7 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "searchPerson",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "name",
@@ -31656,6 +35654,8 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleSearchPlacesRequest handles searchPlaces operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /search/places
 func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31709,7 +35709,7 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -31818,6 +35818,8 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response []PlacesResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -31826,6 +35828,7 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "searchPlaces",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "name",
@@ -31872,6 +35875,8 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleSearchRandomRequest handles searchRandom operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // POST /search/random
 func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31925,7 +35930,7 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -32023,7 +36028,9 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeSearchRandomRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSearchRandomRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -32047,6 +36054,7 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "searchRandom",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -32088,6 +36096,8 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleSearchSmartRequest handles searchSmart operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // POST /search/smart
 func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32141,7 +36151,7 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -32239,7 +36249,9 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 			return
 		}
 	}
-	request, close, err := s.decodeSearchSmartRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSearchSmartRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -32263,6 +36275,7 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "searchSmart",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -32304,6 +36317,8 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleSearchStacksRequest handles searchStacks operation.
+//
+// This endpoint requires the `stack.read` permission.
 //
 // GET /stacks
 func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32357,7 +36372,7 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -32466,6 +36481,8 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 		return
 	}
 
+	var rawBody []byte
+
 	var response []StackResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -32474,6 +36491,7 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "searchStacks",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "primaryAssetId",
@@ -32520,6 +36538,8 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleSearchUsersRequest handles searchUsers operation.
+//
+// This endpoint requires the `user.read` permission.
 //
 // GET /users
 func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32573,7 +36593,7 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -32672,6 +36692,8 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 		}
 	}
 
+	var rawBody []byte
+
 	var response []UserResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -32680,6 +36702,7 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "searchUsers",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -32721,6 +36744,8 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleSearchUsersAdminRequest handles searchUsersAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 //
 // GET /admin/users
 func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32774,7 +36799,7 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -32883,6 +36908,8 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 		return
 	}
 
+	var rawBody []byte
+
 	var response []UserAdminResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -32891,6 +36918,7 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "searchUsersAdmin",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -32941,6 +36969,8 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 }
 
 // handleSendJobCommandRequest handles sendJobCommand operation.
+//
+// This endpoint is an admin-only route, and requires the `job.create` permission.
 //
 // PUT /jobs/{id}
 func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32994,7 +37024,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -33102,7 +37132,9 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeSendJobCommandRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSendJobCommandRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -33126,6 +37158,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "sendJobCommand",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -33172,6 +37205,8 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 }
 
 // handleSendSyncAckRequest handles sendSyncAck operation.
+//
+// This endpoint requires the `syncCheckpoint.update` permission.
 //
 // POST /sync/ack
 func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33225,7 +37260,7 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -33323,7 +37358,9 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 			return
 		}
 	}
-	request, close, err := s.decodeSendSyncAckRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSendSyncAckRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -33347,6 +37384,7 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "sendSyncAck",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -33441,7 +37479,7 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -33539,7 +37577,9 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 			return
 		}
 	}
-	request, close, err := s.decodeSendTestEmailAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSendTestEmailAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -33563,6 +37603,7 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "sendTestEmailAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -33604,6 +37645,8 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 }
 
 // handleSetServerLicenseRequest handles setServerLicense operation.
+//
+// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
 //
 // PUT /server/license
 func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33657,7 +37700,7 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -33755,7 +37798,9 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 			return
 		}
 	}
-	request, close, err := s.decodeSetServerLicenseRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetServerLicenseRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -33779,6 +37824,7 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "setServerLicense",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -33820,6 +37866,8 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 }
 
 // handleSetUserLicenseRequest handles setUserLicense operation.
+//
+// This endpoint requires the `userLicense.update` permission.
 //
 // PUT /users/me/license
 func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33873,7 +37921,7 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -33971,7 +38019,9 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 			return
 		}
 	}
-	request, close, err := s.decodeSetUserLicenseRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetUserLicenseRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -33995,6 +38045,7 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 			OperationSummary: "",
 			OperationID:      "setUserLicense",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -34036,6 +38087,8 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 }
 
 // handleSetUserOnboardingRequest handles setUserOnboarding operation.
+//
+// This endpoint requires the `userOnboarding.update` permission.
 //
 // PUT /users/me/onboarding
 func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34089,7 +38142,7 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -34187,7 +38240,9 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 			return
 		}
 	}
-	request, close, err := s.decodeSetUserOnboardingRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetUserOnboardingRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -34211,6 +38266,7 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "setUserOnboarding",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -34252,6 +38308,8 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 }
 
 // handleSetupPinCodeRequest handles setupPinCode operation.
+//
+// This endpoint requires the `pinCode.create` permission.
 //
 // POST /auth/pin-code
 func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34305,7 +38363,7 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -34403,7 +38461,9 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeSetupPinCodeRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetupPinCodeRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -34419,7 +38479,7 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 		}
 	}()
 
-	var response *SetupPinCodeCreated
+	var response *SetupPinCodeNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -34427,6 +38487,7 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "setupPinCode",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -34434,7 +38495,7 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 		type (
 			Request  = *PinCodeSetupDto
 			Params   = struct{}
-			Response = *SetupPinCodeCreated
+			Response = *SetupPinCodeNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -34521,7 +38582,7 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -34539,7 +38600,9 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 			ID:   "signUpAdmin",
 		}
 	)
-	request, close, err := s.decodeSignUpAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSignUpAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -34563,6 +38626,7 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "signUpAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -34657,7 +38721,7 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -34675,7 +38739,9 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 			ID:   "startOAuth",
 		}
 	)
-	request, close, err := s.decodeStartOAuthRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeStartOAuthRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -34699,6 +38765,7 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "startOAuth",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -34740,6 +38807,8 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 }
 
 // handleTagAssetsRequest handles tagAssets operation.
+//
+// This endpoint requires the `tag.asset` permission.
 //
 // PUT /tags/{id}/assets
 func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34793,7 +38862,7 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -34901,7 +38970,9 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeTagAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeTagAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -34925,6 +38996,7 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "tagAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -34962,6 +39034,212 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 	}
 
 	if err := encodeTagAssetsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleUnlinkAllOAuthAccountsAdminRequest handles unlinkAllOAuthAccountsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+//
+// POST /admin/auth/unlink-all
+func (s *Server) handleUnlinkAllOAuthAccountsAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("unlinkAllOAuthAccountsAdmin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/admin/auth/unlink-all"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UnlinkAllOAuthAccountsAdminOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UnlinkAllOAuthAccountsAdminOperation,
+			ID:   "unlinkAllOAuthAccountsAdmin",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UnlinkAllOAuthAccountsAdminOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UnlinkAllOAuthAccountsAdminOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UnlinkAllOAuthAccountsAdminOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *UnlinkAllOAuthAccountsAdminNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UnlinkAllOAuthAccountsAdminOperation,
+			OperationSummary: "",
+			OperationID:      "unlinkAllOAuthAccountsAdmin",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *UnlinkAllOAuthAccountsAdminNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.UnlinkAllOAuthAccountsAdmin(ctx)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.UnlinkAllOAuthAccountsAdmin(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUnlinkAllOAuthAccountsAdminResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -35024,7 +39302,7 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -35123,6 +39401,8 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 		}
 	}
 
+	var rawBody []byte
+
 	var response *UserAdminResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -35131,6 +39411,7 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "unlinkOAuthAccount",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -35225,7 +39506,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -35323,7 +39604,9 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 			return
 		}
 	}
-	request, close, err := s.decodeUnlockAuthSessionRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUnlockAuthSessionRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -35339,7 +39622,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 		}
 	}()
 
-	var response *UnlockAuthSessionOK
+	var response *UnlockAuthSessionNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -35347,6 +39630,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 			OperationSummary: "",
 			OperationID:      "unlockAuthSession",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -35354,7 +39638,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 		type (
 			Request  = *SessionUnlockDto
 			Params   = struct{}
-			Response = *UnlockAuthSessionOK
+			Response = *UnlockAuthSessionNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -35388,6 +39672,8 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 }
 
 // handleUntagAssetsRequest handles untagAssets operation.
+//
+// This endpoint requires the `tag.asset` permission.
 //
 // DELETE /tags/{id}/assets
 func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35441,7 +39727,7 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -35549,7 +39835,9 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUntagAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUntagAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -35573,6 +39861,7 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "untagAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -35619,6 +39908,8 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 }
 
 // handleUpdateAdminOnboardingRequest handles updateAdminOnboarding operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
 //
 // POST /system-metadata/admin-onboarding
 func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35672,7 +39963,7 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -35770,7 +40061,9 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 			return
 		}
 	}
-	request, close, err := s.decodeUpdateAdminOnboardingRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateAdminOnboardingRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -35794,6 +40087,7 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 			OperationSummary: "",
 			OperationID:      "updateAdminOnboarding",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -35835,6 +40129,8 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 }
 
 // handleUpdateAlbumInfoRequest handles updateAlbumInfo operation.
+//
+// This endpoint requires the `album.update` permission.
 //
 // PATCH /albums/{id}
 func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35888,7 +40184,7 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -35996,7 +40292,9 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateAlbumInfoRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateAlbumInfoRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -36020,6 +40318,7 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "updateAlbumInfo",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -36066,6 +40365,8 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 }
 
 // handleUpdateAlbumUserRequest handles updateAlbumUser operation.
+//
+// This endpoint requires the `albumUser.update` permission.
 //
 // PUT /albums/{id}/user/{userId}
 func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36119,7 +40420,7 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -36227,7 +40528,9 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateAlbumUserRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateAlbumUserRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -36243,7 +40546,7 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 		}
 	}()
 
-	var response *UpdateAlbumUserOK
+	var response *UpdateAlbumUserNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -36251,6 +40554,7 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "updateAlbumUser",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -36267,7 +40571,7 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 		type (
 			Request  = *UpdateAlbumUserDto
 			Params   = UpdateAlbumUserParams
-			Response = *UpdateAlbumUserOK
+			Response = *UpdateAlbumUserNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -36301,6 +40605,8 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 }
 
 // handleUpdateApiKeyRequest handles updateApiKey operation.
+//
+// This endpoint requires the `apiKey.update` permission.
 //
 // PUT /api-keys/{id}
 func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36354,7 +40660,7 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -36462,7 +40768,9 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateApiKeyRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateApiKeyRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -36486,6 +40794,7 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updateApiKey",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -36532,6 +40841,8 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 }
 
 // handleUpdateAssetRequest handles updateAsset operation.
+//
+// This endpoint requires the `asset.update` permission.
 //
 // PUT /assets/{id}
 func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36585,7 +40896,7 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -36693,7 +41004,9 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateAssetRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateAssetRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -36717,6 +41030,7 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "updateAsset",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -36762,7 +41076,245 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 	}
 }
 
+// handleUpdateAssetMetadataRequest handles updateAssetMetadata operation.
+//
+// This endpoint requires the `asset.update` permission.
+//
+// PUT /assets/{id}/metadata
+func (s *Server) handleUpdateAssetMetadataRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/assets/{id}/metadata"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateAssetMetadataOperation,
+			ID:   "updateAssetMetadata",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UpdateAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UpdateAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UpdateAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeUpdateAssetMetadataParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateAssetMetadataRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response []AssetMetadataResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateAssetMetadataOperation,
+			OperationSummary: "",
+			OperationID:      "updateAssetMetadata",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *AssetMetadataUpsertDto
+			Params   = UpdateAssetMetadataParams
+			Response = []AssetMetadataResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUpdateAssetMetadataParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateAssetMetadata(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateAssetMetadata(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateAssetMetadataResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUpdateAssetsRequest handles updateAssets operation.
+//
+// This endpoint requires the `asset.update` permission.
 //
 // PUT /assets
 func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36816,7 +41368,7 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -36914,7 +41466,9 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeUpdateAssetsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateAssetsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -36938,6 +41492,7 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updateAssets",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -36979,6 +41534,8 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleUpdateConfigRequest handles updateConfig operation.
+//
+// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
 //
 // PUT /system-config
 func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37032,7 +41589,7 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -37130,7 +41687,9 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeUpdateConfigRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateConfigRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -37154,6 +41713,7 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updateConfig",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -37195,6 +41755,8 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleUpdateLibraryRequest handles updateLibrary operation.
+//
+// This endpoint is an admin-only route, and requires the `library.update` permission.
 //
 // PUT /libraries/{id}
 func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37248,7 +41810,7 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -37356,7 +41918,9 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateLibraryRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateLibraryRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -37380,6 +41944,7 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "updateLibrary",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -37426,6 +41991,8 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleUpdateMemoryRequest handles updateMemory operation.
+//
+// This endpoint requires the `memory.update` permission.
 //
 // PUT /memories/{id}
 func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37479,7 +42046,7 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -37587,7 +42154,9 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateMemoryRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateMemoryRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -37611,6 +42180,7 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updateMemory",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -37657,6 +42227,8 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 }
 
 // handleUpdateMyPreferencesRequest handles updateMyPreferences operation.
+//
+// This endpoint requires the `userPreference.update` permission.
 //
 // PUT /users/me/preferences
 func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37710,7 +42282,7 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -37808,7 +42380,9 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 			return
 		}
 	}
-	request, close, err := s.decodeUpdateMyPreferencesRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateMyPreferencesRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -37832,6 +42406,7 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "updateMyPreferences",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -37873,6 +42448,8 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 }
 
 // handleUpdateMyUserRequest handles updateMyUser operation.
+//
+// This endpoint requires the `user.update` permission.
 //
 // PUT /users/me
 func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37926,7 +42503,7 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -38024,7 +42601,9 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeUpdateMyUserRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateMyUserRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -38048,6 +42627,7 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updateMyUser",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -38089,6 +42669,8 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleUpdateNotificationRequest handles updateNotification operation.
+//
+// This endpoint requires the `notification.update` permission.
 //
 // PUT /notifications/{id}
 func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38142,7 +42724,7 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -38250,7 +42832,9 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateNotificationRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateNotificationRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -38274,6 +42858,7 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 			OperationSummary: "",
 			OperationID:      "updateNotification",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -38320,6 +42905,8 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 }
 
 // handleUpdateNotificationsRequest handles updateNotifications operation.
+//
+// This endpoint requires the `notification.update` permission.
 //
 // PUT /notifications
 func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38373,7 +42960,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -38471,7 +43058,9 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 			return
 		}
 	}
-	request, close, err := s.decodeUpdateNotificationsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateNotificationsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -38487,7 +43076,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 		}
 	}()
 
-	var response *UpdateNotificationsOK
+	var response *UpdateNotificationsNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -38495,6 +43084,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "updateNotifications",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -38502,7 +43092,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 		type (
 			Request  = *NotificationUpdateAllDto
 			Params   = struct{}
-			Response = *UpdateNotificationsOK
+			Response = *UpdateNotificationsNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -38536,6 +43126,8 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 }
 
 // handleUpdatePartnerRequest handles updatePartner operation.
+//
+// This endpoint requires the `partner.update` permission.
 //
 // PUT /partners/{id}
 func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38589,7 +43181,7 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -38697,7 +43289,9 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdatePartnerRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdatePartnerRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -38721,6 +43315,7 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 			OperationSummary: "",
 			OperationID:      "updatePartner",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -38731,7 +43326,7 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 		}
 
 		type (
-			Request  = *UpdatePartnerDto
+			Request  = *PartnerUpdateDto
 			Params   = UpdatePartnerParams
 			Response = *PartnerResponseDto
 		)
@@ -38767,6 +43362,8 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 }
 
 // handleUpdatePeopleRequest handles updatePeople operation.
+//
+// This endpoint requires the `person.update` permission.
 //
 // PUT /people
 func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38820,7 +43417,7 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -38918,7 +43515,9 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
-	request, close, err := s.decodeUpdatePeopleRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdatePeopleRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -38942,6 +43541,7 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updatePeople",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -38983,6 +43583,8 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 }
 
 // handleUpdatePersonRequest handles updatePerson operation.
+//
+// This endpoint requires the `person.update` permission.
 //
 // PUT /people/{id}
 func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39036,7 +43638,7 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -39144,7 +43746,9 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdatePersonRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdatePersonRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -39168,6 +43772,7 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 			OperationSummary: "",
 			OperationID:      "updatePerson",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -39213,7 +43818,245 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleUpdateSessionRequest handles updateSession operation.
+//
+// This endpoint requires the `session.update` permission.
+//
+// PUT /sessions/{id}
+func (s *Server) handleUpdateSessionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateSession"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/sessions/{id}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateSessionOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateSessionOperation,
+			ID:   "updateSession",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UpdateSessionOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UpdateSessionOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UpdateSessionOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeUpdateSessionParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateSessionRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *SessionResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateSessionOperation,
+			OperationSummary: "",
+			OperationID:      "updateSession",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SessionUpdateDto
+			Params   = UpdateSessionParams
+			Response = *SessionResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUpdateSessionParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateSession(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateSession(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateSessionResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUpdateSharedLinkRequest handles updateSharedLink operation.
+//
+// This endpoint requires the `sharedLink.update` permission.
 //
 // PATCH /shared-links/{id}
 func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39267,7 +44110,7 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -39375,7 +44218,9 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateSharedLinkRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateSharedLinkRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -39399,6 +44244,7 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 			OperationSummary: "",
 			OperationID:      "updateSharedLink",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -39445,6 +44291,8 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 }
 
 // handleUpdateStackRequest handles updateStack operation.
+//
+// This endpoint requires the `stack.update` permission.
 //
 // PUT /stacks/{id}
 func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39498,7 +44346,7 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -39606,7 +44454,9 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateStackRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateStackRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -39630,6 +44480,7 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "updateStack",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -39676,6 +44527,8 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 }
 
 // handleUpdateTagRequest handles updateTag operation.
+//
+// This endpoint requires the `tag.update` permission.
 //
 // PUT /tags/{id}
 func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39729,7 +44582,7 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -39837,7 +44690,9 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateTagRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateTagRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -39861,6 +44716,7 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "updateTag",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -39907,6 +44763,8 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 }
 
 // handleUpdateUserAdminRequest handles updateUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
 //
 // PUT /admin/users/{id}
 func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39960,7 +44818,7 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -40068,7 +44926,9 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateUserAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateUserAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -40092,6 +44952,7 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 			OperationSummary: "",
 			OperationID:      "updateUserAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -40138,6 +44999,8 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 }
 
 // handleUpdateUserPreferencesAdminRequest handles updateUserPreferencesAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
 //
 // PUT /admin/users/{id}/preferences
 func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -40191,7 +45054,7 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -40299,7 +45162,9 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUpdateUserPreferencesAdminRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateUserPreferencesAdminRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -40323,6 +45188,7 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 			OperationSummary: "",
 			OperationID:      "updateUserPreferencesAdmin",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -40369,6 +45235,8 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 }
 
 // handleUploadAssetRequest handles uploadAsset operation.
+//
+// This endpoint requires the `asset.upload` permission.
 //
 // POST /assets
 func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -40422,7 +45290,7 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -40530,7 +45398,9 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeUploadAssetRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUploadAssetRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -40546,7 +45416,7 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 		}
 	}()
 
-	var response UploadAssetRes
+	var response *AssetMediaResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
@@ -40554,11 +45424,16 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 			OperationSummary: "",
 			OperationID:      "uploadAsset",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "key",
 					In:   "query",
 				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 				{
 					Name: "x-immich-checksum",
 					In:   "header",
@@ -40570,7 +45445,7 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 		type (
 			Request  = *AssetMediaCreateDtoMultipart
 			Params   = UploadAssetParams
-			Response = UploadAssetRes
+			Response = *AssetMediaResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -40604,6 +45479,8 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 }
 
 // handleUpsertTagsRequest handles upsertTags operation.
+//
+// This endpoint requires the `tag.create` permission.
 //
 // PUT /tags
 func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -40657,7 +45534,7 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -40755,7 +45632,9 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 			return
 		}
 	}
-	request, close, err := s.decodeUpsertTagsRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpsertTagsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -40779,6 +45658,7 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 			OperationSummary: "",
 			OperationID:      "upsertTags",
 			Body:             request,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -40873,7 +45753,7 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -40981,7 +45861,9 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 		s.cfg.ErrorHandler(ctx, w, r, err)
 		return
 	}
-	request, close, err := s.decodeValidateRequest(r)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeValidateRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -41005,6 +45887,7 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 			OperationSummary: "",
 			OperationID:      "validate",
 			Body:             request,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -41104,7 +45987,7 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -41203,6 +46086,8 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 		}
 	}
 
+	var rawBody []byte
+
 	var response *ValidateAccessTokenResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -41211,6 +46096,7 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 			OperationSummary: "",
 			OperationID:      "validateAccessToken",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
@@ -41252,6 +46138,8 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 }
 
 // handleViewAssetRequest handles viewAsset operation.
+//
+// This endpoint requires the `asset.view` permission.
 //
 // GET /assets/{id}/thumbnail
 func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -41305,7 +46193,7 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
 			// max redirects exceeded), in which case status MUST be set to Error.
 			code := statusWriter.status
-			if code >= 100 && code < 500 {
+			if code < 100 || code >= 500 {
 				span.SetStatus(codes.Error, stage)
 			}
 
@@ -41414,6 +46302,8 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 		return
 	}
 
+	var rawBody []byte
+
 	var response ViewAssetOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
@@ -41422,6 +46312,7 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 			OperationSummary: "",
 			OperationID:      "viewAsset",
 			Body:             nil,
+			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
 					Name: "id",
@@ -41435,6 +46326,10 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 					Name: "size",
 					In:   "query",
 				}: params.Size,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
 			},
 			Raw: r,
 		}

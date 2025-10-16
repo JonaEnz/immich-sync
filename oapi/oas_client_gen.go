@@ -9,17 +9,16 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/otelogen"
 	"github.com/ogen-go/ogen/uri"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func trimTrailingSlashes(u *url.URL) {
@@ -31,9 +30,19 @@ func trimTrailingSlashes(u *url.URL) {
 type Invoker interface {
 	// AddAssetsToAlbum invokes addAssetsToAlbum operation.
 	//
+	// This endpoint requires the `albumAsset.create` permission.
+	//
 	// PUT /albums/{id}/assets
 	AddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, params AddAssetsToAlbumParams) ([]BulkIdResponseDto, error)
+	// AddAssetsToAlbums invokes addAssetsToAlbums operation.
+	//
+	// This endpoint requires the `albumAsset.create` permission.
+	//
+	// PUT /albums/assets
+	AddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (*AlbumsAddAssetsResponseDto, error)
 	// AddMemoryAssets invokes addMemoryAssets operation.
+	//
+	// This endpoint requires the `memoryAsset.create` permission.
 	//
 	// PUT /memories/{id}/assets
 	AddMemoryAssets(ctx context.Context, request *BulkIdsDto, params AddMemoryAssetsParams) ([]BulkIdResponseDto, error)
@@ -43,23 +52,31 @@ type Invoker interface {
 	AddSharedLinkAssets(ctx context.Context, request *AssetIdsDto, params AddSharedLinkAssetsParams) ([]AssetIdsResponseDto, error)
 	// AddUsersToAlbum invokes addUsersToAlbum operation.
 	//
+	// This endpoint requires the `albumUser.create` permission.
+	//
 	// PUT /albums/{id}/users
 	AddUsersToAlbum(ctx context.Context, request *AddUsersDto, params AddUsersToAlbumParams) (*AlbumResponseDto, error)
 	// BulkTagAssets invokes bulkTagAssets operation.
+	//
+	// This endpoint requires the `tag.asset` permission.
 	//
 	// PUT /tags/assets
 	BulkTagAssets(ctx context.Context, request *TagBulkAssetsDto) (*TagBulkAssetsResponseDto, error)
 	// ChangePassword invokes changePassword operation.
 	//
+	// This endpoint requires the `auth.changePassword` permission.
+	//
 	// POST /auth/change-password
 	ChangePassword(ctx context.Context, request *ChangePasswordDto) (*UserAdminResponseDto, error)
 	// ChangePinCode invokes changePinCode operation.
+	//
+	// This endpoint requires the `pinCode.update` permission.
 	//
 	// PUT /auth/pin-code
 	ChangePinCode(ctx context.Context, request *PinCodeChangeDto) error
 	// CheckBulkUpload invokes checkBulkUpload operation.
 	//
-	// Checks if assets exist by checksums.
+	// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
 	//
 	// POST /assets/bulk-upload-check
 	CheckBulkUpload(ctx context.Context, request *AssetBulkUploadCheckDto) (*AssetBulkUploadCheckResponseDto, error)
@@ -71,29 +88,43 @@ type Invoker interface {
 	CheckExistingAssets(ctx context.Context, request *CheckExistingAssetsDto) (*CheckExistingAssetsResponseDto, error)
 	// CreateActivity invokes createActivity operation.
 	//
+	// This endpoint requires the `activity.create` permission.
+	//
 	// POST /activities
 	CreateActivity(ctx context.Context, request *ActivityCreateDto) (*ActivityResponseDto, error)
 	// CreateAlbum invokes createAlbum operation.
+	//
+	// This endpoint requires the `album.create` permission.
 	//
 	// POST /albums
 	CreateAlbum(ctx context.Context, request *CreateAlbumDto) (*AlbumResponseDto, error)
 	// CreateApiKey invokes createApiKey operation.
 	//
+	// This endpoint requires the `apiKey.create` permission.
+	//
 	// POST /api-keys
 	CreateApiKey(ctx context.Context, request *APIKeyCreateDto) (*APIKeyCreateResponseDto, error)
 	// CreateFace invokes createFace operation.
+	//
+	// This endpoint requires the `face.create` permission.
 	//
 	// POST /faces
 	CreateFace(ctx context.Context, request *AssetFaceCreateDto) error
 	// CreateJob invokes createJob operation.
 	//
+	// This endpoint is an admin-only route, and requires the `job.create` permission.
+	//
 	// POST /jobs
 	CreateJob(ctx context.Context, request *JobCreateDto) error
 	// CreateLibrary invokes createLibrary operation.
 	//
+	// This endpoint is an admin-only route, and requires the `library.create` permission.
+	//
 	// POST /libraries
 	CreateLibrary(ctx context.Context, request *CreateLibraryDto) (*LibraryResponseDto, error)
 	// CreateMemory invokes createMemory operation.
+	//
+	// This endpoint requires the `memory.create` permission.
 	//
 	// POST /memories
 	CreateMemory(ctx context.Context, request *MemoryCreateDto) (*MemoryResponseDto, error)
@@ -103,125 +134,225 @@ type Invoker interface {
 	CreateNotification(ctx context.Context, request *NotificationCreateDto) (*NotificationDto, error)
 	// CreatePartner invokes createPartner operation.
 	//
+	// This endpoint requires the `partner.create` permission.
+	//
+	// POST /partners
+	CreatePartner(ctx context.Context, request *PartnerCreateDto) (*PartnerResponseDto, error)
+	// CreatePartnerDeprecated invokes createPartnerDeprecated operation.
+	//
+	// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+	//
+	// Deprecated: schema marks this operation as deprecated.
+	//
 	// POST /partners/{id}
-	CreatePartner(ctx context.Context, params CreatePartnerParams) (*PartnerResponseDto, error)
+	CreatePartnerDeprecated(ctx context.Context, params CreatePartnerDeprecatedParams) (*PartnerResponseDto, error)
 	// CreatePerson invokes createPerson operation.
+	//
+	// This endpoint requires the `person.create` permission.
 	//
 	// POST /people
 	CreatePerson(ctx context.Context, request *PersonCreateDto) (*PersonResponseDto, error)
 	// CreateProfileImage invokes createProfileImage operation.
 	//
+	// This endpoint requires the `userProfileImage.update` permission.
+	//
 	// POST /users/profile-image
 	CreateProfileImage(ctx context.Context, request *CreateProfileImageDtoMultipart) (*CreateProfileImageResponseDto, error)
 	// CreateSession invokes createSession operation.
+	//
+	// This endpoint requires the `session.create` permission.
 	//
 	// POST /sessions
 	CreateSession(ctx context.Context, request *SessionCreateDto) (*SessionCreateResponseDto, error)
 	// CreateSharedLink invokes createSharedLink operation.
 	//
+	// This endpoint requires the `sharedLink.create` permission.
+	//
 	// POST /shared-links
 	CreateSharedLink(ctx context.Context, request *SharedLinkCreateDto) (*SharedLinkResponseDto, error)
 	// CreateStack invokes createStack operation.
+	//
+	// This endpoint requires the `stack.create` permission.
 	//
 	// POST /stacks
 	CreateStack(ctx context.Context, request *StackCreateDto) (*StackResponseDto, error)
 	// CreateTag invokes createTag operation.
 	//
+	// This endpoint requires the `tag.create` permission.
+	//
 	// POST /tags
 	CreateTag(ctx context.Context, request *TagCreateDto) (*TagResponseDto, error)
 	// CreateUserAdmin invokes createUserAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
 	//
 	// POST /admin/users
 	CreateUserAdmin(ctx context.Context, request *UserAdminCreateDto) (*UserAdminResponseDto, error)
 	// DeleteActivity invokes deleteActivity operation.
 	//
+	// This endpoint requires the `activity.delete` permission.
+	//
 	// DELETE /activities/{id}
 	DeleteActivity(ctx context.Context, params DeleteActivityParams) error
 	// DeleteAlbum invokes deleteAlbum operation.
+	//
+	// This endpoint requires the `album.delete` permission.
 	//
 	// DELETE /albums/{id}
 	DeleteAlbum(ctx context.Context, params DeleteAlbumParams) error
 	// DeleteAllSessions invokes deleteAllSessions operation.
 	//
+	// This endpoint requires the `session.delete` permission.
+	//
 	// DELETE /sessions
 	DeleteAllSessions(ctx context.Context) error
 	// DeleteApiKey invokes deleteApiKey operation.
 	//
+	// This endpoint requires the `apiKey.delete` permission.
+	//
 	// DELETE /api-keys/{id}
 	DeleteApiKey(ctx context.Context, params DeleteApiKeyParams) error
+	// DeleteAssetMetadata invokes deleteAssetMetadata operation.
+	//
+	// This endpoint requires the `asset.update` permission.
+	//
+	// DELETE /assets/{id}/metadata/{key}
+	DeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) error
 	// DeleteAssets invokes deleteAssets operation.
+	//
+	// This endpoint requires the `asset.delete` permission.
 	//
 	// DELETE /assets
 	DeleteAssets(ctx context.Context, request *AssetBulkDeleteDto) error
+	// DeleteDuplicate invokes deleteDuplicate operation.
+	//
+	// This endpoint requires the `duplicate.delete` permission.
+	//
+	// DELETE /duplicates/{id}
+	DeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) error
+	// DeleteDuplicates invokes deleteDuplicates operation.
+	//
+	// This endpoint requires the `duplicate.delete` permission.
+	//
+	// DELETE /duplicates
+	DeleteDuplicates(ctx context.Context, request *BulkIdsDto) error
 	// DeleteFace invokes deleteFace operation.
+	//
+	// This endpoint requires the `face.delete` permission.
 	//
 	// DELETE /faces/{id}
 	DeleteFace(ctx context.Context, request *AssetFaceDeleteDto, params DeleteFaceParams) error
 	// DeleteLibrary invokes deleteLibrary operation.
 	//
+	// This endpoint is an admin-only route, and requires the `library.delete` permission.
+	//
 	// DELETE /libraries/{id}
 	DeleteLibrary(ctx context.Context, params DeleteLibraryParams) error
 	// DeleteMemory invokes deleteMemory operation.
+	//
+	// This endpoint requires the `memory.delete` permission.
 	//
 	// DELETE /memories/{id}
 	DeleteMemory(ctx context.Context, params DeleteMemoryParams) error
 	// DeleteNotification invokes deleteNotification operation.
 	//
+	// This endpoint requires the `notification.delete` permission.
+	//
 	// DELETE /notifications/{id}
 	DeleteNotification(ctx context.Context, params DeleteNotificationParams) error
 	// DeleteNotifications invokes deleteNotifications operation.
 	//
+	// This endpoint requires the `notification.delete` permission.
+	//
 	// DELETE /notifications
 	DeleteNotifications(ctx context.Context, request *NotificationDeleteAllDto) error
+	// DeletePeople invokes deletePeople operation.
+	//
+	// This endpoint requires the `person.delete` permission.
+	//
+	// DELETE /people
+	DeletePeople(ctx context.Context, request *BulkIdsDto) error
+	// DeletePerson invokes deletePerson operation.
+	//
+	// This endpoint requires the `person.delete` permission.
+	//
+	// DELETE /people/{id}
+	DeletePerson(ctx context.Context, params DeletePersonParams) error
 	// DeleteProfileImage invokes deleteProfileImage operation.
+	//
+	// This endpoint requires the `userProfileImage.delete` permission.
 	//
 	// DELETE /users/profile-image
 	DeleteProfileImage(ctx context.Context) error
 	// DeleteServerLicense invokes deleteServerLicense operation.
 	//
+	// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+	//
 	// DELETE /server/license
 	DeleteServerLicense(ctx context.Context) error
 	// DeleteSession invokes deleteSession operation.
+	//
+	// This endpoint requires the `session.delete` permission.
 	//
 	// DELETE /sessions/{id}
 	DeleteSession(ctx context.Context, params DeleteSessionParams) error
 	// DeleteStack invokes deleteStack operation.
 	//
+	// This endpoint requires the `stack.delete` permission.
+	//
 	// DELETE /stacks/{id}
 	DeleteStack(ctx context.Context, params DeleteStackParams) error
 	// DeleteStacks invokes deleteStacks operation.
+	//
+	// This endpoint requires the `stack.delete` permission.
 	//
 	// DELETE /stacks
 	DeleteStacks(ctx context.Context, request *BulkIdsDto) error
 	// DeleteSyncAck invokes deleteSyncAck operation.
 	//
+	// This endpoint requires the `syncCheckpoint.delete` permission.
+	//
 	// DELETE /sync/ack
 	DeleteSyncAck(ctx context.Context, request *SyncAckDeleteDto) error
 	// DeleteTag invokes deleteTag operation.
+	//
+	// This endpoint requires the `tag.delete` permission.
 	//
 	// DELETE /tags/{id}
 	DeleteTag(ctx context.Context, params DeleteTagParams) error
 	// DeleteUserAdmin invokes deleteUserAdmin operation.
 	//
+	// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+	//
 	// DELETE /admin/users/{id}
 	DeleteUserAdmin(ctx context.Context, request *UserAdminDeleteDto, params DeleteUserAdminParams) (*UserAdminResponseDto, error)
 	// DeleteUserLicense invokes deleteUserLicense operation.
+	//
+	// This endpoint requires the `userLicense.delete` permission.
 	//
 	// DELETE /users/me/license
 	DeleteUserLicense(ctx context.Context) error
 	// DeleteUserOnboarding invokes deleteUserOnboarding operation.
 	//
+	// This endpoint requires the `userOnboarding.delete` permission.
+	//
 	// DELETE /users/me/onboarding
 	DeleteUserOnboarding(ctx context.Context) error
 	// DownloadArchive invokes downloadArchive operation.
+	//
+	// This endpoint requires the `asset.download` permission.
 	//
 	// POST /download/archive
 	DownloadArchive(ctx context.Context, request *AssetIdsDto, params DownloadArchiveParams) (DownloadArchiveOK, error)
 	// DownloadAsset invokes downloadAsset operation.
 	//
+	// This endpoint requires the `asset.download` permission.
+	//
 	// GET /assets/{id}/original
 	DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error)
 	// EmptyTrash invokes emptyTrash operation.
+	//
+	// This endpoint requires the `asset.delete` permission.
 	//
 	// POST /trash/empty
 	EmptyTrash(ctx context.Context) (*TrashResponseDto, error)
@@ -231,49 +362,73 @@ type Invoker interface {
 	FinishOAuth(ctx context.Context, request *OAuthCallbackDto) (*LoginResponseDto, error)
 	// GetAboutInfo invokes getAboutInfo operation.
 	//
+	// This endpoint requires the `server.about` permission.
+	//
 	// GET /server/about
 	GetAboutInfo(ctx context.Context) (*ServerAboutResponseDto, error)
 	// GetActivities invokes getActivities operation.
+	//
+	// This endpoint requires the `activity.read` permission.
 	//
 	// GET /activities
 	GetActivities(ctx context.Context, params GetActivitiesParams) ([]ActivityResponseDto, error)
 	// GetActivityStatistics invokes getActivityStatistics operation.
 	//
+	// This endpoint requires the `activity.statistics` permission.
+	//
 	// GET /activities/statistics
 	GetActivityStatistics(ctx context.Context, params GetActivityStatisticsParams) (*ActivityStatisticsResponseDto, error)
 	// GetAdminOnboarding invokes getAdminOnboarding operation.
+	//
+	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 	//
 	// GET /system-metadata/admin-onboarding
 	GetAdminOnboarding(ctx context.Context) (*AdminOnboardingUpdateDto, error)
 	// GetAlbumInfo invokes getAlbumInfo operation.
 	//
+	// This endpoint requires the `album.read` permission.
+	//
 	// GET /albums/{id}
 	GetAlbumInfo(ctx context.Context, params GetAlbumInfoParams) (*AlbumResponseDto, error)
 	// GetAlbumStatistics invokes getAlbumStatistics operation.
+	//
+	// This endpoint requires the `album.statistics` permission.
 	//
 	// GET /albums/statistics
 	GetAlbumStatistics(ctx context.Context) (*AlbumStatisticsResponseDto, error)
 	// GetAllAlbums invokes getAllAlbums operation.
 	//
+	// This endpoint requires the `album.read` permission.
+	//
 	// GET /albums
 	GetAllAlbums(ctx context.Context, params GetAllAlbumsParams) ([]AlbumResponseDto, error)
 	// GetAllJobsStatus invokes getAllJobsStatus operation.
+	//
+	// This endpoint is an admin-only route, and requires the `job.read` permission.
 	//
 	// GET /jobs
 	GetAllJobsStatus(ctx context.Context) (*AllJobStatusResponseDto, error)
 	// GetAllLibraries invokes getAllLibraries operation.
 	//
+	// This endpoint is an admin-only route, and requires the `library.read` permission.
+	//
 	// GET /libraries
 	GetAllLibraries(ctx context.Context) ([]LibraryResponseDto, error)
 	// GetAllPeople invokes getAllPeople operation.
+	//
+	// This endpoint requires the `person.read` permission.
 	//
 	// GET /people
 	GetAllPeople(ctx context.Context, params GetAllPeopleParams) (*PeopleResponseDto, error)
 	// GetAllSharedLinks invokes getAllSharedLinks operation.
 	//
+	// This endpoint requires the `sharedLink.read` permission.
+	//
 	// GET /shared-links
 	GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) ([]SharedLinkResponseDto, error)
 	// GetAllTags invokes getAllTags operation.
+	//
+	// This endpoint requires the `tag.read` permission.
 	//
 	// GET /tags
 	GetAllTags(ctx context.Context) ([]TagResponseDto, error)
@@ -285,29 +440,55 @@ type Invoker interface {
 	GetAllUserAssetsByDeviceId(ctx context.Context, params GetAllUserAssetsByDeviceIdParams) ([]string, error)
 	// GetApiKey invokes getApiKey operation.
 	//
+	// This endpoint requires the `apiKey.read` permission.
+	//
 	// GET /api-keys/{id}
 	GetApiKey(ctx context.Context, params GetApiKeyParams) (*APIKeyResponseDto, error)
 	// GetApiKeys invokes getApiKeys operation.
+	//
+	// This endpoint requires the `apiKey.read` permission.
 	//
 	// GET /api-keys
 	GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error)
 	// GetApkLinks invokes getApkLinks operation.
 	//
+	// This endpoint requires the `server.apkLinks` permission.
+	//
 	// GET /server/apk-links
 	GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error)
 	// GetAssetDuplicates invokes getAssetDuplicates operation.
+	//
+	// This endpoint requires the `duplicate.read` permission.
 	//
 	// GET /duplicates
 	GetAssetDuplicates(ctx context.Context) ([]DuplicateResponseDto, error)
 	// GetAssetInfo invokes getAssetInfo operation.
 	//
+	// This endpoint requires the `asset.read` permission.
+	//
 	// GET /assets/{id}
 	GetAssetInfo(ctx context.Context, params GetAssetInfoParams) (*AssetResponseDto, error)
+	// GetAssetMetadata invokes getAssetMetadata operation.
+	//
+	// This endpoint requires the `asset.read` permission.
+	//
+	// GET /assets/{id}/metadata
+	GetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) ([]AssetMetadataResponseDto, error)
+	// GetAssetMetadataByKey invokes getAssetMetadataByKey operation.
+	//
+	// This endpoint requires the `asset.read` permission.
+	//
+	// GET /assets/{id}/metadata/{key}
+	GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error)
 	// GetAssetStatistics invokes getAssetStatistics operation.
+	//
+	// This endpoint requires the `asset.statistics` permission.
 	//
 	// GET /assets/statistics
 	GetAssetStatistics(ctx context.Context, params GetAssetStatisticsParams) (*AssetStatsResponseDto, error)
 	// GetAssetsByCity invokes getAssetsByCity operation.
+	//
+	// This endpoint requires the `asset.read` permission.
 	//
 	// GET /search/cities
 	GetAssetsByCity(ctx context.Context) ([]AssetResponseDto, error)
@@ -321,9 +502,13 @@ type Invoker interface {
 	GetAuthStatus(ctx context.Context) (*AuthStatusResponseDto, error)
 	// GetConfig invokes getConfig operation.
 	//
+	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	//
 	// GET /system-config
 	GetConfig(ctx context.Context) (*SystemConfigDto, error)
 	// GetConfigDefaults invokes getConfigDefaults operation.
+	//
+	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 	//
 	// GET /system-config/defaults
 	GetConfigDefaults(ctx context.Context) (*SystemConfigDto, error)
@@ -333,13 +518,19 @@ type Invoker interface {
 	GetDeltaSync(ctx context.Context, request *AssetDeltaSyncDto) (*AssetDeltaSyncResponseDto, error)
 	// GetDownloadInfo invokes getDownloadInfo operation.
 	//
+	// This endpoint requires the `asset.download` permission.
+	//
 	// POST /download/info
 	GetDownloadInfo(ctx context.Context, request *DownloadInfoDto, params GetDownloadInfoParams) (*DownloadResponseDto, error)
 	// GetExploreData invokes getExploreData operation.
 	//
+	// This endpoint requires the `asset.read` permission.
+	//
 	// GET /search/explore
 	GetExploreData(ctx context.Context) ([]SearchExploreResponseDto, error)
 	// GetFaces invokes getFaces operation.
+	//
+	// This endpoint requires the `face.read` permission.
 	//
 	// GET /faces
 	GetFaces(ctx context.Context, params GetFacesParams) ([]AssetFaceResponseDto, error)
@@ -349,9 +540,13 @@ type Invoker interface {
 	GetFullSyncForUser(ctx context.Context, request *AssetFullSyncDto) ([]AssetResponseDto, error)
 	// GetLibrary invokes getLibrary operation.
 	//
+	// This endpoint is an admin-only route, and requires the `library.read` permission.
+	//
 	// GET /libraries/{id}
 	GetLibrary(ctx context.Context, params GetLibraryParams) (*LibraryResponseDto, error)
 	// GetLibraryStatistics invokes getLibraryStatistics operation.
+	//
+	// This endpoint is an admin-only route, and requires the `library.statistics` permission.
 	//
 	// GET /libraries/{id}/statistics
 	GetLibraryStatistics(ctx context.Context, params GetLibraryStatisticsParams) (*LibraryStatsResponseDto, error)
@@ -361,9 +556,17 @@ type Invoker interface {
 	GetMapMarkers(ctx context.Context, params GetMapMarkersParams) ([]MapMarkerResponseDto, error)
 	// GetMemory invokes getMemory operation.
 	//
+	// This endpoint requires the `memory.read` permission.
+	//
 	// GET /memories/{id}
 	GetMemory(ctx context.Context, params GetMemoryParams) (*MemoryResponseDto, error)
+	// GetMyApiKey invokes getMyApiKey operation.
+	//
+	// GET /api-keys/me
+	GetMyApiKey(ctx context.Context) (*APIKeyResponseDto, error)
 	// GetMyPreferences invokes getMyPreferences operation.
+	//
+	// This endpoint requires the `userPreference.read` permission.
 	//
 	// GET /users/me/preferences
 	GetMyPreferences(ctx context.Context) (*UserPreferencesResponseDto, error)
@@ -373,9 +576,13 @@ type Invoker interface {
 	GetMySharedLink(ctx context.Context, params GetMySharedLinkParams) (*SharedLinkResponseDto, error)
 	// GetMyUser invokes getMyUser operation.
 	//
+	// This endpoint requires the `user.read` permission.
+	//
 	// GET /users/me
 	GetMyUser(ctx context.Context) (*UserAdminResponseDto, error)
 	// GetNotification invokes getNotification operation.
+	//
+	// This endpoint requires the `notification.read` permission.
 	//
 	// GET /notifications/{id}
 	GetNotification(ctx context.Context, params GetNotificationParams) (*NotificationDto, error)
@@ -385,31 +592,43 @@ type Invoker interface {
 	GetNotificationTemplateAdmin(ctx context.Context, request *TemplateDto, params GetNotificationTemplateAdminParams) (*TemplateResponseDto, error)
 	// GetNotifications invokes getNotifications operation.
 	//
+	// This endpoint requires the `notification.read` permission.
+	//
 	// GET /notifications
 	GetNotifications(ctx context.Context, params GetNotificationsParams) ([]NotificationDto, error)
 	// GetPartners invokes getPartners operation.
+	//
+	// This endpoint requires the `partner.read` permission.
 	//
 	// GET /partners
 	GetPartners(ctx context.Context, params GetPartnersParams) ([]PartnerResponseDto, error)
 	// GetPerson invokes getPerson operation.
 	//
+	// This endpoint requires the `person.read` permission.
+	//
 	// GET /people/{id}
 	GetPerson(ctx context.Context, params GetPersonParams) (*PersonResponseDto, error)
 	// GetPersonStatistics invokes getPersonStatistics operation.
+	//
+	// This endpoint requires the `person.statistics` permission.
 	//
 	// GET /people/{id}/statistics
 	GetPersonStatistics(ctx context.Context, params GetPersonStatisticsParams) (*PersonStatisticsResponseDto, error)
 	// GetPersonThumbnail invokes getPersonThumbnail operation.
 	//
+	// This endpoint requires the `person.read` permission.
+	//
 	// GET /people/{id}/thumbnail
 	GetPersonThumbnail(ctx context.Context, params GetPersonThumbnailParams) (GetPersonThumbnailOK, error)
 	// GetProfileImage invokes getProfileImage operation.
+	//
+	// This endpoint requires the `userProfileImage.read` permission.
 	//
 	// GET /users/{id}/profile-image
 	GetProfileImage(ctx context.Context, params GetProfileImageParams) (GetProfileImageOK, error)
 	// GetRandom invokes getRandom operation.
 	//
-	// This property was deprecated in v1.116.0.
+	// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
 	//
 	// Deprecated: schema marks this operation as deprecated.
 	//
@@ -417,9 +636,13 @@ type Invoker interface {
 	GetRandom(ctx context.Context, params GetRandomParams) ([]AssetResponseDto, error)
 	// GetReverseGeocodingState invokes getReverseGeocodingState operation.
 	//
+	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	//
 	// GET /system-metadata/reverse-geocoding-state
 	GetReverseGeocodingState(ctx context.Context) (*ReverseGeocodingStateResponseDto, error)
 	// GetSearchSuggestions invokes getSearchSuggestions operation.
+	//
+	// This endpoint requires the `asset.read` permission.
 	//
 	// GET /search/suggestions
 	GetSearchSuggestions(ctx context.Context, params GetSearchSuggestionsParams) ([]string, error)
@@ -433,9 +656,13 @@ type Invoker interface {
 	GetServerFeatures(ctx context.Context) (*ServerFeaturesDto, error)
 	// GetServerLicense invokes getServerLicense operation.
 	//
+	// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+	//
 	// GET /server/license
 	GetServerLicense(ctx context.Context) (GetServerLicenseRes, error)
 	// GetServerStatistics invokes getServerStatistics operation.
+	//
+	// This endpoint is an admin-only route, and requires the `server.statistics` permission.
 	//
 	// GET /server/statistics
 	GetServerStatistics(ctx context.Context) (*ServerStatsResponseDto, error)
@@ -445,21 +672,31 @@ type Invoker interface {
 	GetServerVersion(ctx context.Context) (*ServerVersionResponseDto, error)
 	// GetSessions invokes getSessions operation.
 	//
+	// This endpoint requires the `session.read` permission.
+	//
 	// GET /sessions
 	GetSessions(ctx context.Context) ([]SessionResponseDto, error)
 	// GetSharedLinkById invokes getSharedLinkById operation.
+	//
+	// This endpoint requires the `sharedLink.read` permission.
 	//
 	// GET /shared-links/{id}
 	GetSharedLinkById(ctx context.Context, params GetSharedLinkByIdParams) (*SharedLinkResponseDto, error)
 	// GetStack invokes getStack operation.
 	//
+	// This endpoint requires the `stack.read` permission.
+	//
 	// GET /stacks/{id}
 	GetStack(ctx context.Context, params GetStackParams) (*StackResponseDto, error)
 	// GetStorage invokes getStorage operation.
 	//
+	// This endpoint requires the `server.storage` permission.
+	//
 	// GET /server/storage
 	GetStorage(ctx context.Context) (*ServerStorageResponseDto, error)
 	// GetStorageTemplateOptions invokes getStorageTemplateOptions operation.
+	//
+	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 	//
 	// GET /system-config/storage-template-options
 	GetStorageTemplateOptions(ctx context.Context) (*SystemConfigTemplateStorageOptionDto, error)
@@ -469,13 +706,19 @@ type Invoker interface {
 	GetSupportedMediaTypes(ctx context.Context) (*ServerMediaTypesResponseDto, error)
 	// GetSyncAck invokes getSyncAck operation.
 	//
+	// This endpoint requires the `syncCheckpoint.read` permission.
+	//
 	// GET /sync/ack
 	GetSyncAck(ctx context.Context) ([]SyncAckDto, error)
 	// GetSyncStream invokes getSyncStream operation.
 	//
+	// This endpoint requires the `sync.stream` permission.
+	//
 	// POST /sync/stream
 	GetSyncStream(ctx context.Context, request *SyncStreamDto) error
 	// GetTagById invokes getTagById operation.
+	//
+	// This endpoint requires the `tag.read` permission.
 	//
 	// GET /tags/{id}
 	GetTagById(ctx context.Context, params GetTagByIdParams) (*TagResponseDto, error)
@@ -485,9 +728,13 @@ type Invoker interface {
 	GetTheme(ctx context.Context) (*ServerThemeDto, error)
 	// GetTimeBucket invokes getTimeBucket operation.
 	//
+	// This endpoint requires the `asset.read` permission.
+	//
 	// GET /timeline/bucket
 	GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (*TimeBucketAssetResponseDto, error)
 	// GetTimeBuckets invokes getTimeBuckets operation.
+	//
+	// This endpoint requires the `asset.read` permission.
 	//
 	// GET /timeline/buckets
 	GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketsResponseDto, error)
@@ -497,33 +744,49 @@ type Invoker interface {
 	GetUniqueOriginalPaths(ctx context.Context) ([]string, error)
 	// GetUser invokes getUser operation.
 	//
+	// This endpoint requires the `user.read` permission.
+	//
 	// GET /users/{id}
 	GetUser(ctx context.Context, params GetUserParams) (*UserResponseDto, error)
 	// GetUserAdmin invokes getUserAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 	//
 	// GET /admin/users/{id}
 	GetUserAdmin(ctx context.Context, params GetUserAdminParams) (*UserAdminResponseDto, error)
 	// GetUserLicense invokes getUserLicense operation.
 	//
+	// This endpoint requires the `userLicense.read` permission.
+	//
 	// GET /users/me/license
 	GetUserLicense(ctx context.Context) (*LicenseResponseDto, error)
 	// GetUserOnboarding invokes getUserOnboarding operation.
+	//
+	// This endpoint requires the `userOnboarding.read` permission.
 	//
 	// GET /users/me/onboarding
 	GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error)
 	// GetUserPreferencesAdmin invokes getUserPreferencesAdmin operation.
 	//
+	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	//
 	// GET /admin/users/{id}/preferences
 	GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
 	// GetUserStatisticsAdmin invokes getUserStatisticsAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 	//
 	// GET /admin/users/{id}/statistics
 	GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error)
 	// GetVersionCheck invokes getVersionCheck operation.
 	//
+	// This endpoint requires the `server.versionCheck` permission.
+	//
 	// GET /server/version-check
 	GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionCheckState invokes getVersionCheckState operation.
+	//
+	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 	//
 	// GET /system-metadata/version-check-state
 	GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error)
@@ -541,6 +804,8 @@ type Invoker interface {
 	LockAuthSession(ctx context.Context) error
 	// LockSession invokes lockSession operation.
 	//
+	// This endpoint requires the `session.lock` permission.
+	//
 	// POST /sessions/{id}/lock
 	LockSession(ctx context.Context, params LockSessionParams) error
 	// Login invokes login operation.
@@ -551,7 +816,15 @@ type Invoker interface {
 	//
 	// POST /auth/logout
 	Logout(ctx context.Context) (*LogoutResponseDto, error)
+	// MemoriesStatistics invokes memoriesStatistics operation.
+	//
+	// This endpoint requires the `memory.statistics` permission.
+	//
+	// GET /memories/statistics
+	MemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (*MemoryStatisticsResponseDto, error)
 	// MergePerson invokes mergePerson operation.
+	//
+	// This endpoint requires the `person.merge` permission.
 	//
 	// POST /people/{id}/merge
 	MergePerson(ctx context.Context, request *MergePersonDto, params MergePersonParams) ([]BulkIdResponseDto, error)
@@ -561,13 +834,19 @@ type Invoker interface {
 	PingServer(ctx context.Context) (*ServerPingResponse, error)
 	// PlayAssetVideo invokes playAssetVideo operation.
 	//
+	// This endpoint requires the `asset.view` permission.
+	//
 	// GET /assets/{id}/video/playback
 	PlayAssetVideo(ctx context.Context, params PlayAssetVideoParams) (PlayAssetVideoOK, error)
 	// ReassignFaces invokes reassignFaces operation.
 	//
+	// This endpoint requires the `person.reassign` permission.
+	//
 	// PUT /people/{id}/reassign
 	ReassignFaces(ctx context.Context, request *AssetFaceUpdateDto, params ReassignFacesParams) ([]PersonResponseDto, error)
 	// ReassignFacesById invokes reassignFacesById operation.
+	//
+	// This endpoint requires the `face.update` permission.
 	//
 	// PUT /faces/{id}
 	ReassignFacesById(ctx context.Context, request *FaceDto, params ReassignFacesByIdParams) (*PersonResponseDto, error)
@@ -577,17 +856,31 @@ type Invoker interface {
 	RedirectOAuthToMobile(ctx context.Context) error
 	// RemoveAssetFromAlbum invokes removeAssetFromAlbum operation.
 	//
+	// This endpoint requires the `albumAsset.delete` permission.
+	//
 	// DELETE /albums/{id}/assets
 	RemoveAssetFromAlbum(ctx context.Context, request *BulkIdsDto, params RemoveAssetFromAlbumParams) ([]BulkIdResponseDto, error)
+	// RemoveAssetFromStack invokes removeAssetFromStack operation.
+	//
+	// This endpoint requires the `stack.update` permission.
+	//
+	// DELETE /stacks/{id}/assets/{assetId}
+	RemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) error
 	// RemoveMemoryAssets invokes removeMemoryAssets operation.
+	//
+	// This endpoint requires the `memoryAsset.delete` permission.
 	//
 	// DELETE /memories/{id}/assets
 	RemoveMemoryAssets(ctx context.Context, request *BulkIdsDto, params RemoveMemoryAssetsParams) ([]BulkIdResponseDto, error)
 	// RemovePartner invokes removePartner operation.
 	//
+	// This endpoint requires the `partner.delete` permission.
+	//
 	// DELETE /partners/{id}
 	RemovePartner(ctx context.Context, params RemovePartnerParams) error
 	// RemoveSharedLink invokes removeSharedLink operation.
+	//
+	// This endpoint requires the `sharedLink.delete` permission.
 	//
 	// DELETE /shared-links/{id}
 	RemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) error
@@ -597,27 +890,40 @@ type Invoker interface {
 	RemoveSharedLinkAssets(ctx context.Context, request *AssetIdsDto, params RemoveSharedLinkAssetsParams) ([]AssetIdsResponseDto, error)
 	// RemoveUserFromAlbum invokes removeUserFromAlbum operation.
 	//
+	// This endpoint requires the `albumUser.delete` permission.
+	//
 	// DELETE /albums/{id}/user/{userId}
 	RemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) error
 	// ReplaceAsset invokes replaceAsset operation.
 	//
-	// Replace the asset with new file, without changing its id.
+	// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
+	//  This endpoint requires the `asset.replace` permission.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /assets/{id}/original
 	ReplaceAsset(ctx context.Context, request *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (*AssetMediaResponseDto, error)
 	// ResetPinCode invokes resetPinCode operation.
 	//
+	// This endpoint requires the `pinCode.delete` permission.
+	//
 	// DELETE /auth/pin-code
 	ResetPinCode(ctx context.Context, request *PinCodeResetDto) error
 	// RestoreAssets invokes restoreAssets operation.
+	//
+	// This endpoint requires the `asset.delete` permission.
 	//
 	// POST /trash/restore/assets
 	RestoreAssets(ctx context.Context, request *BulkIdsDto) (*TrashResponseDto, error)
 	// RestoreTrash invokes restoreTrash operation.
 	//
+	// This endpoint requires the `asset.delete` permission.
+	//
 	// POST /trash/restore
 	RestoreTrash(ctx context.Context) (*TrashResponseDto, error)
 	// RestoreUserAdmin invokes restoreUserAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
 	//
 	// POST /admin/users/{id}/restore
 	RestoreUserAdmin(ctx context.Context, params RestoreUserAdminParams) (*UserAdminResponseDto, error)
@@ -631,49 +937,85 @@ type Invoker interface {
 	RunAssetJobs(ctx context.Context, request *AssetJobsDto) error
 	// ScanLibrary invokes scanLibrary operation.
 	//
+	// This endpoint is an admin-only route, and requires the `library.update` permission.
+	//
 	// POST /libraries/{id}/scan
 	ScanLibrary(ctx context.Context, params ScanLibraryParams) error
+	// SearchAssetStatistics invokes searchAssetStatistics operation.
+	//
+	// This endpoint requires the `asset.statistics` permission.
+	//
+	// POST /search/statistics
+	SearchAssetStatistics(ctx context.Context, request *StatisticsSearchDto) (*SearchStatisticsResponseDto, error)
 	// SearchAssets invokes searchAssets operation.
+	//
+	// This endpoint requires the `asset.read` permission.
 	//
 	// POST /search/metadata
 	SearchAssets(ctx context.Context, request *MetadataSearchDto) (*SearchResponseDto, error)
+	// SearchLargeAssets invokes searchLargeAssets operation.
+	//
+	// This endpoint requires the `asset.read` permission.
+	//
+	// POST /search/large-assets
+	SearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) ([]AssetResponseDto, error)
 	// SearchMemories invokes searchMemories operation.
+	//
+	// This endpoint requires the `memory.read` permission.
 	//
 	// GET /memories
 	SearchMemories(ctx context.Context, params SearchMemoriesParams) ([]MemoryResponseDto, error)
 	// SearchPerson invokes searchPerson operation.
 	//
+	// This endpoint requires the `person.read` permission.
+	//
 	// GET /search/person
 	SearchPerson(ctx context.Context, params SearchPersonParams) ([]PersonResponseDto, error)
 	// SearchPlaces invokes searchPlaces operation.
+	//
+	// This endpoint requires the `asset.read` permission.
 	//
 	// GET /search/places
 	SearchPlaces(ctx context.Context, params SearchPlacesParams) ([]PlacesResponseDto, error)
 	// SearchRandom invokes searchRandom operation.
 	//
+	// This endpoint requires the `asset.read` permission.
+	//
 	// POST /search/random
 	SearchRandom(ctx context.Context, request *RandomSearchDto) ([]AssetResponseDto, error)
 	// SearchSmart invokes searchSmart operation.
+	//
+	// This endpoint requires the `asset.read` permission.
 	//
 	// POST /search/smart
 	SearchSmart(ctx context.Context, request *SmartSearchDto) (*SearchResponseDto, error)
 	// SearchStacks invokes searchStacks operation.
 	//
+	// This endpoint requires the `stack.read` permission.
+	//
 	// GET /stacks
 	SearchStacks(ctx context.Context, params SearchStacksParams) ([]StackResponseDto, error)
 	// SearchUsers invokes searchUsers operation.
+	//
+	// This endpoint requires the `user.read` permission.
 	//
 	// GET /users
 	SearchUsers(ctx context.Context) ([]UserResponseDto, error)
 	// SearchUsersAdmin invokes searchUsersAdmin operation.
 	//
+	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	//
 	// GET /admin/users
 	SearchUsersAdmin(ctx context.Context, params SearchUsersAdminParams) ([]UserAdminResponseDto, error)
 	// SendJobCommand invokes sendJobCommand operation.
 	//
+	// This endpoint is an admin-only route, and requires the `job.create` permission.
+	//
 	// PUT /jobs/{id}
 	SendJobCommand(ctx context.Context, request *JobCommandDto, params SendJobCommandParams) (*JobStatusDto, error)
 	// SendSyncAck invokes sendSyncAck operation.
+	//
+	// This endpoint requires the `syncCheckpoint.update` permission.
 	//
 	// POST /sync/ack
 	SendSyncAck(ctx context.Context, request *SyncAckSetDto) error
@@ -683,17 +1025,25 @@ type Invoker interface {
 	SendTestEmailAdmin(ctx context.Context, request *SystemConfigSmtpDto) (*TestEmailResponseDto, error)
 	// SetServerLicense invokes setServerLicense operation.
 	//
+	// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+	//
 	// PUT /server/license
 	SetServerLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error)
 	// SetUserLicense invokes setUserLicense operation.
+	//
+	// This endpoint requires the `userLicense.update` permission.
 	//
 	// PUT /users/me/license
 	SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error)
 	// SetUserOnboarding invokes setUserOnboarding operation.
 	//
+	// This endpoint requires the `userOnboarding.update` permission.
+	//
 	// PUT /users/me/onboarding
 	SetUserOnboarding(ctx context.Context, request *OnboardingDto) (*OnboardingResponseDto, error)
 	// SetupPinCode invokes setupPinCode operation.
+	//
+	// This endpoint requires the `pinCode.create` permission.
 	//
 	// POST /auth/pin-code
 	SetupPinCode(ctx context.Context, request *PinCodeSetupDto) error
@@ -707,8 +1057,16 @@ type Invoker interface {
 	StartOAuth(ctx context.Context, request *OAuthConfigDto) (*OAuthAuthorizeResponseDto, error)
 	// TagAssets invokes tagAssets operation.
 	//
+	// This endpoint requires the `tag.asset` permission.
+	//
 	// PUT /tags/{id}/assets
 	TagAssets(ctx context.Context, request *BulkIdsDto, params TagAssetsParams) ([]BulkIdResponseDto, error)
+	// UnlinkAllOAuthAccountsAdmin invokes unlinkAllOAuthAccountsAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+	//
+	// POST /admin/auth/unlink-all
+	UnlinkAllOAuthAccountsAdmin(ctx context.Context) error
 	// UnlinkOAuthAccount invokes unlinkOAuthAccount operation.
 	//
 	// POST /oauth/unlink
@@ -719,97 +1077,157 @@ type Invoker interface {
 	UnlockAuthSession(ctx context.Context, request *SessionUnlockDto) error
 	// UntagAssets invokes untagAssets operation.
 	//
+	// This endpoint requires the `tag.asset` permission.
+	//
 	// DELETE /tags/{id}/assets
 	UntagAssets(ctx context.Context, request *BulkIdsDto, params UntagAssetsParams) ([]BulkIdResponseDto, error)
 	// UpdateAdminOnboarding invokes updateAdminOnboarding operation.
+	//
+	// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
 	//
 	// POST /system-metadata/admin-onboarding
 	UpdateAdminOnboarding(ctx context.Context, request *AdminOnboardingUpdateDto) error
 	// UpdateAlbumInfo invokes updateAlbumInfo operation.
 	//
+	// This endpoint requires the `album.update` permission.
+	//
 	// PATCH /albums/{id}
 	UpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDto, params UpdateAlbumInfoParams) (*AlbumResponseDto, error)
 	// UpdateAlbumUser invokes updateAlbumUser operation.
+	//
+	// This endpoint requires the `albumUser.update` permission.
 	//
 	// PUT /albums/{id}/user/{userId}
 	UpdateAlbumUser(ctx context.Context, request *UpdateAlbumUserDto, params UpdateAlbumUserParams) error
 	// UpdateApiKey invokes updateApiKey operation.
 	//
+	// This endpoint requires the `apiKey.update` permission.
+	//
 	// PUT /api-keys/{id}
 	UpdateApiKey(ctx context.Context, request *APIKeyUpdateDto, params UpdateApiKeyParams) (*APIKeyResponseDto, error)
 	// UpdateAsset invokes updateAsset operation.
 	//
+	// This endpoint requires the `asset.update` permission.
+	//
 	// PUT /assets/{id}
 	UpdateAsset(ctx context.Context, request *UpdateAssetDto, params UpdateAssetParams) (*AssetResponseDto, error)
+	// UpdateAssetMetadata invokes updateAssetMetadata operation.
+	//
+	// This endpoint requires the `asset.update` permission.
+	//
+	// PUT /assets/{id}/metadata
+	UpdateAssetMetadata(ctx context.Context, request *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) ([]AssetMetadataResponseDto, error)
 	// UpdateAssets invokes updateAssets operation.
+	//
+	// This endpoint requires the `asset.update` permission.
 	//
 	// PUT /assets
 	UpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) error
 	// UpdateConfig invokes updateConfig operation.
 	//
+	// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+	//
 	// PUT /system-config
 	UpdateConfig(ctx context.Context, request *SystemConfigDto) (*SystemConfigDto, error)
 	// UpdateLibrary invokes updateLibrary operation.
+	//
+	// This endpoint is an admin-only route, and requires the `library.update` permission.
 	//
 	// PUT /libraries/{id}
 	UpdateLibrary(ctx context.Context, request *UpdateLibraryDto, params UpdateLibraryParams) (*LibraryResponseDto, error)
 	// UpdateMemory invokes updateMemory operation.
 	//
+	// This endpoint requires the `memory.update` permission.
+	//
 	// PUT /memories/{id}
 	UpdateMemory(ctx context.Context, request *MemoryUpdateDto, params UpdateMemoryParams) (*MemoryResponseDto, error)
 	// UpdateMyPreferences invokes updateMyPreferences operation.
+	//
+	// This endpoint requires the `userPreference.update` permission.
 	//
 	// PUT /users/me/preferences
 	UpdateMyPreferences(ctx context.Context, request *UserPreferencesUpdateDto) (*UserPreferencesResponseDto, error)
 	// UpdateMyUser invokes updateMyUser operation.
 	//
+	// This endpoint requires the `user.update` permission.
+	//
 	// PUT /users/me
 	UpdateMyUser(ctx context.Context, request *UserUpdateMeDto) (*UserAdminResponseDto, error)
 	// UpdateNotification invokes updateNotification operation.
+	//
+	// This endpoint requires the `notification.update` permission.
 	//
 	// PUT /notifications/{id}
 	UpdateNotification(ctx context.Context, request *NotificationUpdateDto, params UpdateNotificationParams) (*NotificationDto, error)
 	// UpdateNotifications invokes updateNotifications operation.
 	//
+	// This endpoint requires the `notification.update` permission.
+	//
 	// PUT /notifications
 	UpdateNotifications(ctx context.Context, request *NotificationUpdateAllDto) error
 	// UpdatePartner invokes updatePartner operation.
 	//
+	// This endpoint requires the `partner.update` permission.
+	//
 	// PUT /partners/{id}
-	UpdatePartner(ctx context.Context, request *UpdatePartnerDto, params UpdatePartnerParams) (*PartnerResponseDto, error)
+	UpdatePartner(ctx context.Context, request *PartnerUpdateDto, params UpdatePartnerParams) (*PartnerResponseDto, error)
 	// UpdatePeople invokes updatePeople operation.
+	//
+	// This endpoint requires the `person.update` permission.
 	//
 	// PUT /people
 	UpdatePeople(ctx context.Context, request *PeopleUpdateDto) ([]BulkIdResponseDto, error)
 	// UpdatePerson invokes updatePerson operation.
 	//
+	// This endpoint requires the `person.update` permission.
+	//
 	// PUT /people/{id}
 	UpdatePerson(ctx context.Context, request *PersonUpdateDto, params UpdatePersonParams) (*PersonResponseDto, error)
+	// UpdateSession invokes updateSession operation.
+	//
+	// This endpoint requires the `session.update` permission.
+	//
+	// PUT /sessions/{id}
+	UpdateSession(ctx context.Context, request *SessionUpdateDto, params UpdateSessionParams) (*SessionResponseDto, error)
 	// UpdateSharedLink invokes updateSharedLink operation.
+	//
+	// This endpoint requires the `sharedLink.update` permission.
 	//
 	// PATCH /shared-links/{id}
 	UpdateSharedLink(ctx context.Context, request *SharedLinkEditDto, params UpdateSharedLinkParams) (*SharedLinkResponseDto, error)
 	// UpdateStack invokes updateStack operation.
 	//
+	// This endpoint requires the `stack.update` permission.
+	//
 	// PUT /stacks/{id}
 	UpdateStack(ctx context.Context, request *StackUpdateDto, params UpdateStackParams) (*StackResponseDto, error)
 	// UpdateTag invokes updateTag operation.
+	//
+	// This endpoint requires the `tag.update` permission.
 	//
 	// PUT /tags/{id}
 	UpdateTag(ctx context.Context, request *TagUpdateDto, params UpdateTagParams) (*TagResponseDto, error)
 	// UpdateUserAdmin invokes updateUserAdmin operation.
 	//
+	// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+	//
 	// PUT /admin/users/{id}
 	UpdateUserAdmin(ctx context.Context, request *UserAdminUpdateDto, params UpdateUserAdminParams) (*UserAdminResponseDto, error)
 	// UpdateUserPreferencesAdmin invokes updateUserPreferencesAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
 	//
 	// PUT /admin/users/{id}/preferences
 	UpdateUserPreferencesAdmin(ctx context.Context, request *UserPreferencesUpdateDto, params UpdateUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
 	// UploadAsset invokes uploadAsset operation.
 	//
+	// This endpoint requires the `asset.upload` permission.
+	//
 	// POST /assets
-	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
+	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error)
 	// UpsertTags invokes upsertTags operation.
+	//
+	// This endpoint requires the `tag.create` permission.
 	//
 	// PUT /tags
 	UpsertTags(ctx context.Context, request *TagUpsertDto) ([]TagResponseDto, error)
@@ -822,6 +1240,8 @@ type Invoker interface {
 	// POST /auth/validateToken
 	ValidateAccessToken(ctx context.Context) (*ValidateAccessTokenResponseDto, error)
 	// ViewAsset invokes viewAsset operation.
+	//
+	// This endpoint requires the `asset.view` permission.
 	//
 	// GET /assets/{id}/thumbnail
 	ViewAsset(ctx context.Context, params ViewAssetParams) (ViewAssetOK, error)
@@ -874,6 +1294,8 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 
 // AddAssetsToAlbum invokes addAssetsToAlbum operation.
 //
+// This endpoint requires the `albumAsset.create` permission.
+//
 // PUT /albums/{id}/assets
 func (c *Client) AddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, params AddAssetsToAlbumParams) ([]BulkIdResponseDto, error) {
 	res, err := c.sendAddAssetsToAlbum(ctx, request, params)
@@ -884,8 +1306,9 @@ func (c *Client) sendAddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("addAssetsToAlbum"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/albums/{id}/assets"),
+		semconv.URLTemplateKey.String("/albums/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -951,6 +1374,23 @@ func (c *Client) sendAddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, 
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -1042,7 +1482,180 @@ func (c *Client) sendAddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, 
 	return result, nil
 }
 
+// AddAssetsToAlbums invokes addAssetsToAlbums operation.
+//
+// This endpoint requires the `albumAsset.create` permission.
+//
+// PUT /albums/assets
+func (c *Client) AddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (*AlbumsAddAssetsResponseDto, error) {
+	res, err := c.sendAddAssetsToAlbums(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendAddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (res *AlbumsAddAssetsResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("addAssetsToAlbums"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/albums/assets"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, AddAssetsToAlbumsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/albums/assets"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeAddAssetsToAlbumsRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, AddAssetsToAlbumsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, AddAssetsToAlbumsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, AddAssetsToAlbumsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeAddAssetsToAlbumsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // AddMemoryAssets invokes addMemoryAssets operation.
+//
+// This endpoint requires the `memoryAsset.create` permission.
 //
 // PUT /memories/{id}/assets
 func (c *Client) AddMemoryAssets(ctx context.Context, request *BulkIdsDto, params AddMemoryAssetsParams) ([]BulkIdResponseDto, error) {
@@ -1054,8 +1667,9 @@ func (c *Client) sendAddMemoryAssets(ctx context.Context, request *BulkIdsDto, p
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("addMemoryAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/memories/{id}/assets"),
+		semconv.URLTemplateKey.String("/memories/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -1203,8 +1817,9 @@ func (c *Client) sendAddSharedLinkAssets(ctx context.Context, request *AssetIdsD
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("addSharedLinkAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/shared-links/{id}/assets"),
+		semconv.URLTemplateKey.String("/shared-links/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -1270,6 +1885,23 @@ func (c *Client) sendAddSharedLinkAssets(ctx context.Context, request *AssetIdsD
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -1363,6 +1995,8 @@ func (c *Client) sendAddSharedLinkAssets(ctx context.Context, request *AssetIdsD
 
 // AddUsersToAlbum invokes addUsersToAlbum operation.
 //
+// This endpoint requires the `albumUser.create` permission.
+//
 // PUT /albums/{id}/users
 func (c *Client) AddUsersToAlbum(ctx context.Context, request *AddUsersDto, params AddUsersToAlbumParams) (*AlbumResponseDto, error) {
 	res, err := c.sendAddUsersToAlbum(ctx, request, params)
@@ -1373,8 +2007,9 @@ func (c *Client) sendAddUsersToAlbum(ctx context.Context, request *AddUsersDto, 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("addUsersToAlbum"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/albums/{id}/users"),
+		semconv.URLTemplateKey.String("/albums/{id}/users"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -1512,6 +2147,8 @@ func (c *Client) sendAddUsersToAlbum(ctx context.Context, request *AddUsersDto, 
 
 // BulkTagAssets invokes bulkTagAssets operation.
 //
+// This endpoint requires the `tag.asset` permission.
+//
 // PUT /tags/assets
 func (c *Client) BulkTagAssets(ctx context.Context, request *TagBulkAssetsDto) (*TagBulkAssetsResponseDto, error) {
 	res, err := c.sendBulkTagAssets(ctx, request)
@@ -1522,8 +2159,9 @@ func (c *Client) sendBulkTagAssets(ctx context.Context, request *TagBulkAssetsDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("bulkTagAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/tags/assets"),
+		semconv.URLTemplateKey.String("/tags/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -1642,6 +2280,8 @@ func (c *Client) sendBulkTagAssets(ctx context.Context, request *TagBulkAssetsDt
 
 // ChangePassword invokes changePassword operation.
 //
+// This endpoint requires the `auth.changePassword` permission.
+//
 // POST /auth/change-password
 func (c *Client) ChangePassword(ctx context.Context, request *ChangePasswordDto) (*UserAdminResponseDto, error) {
 	res, err := c.sendChangePassword(ctx, request)
@@ -1652,8 +2292,9 @@ func (c *Client) sendChangePassword(ctx context.Context, request *ChangePassword
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("changePassword"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/change-password"),
+		semconv.URLTemplateKey.String("/auth/change-password"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -1772,18 +2413,21 @@ func (c *Client) sendChangePassword(ctx context.Context, request *ChangePassword
 
 // ChangePinCode invokes changePinCode operation.
 //
+// This endpoint requires the `pinCode.update` permission.
+//
 // PUT /auth/pin-code
 func (c *Client) ChangePinCode(ctx context.Context, request *PinCodeChangeDto) error {
 	_, err := c.sendChangePinCode(ctx, request)
 	return err
 }
 
-func (c *Client) sendChangePinCode(ctx context.Context, request *PinCodeChangeDto) (res *ChangePinCodeOK, err error) {
+func (c *Client) sendChangePinCode(ctx context.Context, request *PinCodeChangeDto) (res *ChangePinCodeNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("changePinCode"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/auth/pin-code"),
+		semconv.URLTemplateKey.String("/auth/pin-code"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -1902,7 +2546,7 @@ func (c *Client) sendChangePinCode(ctx context.Context, request *PinCodeChangeDt
 
 // CheckBulkUpload invokes checkBulkUpload operation.
 //
-// Checks if assets exist by checksums.
+// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
 //
 // POST /assets/bulk-upload-check
 func (c *Client) CheckBulkUpload(ctx context.Context, request *AssetBulkUploadCheckDto) (*AssetBulkUploadCheckResponseDto, error) {
@@ -1914,8 +2558,9 @@ func (c *Client) sendCheckBulkUpload(ctx context.Context, request *AssetBulkUplo
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("checkBulkUpload"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/assets/bulk-upload-check"),
+		semconv.URLTemplateKey.String("/assets/bulk-upload-check"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2046,8 +2691,9 @@ func (c *Client) sendCheckExistingAssets(ctx context.Context, request *CheckExis
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("checkExistingAssets"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/assets/exist"),
+		semconv.URLTemplateKey.String("/assets/exist"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2166,6 +2812,8 @@ func (c *Client) sendCheckExistingAssets(ctx context.Context, request *CheckExis
 
 // CreateActivity invokes createActivity operation.
 //
+// This endpoint requires the `activity.create` permission.
+//
 // POST /activities
 func (c *Client) CreateActivity(ctx context.Context, request *ActivityCreateDto) (*ActivityResponseDto, error) {
 	res, err := c.sendCreateActivity(ctx, request)
@@ -2176,8 +2824,9 @@ func (c *Client) sendCreateActivity(ctx context.Context, request *ActivityCreate
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createActivity"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/activities"),
+		semconv.URLTemplateKey.String("/activities"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2296,6 +2945,8 @@ func (c *Client) sendCreateActivity(ctx context.Context, request *ActivityCreate
 
 // CreateAlbum invokes createAlbum operation.
 //
+// This endpoint requires the `album.create` permission.
+//
 // POST /albums
 func (c *Client) CreateAlbum(ctx context.Context, request *CreateAlbumDto) (*AlbumResponseDto, error) {
 	res, err := c.sendCreateAlbum(ctx, request)
@@ -2306,8 +2957,9 @@ func (c *Client) sendCreateAlbum(ctx context.Context, request *CreateAlbumDto) (
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createAlbum"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/albums"),
+		semconv.URLTemplateKey.String("/albums"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2426,6 +3078,8 @@ func (c *Client) sendCreateAlbum(ctx context.Context, request *CreateAlbumDto) (
 
 // CreateApiKey invokes createApiKey operation.
 //
+// This endpoint requires the `apiKey.create` permission.
+//
 // POST /api-keys
 func (c *Client) CreateApiKey(ctx context.Context, request *APIKeyCreateDto) (*APIKeyCreateResponseDto, error) {
 	res, err := c.sendCreateApiKey(ctx, request)
@@ -2436,8 +3090,9 @@ func (c *Client) sendCreateApiKey(ctx context.Context, request *APIKeyCreateDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createApiKey"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/api-keys"),
+		semconv.URLTemplateKey.String("/api-keys"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2556,6 +3211,8 @@ func (c *Client) sendCreateApiKey(ctx context.Context, request *APIKeyCreateDto)
 
 // CreateFace invokes createFace operation.
 //
+// This endpoint requires the `face.create` permission.
+//
 // POST /faces
 func (c *Client) CreateFace(ctx context.Context, request *AssetFaceCreateDto) error {
 	_, err := c.sendCreateFace(ctx, request)
@@ -2566,8 +3223,9 @@ func (c *Client) sendCreateFace(ctx context.Context, request *AssetFaceCreateDto
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createFace"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/faces"),
+		semconv.URLTemplateKey.String("/faces"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2686,18 +3344,21 @@ func (c *Client) sendCreateFace(ctx context.Context, request *AssetFaceCreateDto
 
 // CreateJob invokes createJob operation.
 //
+// This endpoint is an admin-only route, and requires the `job.create` permission.
+//
 // POST /jobs
 func (c *Client) CreateJob(ctx context.Context, request *JobCreateDto) error {
 	_, err := c.sendCreateJob(ctx, request)
 	return err
 }
 
-func (c *Client) sendCreateJob(ctx context.Context, request *JobCreateDto) (res *CreateJobCreated, err error) {
+func (c *Client) sendCreateJob(ctx context.Context, request *JobCreateDto) (res *CreateJobNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createJob"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/jobs"),
+		semconv.URLTemplateKey.String("/jobs"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2816,6 +3477,8 @@ func (c *Client) sendCreateJob(ctx context.Context, request *JobCreateDto) (res 
 
 // CreateLibrary invokes createLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.create` permission.
+//
 // POST /libraries
 func (c *Client) CreateLibrary(ctx context.Context, request *CreateLibraryDto) (*LibraryResponseDto, error) {
 	res, err := c.sendCreateLibrary(ctx, request)
@@ -2826,8 +3489,9 @@ func (c *Client) sendCreateLibrary(ctx context.Context, request *CreateLibraryDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createLibrary"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/libraries"),
+		semconv.URLTemplateKey.String("/libraries"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -2946,6 +3610,8 @@ func (c *Client) sendCreateLibrary(ctx context.Context, request *CreateLibraryDt
 
 // CreateMemory invokes createMemory operation.
 //
+// This endpoint requires the `memory.create` permission.
+//
 // POST /memories
 func (c *Client) CreateMemory(ctx context.Context, request *MemoryCreateDto) (*MemoryResponseDto, error) {
 	res, err := c.sendCreateMemory(ctx, request)
@@ -2956,8 +3622,9 @@ func (c *Client) sendCreateMemory(ctx context.Context, request *MemoryCreateDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createMemory"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/memories"),
+		semconv.URLTemplateKey.String("/memories"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3086,8 +3753,9 @@ func (c *Client) sendCreateNotification(ctx context.Context, request *Notificati
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createNotification"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/admin/notifications"),
+		semconv.URLTemplateKey.String("/admin/notifications"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3206,18 +3874,21 @@ func (c *Client) sendCreateNotification(ctx context.Context, request *Notificati
 
 // CreatePartner invokes createPartner operation.
 //
-// POST /partners/{id}
-func (c *Client) CreatePartner(ctx context.Context, params CreatePartnerParams) (*PartnerResponseDto, error) {
-	res, err := c.sendCreatePartner(ctx, params)
+// This endpoint requires the `partner.create` permission.
+//
+// POST /partners
+func (c *Client) CreatePartner(ctx context.Context, request *PartnerCreateDto) (*PartnerResponseDto, error) {
+	res, err := c.sendCreatePartner(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendCreatePartner(ctx context.Context, params CreatePartnerParams) (res *PartnerResponseDto, err error) {
+func (c *Client) sendCreatePartner(ctx context.Context, request *PartnerCreateDto) (res *PartnerResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createPartner"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/partners/{id}"),
+		semconv.URLTemplateKey.String("/partners"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3248,32 +3919,17 @@ func (c *Client) sendCreatePartner(ctx context.Context, params CreatePartnerPara
 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [2]string
-	pathParts[0] = "/partners/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.UUIDToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
+	var pathParts [1]string
+	pathParts[0] = "/partners"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "POST", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeCreatePartnerRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
 	}
 
 	{
@@ -3349,7 +4005,159 @@ func (c *Client) sendCreatePartner(ctx context.Context, params CreatePartnerPara
 	return result, nil
 }
 
+// CreatePartnerDeprecated invokes createPartnerDeprecated operation.
+//
+// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// POST /partners/{id}
+func (c *Client) CreatePartnerDeprecated(ctx context.Context, params CreatePartnerDeprecatedParams) (*PartnerResponseDto, error) {
+	res, err := c.sendCreatePartnerDeprecated(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendCreatePartnerDeprecated(ctx context.Context, params CreatePartnerDeprecatedParams) (res *PartnerResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("createPartnerDeprecated"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/partners/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, CreatePartnerDeprecatedOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/partners/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, CreatePartnerDeprecatedOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, CreatePartnerDeprecatedOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, CreatePartnerDeprecatedOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeCreatePartnerDeprecatedResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // CreatePerson invokes createPerson operation.
+//
+// This endpoint requires the `person.create` permission.
 //
 // POST /people
 func (c *Client) CreatePerson(ctx context.Context, request *PersonCreateDto) (*PersonResponseDto, error) {
@@ -3361,8 +4169,9 @@ func (c *Client) sendCreatePerson(ctx context.Context, request *PersonCreateDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createPerson"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/people"),
+		semconv.URLTemplateKey.String("/people"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3481,6 +4290,8 @@ func (c *Client) sendCreatePerson(ctx context.Context, request *PersonCreateDto)
 
 // CreateProfileImage invokes createProfileImage operation.
 //
+// This endpoint requires the `userProfileImage.update` permission.
+//
 // POST /users/profile-image
 func (c *Client) CreateProfileImage(ctx context.Context, request *CreateProfileImageDtoMultipart) (*CreateProfileImageResponseDto, error) {
 	res, err := c.sendCreateProfileImage(ctx, request)
@@ -3491,8 +4302,9 @@ func (c *Client) sendCreateProfileImage(ctx context.Context, request *CreateProf
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createProfileImage"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/users/profile-image"),
+		semconv.URLTemplateKey.String("/users/profile-image"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3611,6 +4423,8 @@ func (c *Client) sendCreateProfileImage(ctx context.Context, request *CreateProf
 
 // CreateSession invokes createSession operation.
 //
+// This endpoint requires the `session.create` permission.
+//
 // POST /sessions
 func (c *Client) CreateSession(ctx context.Context, request *SessionCreateDto) (*SessionCreateResponseDto, error) {
 	res, err := c.sendCreateSession(ctx, request)
@@ -3621,8 +4435,9 @@ func (c *Client) sendCreateSession(ctx context.Context, request *SessionCreateDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createSession"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sessions"),
+		semconv.URLTemplateKey.String("/sessions"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3741,6 +4556,8 @@ func (c *Client) sendCreateSession(ctx context.Context, request *SessionCreateDt
 
 // CreateSharedLink invokes createSharedLink operation.
 //
+// This endpoint requires the `sharedLink.create` permission.
+//
 // POST /shared-links
 func (c *Client) CreateSharedLink(ctx context.Context, request *SharedLinkCreateDto) (*SharedLinkResponseDto, error) {
 	res, err := c.sendCreateSharedLink(ctx, request)
@@ -3751,8 +4568,9 @@ func (c *Client) sendCreateSharedLink(ctx context.Context, request *SharedLinkCr
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createSharedLink"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/shared-links"),
+		semconv.URLTemplateKey.String("/shared-links"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -3871,6 +4689,8 @@ func (c *Client) sendCreateSharedLink(ctx context.Context, request *SharedLinkCr
 
 // CreateStack invokes createStack operation.
 //
+// This endpoint requires the `stack.create` permission.
+//
 // POST /stacks
 func (c *Client) CreateStack(ctx context.Context, request *StackCreateDto) (*StackResponseDto, error) {
 	res, err := c.sendCreateStack(ctx, request)
@@ -3881,8 +4701,9 @@ func (c *Client) sendCreateStack(ctx context.Context, request *StackCreateDto) (
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createStack"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/stacks"),
+		semconv.URLTemplateKey.String("/stacks"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4001,6 +4822,8 @@ func (c *Client) sendCreateStack(ctx context.Context, request *StackCreateDto) (
 
 // CreateTag invokes createTag operation.
 //
+// This endpoint requires the `tag.create` permission.
+//
 // POST /tags
 func (c *Client) CreateTag(ctx context.Context, request *TagCreateDto) (*TagResponseDto, error) {
 	res, err := c.sendCreateTag(ctx, request)
@@ -4011,8 +4834,9 @@ func (c *Client) sendCreateTag(ctx context.Context, request *TagCreateDto) (res 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createTag"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/tags"),
+		semconv.URLTemplateKey.String("/tags"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4131,6 +4955,8 @@ func (c *Client) sendCreateTag(ctx context.Context, request *TagCreateDto) (res 
 
 // CreateUserAdmin invokes createUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
+//
 // POST /admin/users
 func (c *Client) CreateUserAdmin(ctx context.Context, request *UserAdminCreateDto) (*UserAdminResponseDto, error) {
 	res, err := c.sendCreateUserAdmin(ctx, request)
@@ -4141,8 +4967,9 @@ func (c *Client) sendCreateUserAdmin(ctx context.Context, request *UserAdminCrea
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createUserAdmin"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/admin/users"),
+		semconv.URLTemplateKey.String("/admin/users"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4261,6 +5088,8 @@ func (c *Client) sendCreateUserAdmin(ctx context.Context, request *UserAdminCrea
 
 // DeleteActivity invokes deleteActivity operation.
 //
+// This endpoint requires the `activity.delete` permission.
+//
 // DELETE /activities/{id}
 func (c *Client) DeleteActivity(ctx context.Context, params DeleteActivityParams) error {
 	_, err := c.sendDeleteActivity(ctx, params)
@@ -4271,8 +5100,9 @@ func (c *Client) sendDeleteActivity(ctx context.Context, params DeleteActivityPa
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteActivity"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/activities/{id}"),
+		semconv.URLTemplateKey.String("/activities/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4406,18 +5236,21 @@ func (c *Client) sendDeleteActivity(ctx context.Context, params DeleteActivityPa
 
 // DeleteAlbum invokes deleteAlbum operation.
 //
+// This endpoint requires the `album.delete` permission.
+//
 // DELETE /albums/{id}
 func (c *Client) DeleteAlbum(ctx context.Context, params DeleteAlbumParams) error {
 	_, err := c.sendDeleteAlbum(ctx, params)
 	return err
 }
 
-func (c *Client) sendDeleteAlbum(ctx context.Context, params DeleteAlbumParams) (res *DeleteAlbumOK, err error) {
+func (c *Client) sendDeleteAlbum(ctx context.Context, params DeleteAlbumParams) (res *DeleteAlbumNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteAlbum"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/albums/{id}"),
+		semconv.URLTemplateKey.String("/albums/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4551,6 +5384,8 @@ func (c *Client) sendDeleteAlbum(ctx context.Context, params DeleteAlbumParams) 
 
 // DeleteAllSessions invokes deleteAllSessions operation.
 //
+// This endpoint requires the `session.delete` permission.
+//
 // DELETE /sessions
 func (c *Client) DeleteAllSessions(ctx context.Context) error {
 	_, err := c.sendDeleteAllSessions(ctx)
@@ -4561,8 +5396,9 @@ func (c *Client) sendDeleteAllSessions(ctx context.Context) (res *DeleteAllSessi
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteAllSessions"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/sessions"),
+		semconv.URLTemplateKey.String("/sessions"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4678,6 +5514,8 @@ func (c *Client) sendDeleteAllSessions(ctx context.Context) (res *DeleteAllSessi
 
 // DeleteApiKey invokes deleteApiKey operation.
 //
+// This endpoint requires the `apiKey.delete` permission.
+//
 // DELETE /api-keys/{id}
 func (c *Client) DeleteApiKey(ctx context.Context, params DeleteApiKeyParams) error {
 	_, err := c.sendDeleteApiKey(ctx, params)
@@ -4688,8 +5526,9 @@ func (c *Client) sendDeleteApiKey(ctx context.Context, params DeleteApiKeyParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteApiKey"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/api-keys/{id}"),
+		semconv.URLTemplateKey.String("/api-keys/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4821,7 +5660,176 @@ func (c *Client) sendDeleteApiKey(ctx context.Context, params DeleteApiKeyParams
 	return result, nil
 }
 
+// DeleteAssetMetadata invokes deleteAssetMetadata operation.
+//
+// This endpoint requires the `asset.update` permission.
+//
+// DELETE /assets/{id}/metadata/{key}
+func (c *Client) DeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) error {
+	_, err := c.sendDeleteAssetMetadata(ctx, params)
+	return err
+}
+
+func (c *Client) sendDeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) (res *DeleteAssetMetadataNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/assets/{id}/metadata/{key}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [4]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/metadata/"
+	{
+		// Encode "key" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "key",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Key)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteAssetMetadataResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeleteAssets invokes deleteAssets operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // DELETE /assets
 func (c *Client) DeleteAssets(ctx context.Context, request *AssetBulkDeleteDto) error {
@@ -4833,8 +5841,9 @@ func (c *Client) sendDeleteAssets(ctx context.Context, request *AssetBulkDeleteD
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteAssets"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/assets"),
+		semconv.URLTemplateKey.String("/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -4951,7 +5960,290 @@ func (c *Client) sendDeleteAssets(ctx context.Context, request *AssetBulkDeleteD
 	return result, nil
 }
 
+// DeleteDuplicate invokes deleteDuplicate operation.
+//
+// This endpoint requires the `duplicate.delete` permission.
+//
+// DELETE /duplicates/{id}
+func (c *Client) DeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) error {
+	_, err := c.sendDeleteDuplicate(ctx, params)
+	return err
+}
+
+func (c *Client) sendDeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) (res *DeleteDuplicateNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteDuplicate"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/duplicates/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteDuplicateOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/duplicates/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteDuplicateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteDuplicateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteDuplicateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteDuplicateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DeleteDuplicates invokes deleteDuplicates operation.
+//
+// This endpoint requires the `duplicate.delete` permission.
+//
+// DELETE /duplicates
+func (c *Client) DeleteDuplicates(ctx context.Context, request *BulkIdsDto) error {
+	_, err := c.sendDeleteDuplicates(ctx, request)
+	return err
+}
+
+func (c *Client) sendDeleteDuplicates(ctx context.Context, request *BulkIdsDto) (res *DeleteDuplicatesNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteDuplicates"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/duplicates"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteDuplicatesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/duplicates"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeDeleteDuplicatesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteDuplicatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteDuplicatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteDuplicatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteDuplicatesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeleteFace invokes deleteFace operation.
+//
+// This endpoint requires the `face.delete` permission.
 //
 // DELETE /faces/{id}
 func (c *Client) DeleteFace(ctx context.Context, request *AssetFaceDeleteDto, params DeleteFaceParams) error {
@@ -4959,12 +6251,13 @@ func (c *Client) DeleteFace(ctx context.Context, request *AssetFaceDeleteDto, pa
 	return err
 }
 
-func (c *Client) sendDeleteFace(ctx context.Context, request *AssetFaceDeleteDto, params DeleteFaceParams) (res *DeleteFaceOK, err error) {
+func (c *Client) sendDeleteFace(ctx context.Context, request *AssetFaceDeleteDto, params DeleteFaceParams) (res *DeleteFaceNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteFace"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/faces/{id}"),
+		semconv.URLTemplateKey.String("/faces/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5101,6 +6394,8 @@ func (c *Client) sendDeleteFace(ctx context.Context, request *AssetFaceDeleteDto
 
 // DeleteLibrary invokes deleteLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.delete` permission.
+//
 // DELETE /libraries/{id}
 func (c *Client) DeleteLibrary(ctx context.Context, params DeleteLibraryParams) error {
 	_, err := c.sendDeleteLibrary(ctx, params)
@@ -5111,8 +6406,9 @@ func (c *Client) sendDeleteLibrary(ctx context.Context, params DeleteLibraryPara
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteLibrary"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/libraries/{id}"),
+		semconv.URLTemplateKey.String("/libraries/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5246,6 +6542,8 @@ func (c *Client) sendDeleteLibrary(ctx context.Context, params DeleteLibraryPara
 
 // DeleteMemory invokes deleteMemory operation.
 //
+// This endpoint requires the `memory.delete` permission.
+//
 // DELETE /memories/{id}
 func (c *Client) DeleteMemory(ctx context.Context, params DeleteMemoryParams) error {
 	_, err := c.sendDeleteMemory(ctx, params)
@@ -5256,8 +6554,9 @@ func (c *Client) sendDeleteMemory(ctx context.Context, params DeleteMemoryParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteMemory"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/memories/{id}"),
+		semconv.URLTemplateKey.String("/memories/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5391,18 +6690,21 @@ func (c *Client) sendDeleteMemory(ctx context.Context, params DeleteMemoryParams
 
 // DeleteNotification invokes deleteNotification operation.
 //
+// This endpoint requires the `notification.delete` permission.
+//
 // DELETE /notifications/{id}
 func (c *Client) DeleteNotification(ctx context.Context, params DeleteNotificationParams) error {
 	_, err := c.sendDeleteNotification(ctx, params)
 	return err
 }
 
-func (c *Client) sendDeleteNotification(ctx context.Context, params DeleteNotificationParams) (res *DeleteNotificationOK, err error) {
+func (c *Client) sendDeleteNotification(ctx context.Context, params DeleteNotificationParams) (res *DeleteNotificationNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteNotification"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/notifications/{id}"),
+		semconv.URLTemplateKey.String("/notifications/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5536,18 +6838,21 @@ func (c *Client) sendDeleteNotification(ctx context.Context, params DeleteNotifi
 
 // DeleteNotifications invokes deleteNotifications operation.
 //
+// This endpoint requires the `notification.delete` permission.
+//
 // DELETE /notifications
 func (c *Client) DeleteNotifications(ctx context.Context, request *NotificationDeleteAllDto) error {
 	_, err := c.sendDeleteNotifications(ctx, request)
 	return err
 }
 
-func (c *Client) sendDeleteNotifications(ctx context.Context, request *NotificationDeleteAllDto) (res *DeleteNotificationsOK, err error) {
+func (c *Client) sendDeleteNotifications(ctx context.Context, request *NotificationDeleteAllDto) (res *DeleteNotificationsNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteNotifications"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/notifications"),
+		semconv.URLTemplateKey.String("/notifications"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5664,7 +6969,290 @@ func (c *Client) sendDeleteNotifications(ctx context.Context, request *Notificat
 	return result, nil
 }
 
+// DeletePeople invokes deletePeople operation.
+//
+// This endpoint requires the `person.delete` permission.
+//
+// DELETE /people
+func (c *Client) DeletePeople(ctx context.Context, request *BulkIdsDto) error {
+	_, err := c.sendDeletePeople(ctx, request)
+	return err
+}
+
+func (c *Client) sendDeletePeople(ctx context.Context, request *BulkIdsDto) (res *DeletePeopleNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deletePeople"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/people"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeletePeopleOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/people"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeDeletePeopleRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeletePeopleOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeletePeopleOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeletePeopleOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeletePeopleResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DeletePerson invokes deletePerson operation.
+//
+// This endpoint requires the `person.delete` permission.
+//
+// DELETE /people/{id}
+func (c *Client) DeletePerson(ctx context.Context, params DeletePersonParams) error {
+	_, err := c.sendDeletePerson(ctx, params)
+	return err
+}
+
+func (c *Client) sendDeletePerson(ctx context.Context, params DeletePersonParams) (res *DeletePersonNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deletePerson"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/people/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeletePersonOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/people/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeletePersonOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeletePersonOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeletePersonOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeletePersonResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeleteProfileImage invokes deleteProfileImage operation.
+//
+// This endpoint requires the `userProfileImage.delete` permission.
 //
 // DELETE /users/profile-image
 func (c *Client) DeleteProfileImage(ctx context.Context) error {
@@ -5676,8 +7264,9 @@ func (c *Client) sendDeleteProfileImage(ctx context.Context) (res *DeleteProfile
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteProfileImage"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/users/profile-image"),
+		semconv.URLTemplateKey.String("/users/profile-image"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5793,18 +7382,21 @@ func (c *Client) sendDeleteProfileImage(ctx context.Context) (res *DeleteProfile
 
 // DeleteServerLicense invokes deleteServerLicense operation.
 //
+// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+//
 // DELETE /server/license
 func (c *Client) DeleteServerLicense(ctx context.Context) error {
 	_, err := c.sendDeleteServerLicense(ctx)
 	return err
 }
 
-func (c *Client) sendDeleteServerLicense(ctx context.Context) (res *DeleteServerLicenseOK, err error) {
+func (c *Client) sendDeleteServerLicense(ctx context.Context) (res *DeleteServerLicenseNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteServerLicense"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/server/license"),
+		semconv.URLTemplateKey.String("/server/license"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -5920,6 +7512,8 @@ func (c *Client) sendDeleteServerLicense(ctx context.Context) (res *DeleteServer
 
 // DeleteSession invokes deleteSession operation.
 //
+// This endpoint requires the `session.delete` permission.
+//
 // DELETE /sessions/{id}
 func (c *Client) DeleteSession(ctx context.Context, params DeleteSessionParams) error {
 	_, err := c.sendDeleteSession(ctx, params)
@@ -5930,8 +7524,9 @@ func (c *Client) sendDeleteSession(ctx context.Context, params DeleteSessionPara
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteSession"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/sessions/{id}"),
+		semconv.URLTemplateKey.String("/sessions/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6065,6 +7660,8 @@ func (c *Client) sendDeleteSession(ctx context.Context, params DeleteSessionPara
 
 // DeleteStack invokes deleteStack operation.
 //
+// This endpoint requires the `stack.delete` permission.
+//
 // DELETE /stacks/{id}
 func (c *Client) DeleteStack(ctx context.Context, params DeleteStackParams) error {
 	_, err := c.sendDeleteStack(ctx, params)
@@ -6075,8 +7672,9 @@ func (c *Client) sendDeleteStack(ctx context.Context, params DeleteStackParams) 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteStack"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/stacks/{id}"),
+		semconv.URLTemplateKey.String("/stacks/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6210,6 +7808,8 @@ func (c *Client) sendDeleteStack(ctx context.Context, params DeleteStackParams) 
 
 // DeleteStacks invokes deleteStacks operation.
 //
+// This endpoint requires the `stack.delete` permission.
+//
 // DELETE /stacks
 func (c *Client) DeleteStacks(ctx context.Context, request *BulkIdsDto) error {
 	_, err := c.sendDeleteStacks(ctx, request)
@@ -6220,8 +7820,9 @@ func (c *Client) sendDeleteStacks(ctx context.Context, request *BulkIdsDto) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteStacks"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/stacks"),
+		semconv.URLTemplateKey.String("/stacks"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6340,6 +7941,8 @@ func (c *Client) sendDeleteStacks(ctx context.Context, request *BulkIdsDto) (res
 
 // DeleteSyncAck invokes deleteSyncAck operation.
 //
+// This endpoint requires the `syncCheckpoint.delete` permission.
+//
 // DELETE /sync/ack
 func (c *Client) DeleteSyncAck(ctx context.Context, request *SyncAckDeleteDto) error {
 	_, err := c.sendDeleteSyncAck(ctx, request)
@@ -6350,8 +7953,9 @@ func (c *Client) sendDeleteSyncAck(ctx context.Context, request *SyncAckDeleteDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteSyncAck"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/sync/ack"),
+		semconv.URLTemplateKey.String("/sync/ack"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6470,6 +8074,8 @@ func (c *Client) sendDeleteSyncAck(ctx context.Context, request *SyncAckDeleteDt
 
 // DeleteTag invokes deleteTag operation.
 //
+// This endpoint requires the `tag.delete` permission.
+//
 // DELETE /tags/{id}
 func (c *Client) DeleteTag(ctx context.Context, params DeleteTagParams) error {
 	_, err := c.sendDeleteTag(ctx, params)
@@ -6480,8 +8086,9 @@ func (c *Client) sendDeleteTag(ctx context.Context, params DeleteTagParams) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteTag"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/tags/{id}"),
+		semconv.URLTemplateKey.String("/tags/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6615,6 +8222,8 @@ func (c *Client) sendDeleteTag(ctx context.Context, params DeleteTagParams) (res
 
 // DeleteUserAdmin invokes deleteUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+//
 // DELETE /admin/users/{id}
 func (c *Client) DeleteUserAdmin(ctx context.Context, request *UserAdminDeleteDto, params DeleteUserAdminParams) (*UserAdminResponseDto, error) {
 	res, err := c.sendDeleteUserAdmin(ctx, request, params)
@@ -6625,8 +8234,9 @@ func (c *Client) sendDeleteUserAdmin(ctx context.Context, request *UserAdminDele
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteUserAdmin"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}"),
+		semconv.URLTemplateKey.String("/admin/users/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6763,18 +8373,21 @@ func (c *Client) sendDeleteUserAdmin(ctx context.Context, request *UserAdminDele
 
 // DeleteUserLicense invokes deleteUserLicense operation.
 //
+// This endpoint requires the `userLicense.delete` permission.
+//
 // DELETE /users/me/license
 func (c *Client) DeleteUserLicense(ctx context.Context) error {
 	_, err := c.sendDeleteUserLicense(ctx)
 	return err
 }
 
-func (c *Client) sendDeleteUserLicense(ctx context.Context) (res *DeleteUserLicenseOK, err error) {
+func (c *Client) sendDeleteUserLicense(ctx context.Context) (res *DeleteUserLicenseNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteUserLicense"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/users/me/license"),
+		semconv.URLTemplateKey.String("/users/me/license"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -6890,18 +8503,21 @@ func (c *Client) sendDeleteUserLicense(ctx context.Context) (res *DeleteUserLice
 
 // DeleteUserOnboarding invokes deleteUserOnboarding operation.
 //
+// This endpoint requires the `userOnboarding.delete` permission.
+//
 // DELETE /users/me/onboarding
 func (c *Client) DeleteUserOnboarding(ctx context.Context) error {
 	_, err := c.sendDeleteUserOnboarding(ctx)
 	return err
 }
 
-func (c *Client) sendDeleteUserOnboarding(ctx context.Context) (res *DeleteUserOnboardingOK, err error) {
+func (c *Client) sendDeleteUserOnboarding(ctx context.Context) (res *DeleteUserOnboardingNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("deleteUserOnboarding"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/users/me/onboarding"),
+		semconv.URLTemplateKey.String("/users/me/onboarding"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7017,6 +8633,8 @@ func (c *Client) sendDeleteUserOnboarding(ctx context.Context) (res *DeleteUserO
 
 // DownloadArchive invokes downloadArchive operation.
 //
+// This endpoint requires the `asset.download` permission.
+//
 // POST /download/archive
 func (c *Client) DownloadArchive(ctx context.Context, request *AssetIdsDto, params DownloadArchiveParams) (DownloadArchiveOK, error) {
 	res, err := c.sendDownloadArchive(ctx, request, params)
@@ -7027,8 +8645,9 @@ func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("downloadArchive"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/download/archive"),
+		semconv.URLTemplateKey.String("/download/archive"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7075,6 +8694,23 @@ func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, 
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -7168,6 +8804,8 @@ func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, 
 
 // DownloadAsset invokes downloadAsset operation.
 //
+// This endpoint requires the `asset.download` permission.
+//
 // GET /assets/{id}/original
 func (c *Client) DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error) {
 	res, err := c.sendDownloadAsset(ctx, params)
@@ -7178,8 +8816,9 @@ func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetPara
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("downloadAsset"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/{id}/original"),
+		semconv.URLTemplateKey.String("/assets/{id}/original"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7245,6 +8884,23 @@ func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetPara
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -7335,6 +8991,8 @@ func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetPara
 
 // EmptyTrash invokes emptyTrash operation.
 //
+// This endpoint requires the `asset.delete` permission.
+//
 // POST /trash/empty
 func (c *Client) EmptyTrash(ctx context.Context) (*TrashResponseDto, error) {
 	res, err := c.sendEmptyTrash(ctx)
@@ -7345,8 +9003,9 @@ func (c *Client) sendEmptyTrash(ctx context.Context) (res *TrashResponseDto, err
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("emptyTrash"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/trash/empty"),
+		semconv.URLTemplateKey.String("/trash/empty"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7472,8 +9131,9 @@ func (c *Client) sendFinishOAuth(ctx context.Context, request *OAuthCallbackDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("finishOAuth"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/oauth/callback"),
+		semconv.URLTemplateKey.String("/oauth/callback"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7535,6 +9195,8 @@ func (c *Client) sendFinishOAuth(ctx context.Context, request *OAuthCallbackDto)
 
 // GetAboutInfo invokes getAboutInfo operation.
 //
+// This endpoint requires the `server.about` permission.
+//
 // GET /server/about
 func (c *Client) GetAboutInfo(ctx context.Context) (*ServerAboutResponseDto, error) {
 	res, err := c.sendGetAboutInfo(ctx)
@@ -7545,8 +9207,9 @@ func (c *Client) sendGetAboutInfo(ctx context.Context) (res *ServerAboutResponse
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAboutInfo"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/about"),
+		semconv.URLTemplateKey.String("/server/about"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7662,6 +9325,8 @@ func (c *Client) sendGetAboutInfo(ctx context.Context) (res *ServerAboutResponse
 
 // GetActivities invokes getActivities operation.
 //
+// This endpoint requires the `activity.read` permission.
+//
 // GET /activities
 func (c *Client) GetActivities(ctx context.Context, params GetActivitiesParams) ([]ActivityResponseDto, error) {
 	res, err := c.sendGetActivities(ctx, params)
@@ -7672,8 +9337,9 @@ func (c *Client) sendGetActivities(ctx context.Context, params GetActivitiesPara
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getActivities"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/activities"),
+		semconv.URLTemplateKey.String("/activities"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -7875,6 +9541,8 @@ func (c *Client) sendGetActivities(ctx context.Context, params GetActivitiesPara
 
 // GetActivityStatistics invokes getActivityStatistics operation.
 //
+// This endpoint requires the `activity.statistics` permission.
+//
 // GET /activities/statistics
 func (c *Client) GetActivityStatistics(ctx context.Context, params GetActivityStatisticsParams) (*ActivityStatisticsResponseDto, error) {
 	res, err := c.sendGetActivityStatistics(ctx, params)
@@ -7885,8 +9553,9 @@ func (c *Client) sendGetActivityStatistics(ctx context.Context, params GetActivi
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getActivityStatistics"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/activities/statistics"),
+		semconv.URLTemplateKey.String("/activities/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8037,6 +9706,8 @@ func (c *Client) sendGetActivityStatistics(ctx context.Context, params GetActivi
 
 // GetAdminOnboarding invokes getAdminOnboarding operation.
 //
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+//
 // GET /system-metadata/admin-onboarding
 func (c *Client) GetAdminOnboarding(ctx context.Context) (*AdminOnboardingUpdateDto, error) {
 	res, err := c.sendGetAdminOnboarding(ctx)
@@ -8047,8 +9718,9 @@ func (c *Client) sendGetAdminOnboarding(ctx context.Context) (res *AdminOnboardi
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAdminOnboarding"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/system-metadata/admin-onboarding"),
+		semconv.URLTemplateKey.String("/system-metadata/admin-onboarding"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8164,6 +9836,8 @@ func (c *Client) sendGetAdminOnboarding(ctx context.Context) (res *AdminOnboardi
 
 // GetAlbumInfo invokes getAlbumInfo operation.
 //
+// This endpoint requires the `album.read` permission.
+//
 // GET /albums/{id}
 func (c *Client) GetAlbumInfo(ctx context.Context, params GetAlbumInfoParams) (*AlbumResponseDto, error) {
 	res, err := c.sendGetAlbumInfo(ctx, params)
@@ -8174,8 +9848,9 @@ func (c *Client) sendGetAlbumInfo(ctx context.Context, params GetAlbumInfoParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAlbumInfo"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/albums/{id}"),
+		semconv.URLTemplateKey.String("/albums/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8240,6 +9915,23 @@ func (c *Client) sendGetAlbumInfo(ctx context.Context, params GetAlbumInfoParams
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -8347,6 +10039,8 @@ func (c *Client) sendGetAlbumInfo(ctx context.Context, params GetAlbumInfoParams
 
 // GetAlbumStatistics invokes getAlbumStatistics operation.
 //
+// This endpoint requires the `album.statistics` permission.
+//
 // GET /albums/statistics
 func (c *Client) GetAlbumStatistics(ctx context.Context) (*AlbumStatisticsResponseDto, error) {
 	res, err := c.sendGetAlbumStatistics(ctx)
@@ -8357,8 +10051,9 @@ func (c *Client) sendGetAlbumStatistics(ctx context.Context) (res *AlbumStatisti
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAlbumStatistics"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/albums/statistics"),
+		semconv.URLTemplateKey.String("/albums/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8474,6 +10169,8 @@ func (c *Client) sendGetAlbumStatistics(ctx context.Context) (res *AlbumStatisti
 
 // GetAllAlbums invokes getAllAlbums operation.
 //
+// This endpoint requires the `album.read` permission.
+//
 // GET /albums
 func (c *Client) GetAllAlbums(ctx context.Context, params GetAllAlbumsParams) ([]AlbumResponseDto, error) {
 	res, err := c.sendGetAllAlbums(ctx, params)
@@ -8484,8 +10181,9 @@ func (c *Client) sendGetAllAlbums(ctx context.Context, params GetAllAlbumsParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllAlbums"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/albums"),
+		semconv.URLTemplateKey.String("/albums"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8639,6 +10337,8 @@ func (c *Client) sendGetAllAlbums(ctx context.Context, params GetAllAlbumsParams
 
 // GetAllJobsStatus invokes getAllJobsStatus operation.
 //
+// This endpoint is an admin-only route, and requires the `job.read` permission.
+//
 // GET /jobs
 func (c *Client) GetAllJobsStatus(ctx context.Context) (*AllJobStatusResponseDto, error) {
 	res, err := c.sendGetAllJobsStatus(ctx)
@@ -8649,8 +10349,9 @@ func (c *Client) sendGetAllJobsStatus(ctx context.Context) (res *AllJobStatusRes
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllJobsStatus"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/jobs"),
+		semconv.URLTemplateKey.String("/jobs"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8766,6 +10467,8 @@ func (c *Client) sendGetAllJobsStatus(ctx context.Context) (res *AllJobStatusRes
 
 // GetAllLibraries invokes getAllLibraries operation.
 //
+// This endpoint is an admin-only route, and requires the `library.read` permission.
+//
 // GET /libraries
 func (c *Client) GetAllLibraries(ctx context.Context) ([]LibraryResponseDto, error) {
 	res, err := c.sendGetAllLibraries(ctx)
@@ -8776,8 +10479,9 @@ func (c *Client) sendGetAllLibraries(ctx context.Context) (res []LibraryResponse
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllLibraries"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/libraries"),
+		semconv.URLTemplateKey.String("/libraries"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -8893,6 +10597,8 @@ func (c *Client) sendGetAllLibraries(ctx context.Context) (res []LibraryResponse
 
 // GetAllPeople invokes getAllPeople operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /people
 func (c *Client) GetAllPeople(ctx context.Context, params GetAllPeopleParams) (*PeopleResponseDto, error) {
 	res, err := c.sendGetAllPeople(ctx, params)
@@ -8903,8 +10609,9 @@ func (c *Client) sendGetAllPeople(ctx context.Context, params GetAllPeopleParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllPeople"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/people"),
+		semconv.URLTemplateKey.String("/people"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9109,6 +10816,8 @@ func (c *Client) sendGetAllPeople(ctx context.Context, params GetAllPeopleParams
 
 // GetAllSharedLinks invokes getAllSharedLinks operation.
 //
+// This endpoint requires the `sharedLink.read` permission.
+//
 // GET /shared-links
 func (c *Client) GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) ([]SharedLinkResponseDto, error) {
 	res, err := c.sendGetAllSharedLinks(ctx, params)
@@ -9119,8 +10828,9 @@ func (c *Client) sendGetAllSharedLinks(ctx context.Context, params GetAllSharedL
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllSharedLinks"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/shared-links"),
+		semconv.URLTemplateKey.String("/shared-links"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9257,6 +10967,8 @@ func (c *Client) sendGetAllSharedLinks(ctx context.Context, params GetAllSharedL
 
 // GetAllTags invokes getAllTags operation.
 //
+// This endpoint requires the `tag.read` permission.
+//
 // GET /tags
 func (c *Client) GetAllTags(ctx context.Context) ([]TagResponseDto, error) {
 	res, err := c.sendGetAllTags(ctx)
@@ -9267,8 +10979,9 @@ func (c *Client) sendGetAllTags(ctx context.Context) (res []TagResponseDto, err 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllTags"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/tags"),
+		semconv.URLTemplateKey.String("/tags"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9396,8 +11109,9 @@ func (c *Client) sendGetAllUserAssetsByDeviceId(ctx context.Context, params GetA
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAllUserAssetsByDeviceId"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/device/{deviceId}"),
+		semconv.URLTemplateKey.String("/assets/device/{deviceId}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9531,6 +11245,8 @@ func (c *Client) sendGetAllUserAssetsByDeviceId(ctx context.Context, params GetA
 
 // GetApiKey invokes getApiKey operation.
 //
+// This endpoint requires the `apiKey.read` permission.
+//
 // GET /api-keys/{id}
 func (c *Client) GetApiKey(ctx context.Context, params GetApiKeyParams) (*APIKeyResponseDto, error) {
 	res, err := c.sendGetApiKey(ctx, params)
@@ -9541,8 +11257,9 @@ func (c *Client) sendGetApiKey(ctx context.Context, params GetApiKeyParams) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getApiKey"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/api-keys/{id}"),
+		semconv.URLTemplateKey.String("/api-keys/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9676,6 +11393,8 @@ func (c *Client) sendGetApiKey(ctx context.Context, params GetApiKeyParams) (res
 
 // GetApiKeys invokes getApiKeys operation.
 //
+// This endpoint requires the `apiKey.read` permission.
+//
 // GET /api-keys
 func (c *Client) GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error) {
 	res, err := c.sendGetApiKeys(ctx)
@@ -9686,8 +11405,9 @@ func (c *Client) sendGetApiKeys(ctx context.Context) (res []APIKeyResponseDto, e
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getApiKeys"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/api-keys"),
+		semconv.URLTemplateKey.String("/api-keys"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9803,6 +11523,8 @@ func (c *Client) sendGetApiKeys(ctx context.Context) (res []APIKeyResponseDto, e
 
 // GetApkLinks invokes getApkLinks operation.
 //
+// This endpoint requires the `server.apkLinks` permission.
+//
 // GET /server/apk-links
 func (c *Client) GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error) {
 	res, err := c.sendGetApkLinks(ctx)
@@ -9813,8 +11535,9 @@ func (c *Client) sendGetApkLinks(ctx context.Context) (res *ServerApkLinksDto, e
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getApkLinks"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/apk-links"),
+		semconv.URLTemplateKey.String("/server/apk-links"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -9930,6 +11653,8 @@ func (c *Client) sendGetApkLinks(ctx context.Context) (res *ServerApkLinksDto, e
 
 // GetAssetDuplicates invokes getAssetDuplicates operation.
 //
+// This endpoint requires the `duplicate.read` permission.
+//
 // GET /duplicates
 func (c *Client) GetAssetDuplicates(ctx context.Context) ([]DuplicateResponseDto, error) {
 	res, err := c.sendGetAssetDuplicates(ctx)
@@ -9940,8 +11665,9 @@ func (c *Client) sendGetAssetDuplicates(ctx context.Context) (res []DuplicateRes
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAssetDuplicates"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/duplicates"),
+		semconv.URLTemplateKey.String("/duplicates"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10057,6 +11783,8 @@ func (c *Client) sendGetAssetDuplicates(ctx context.Context) (res []DuplicateRes
 
 // GetAssetInfo invokes getAssetInfo operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /assets/{id}
 func (c *Client) GetAssetInfo(ctx context.Context, params GetAssetInfoParams) (*AssetResponseDto, error) {
 	res, err := c.sendGetAssetInfo(ctx, params)
@@ -10067,8 +11795,9 @@ func (c *Client) sendGetAssetInfo(ctx context.Context, params GetAssetInfoParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAssetInfo"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/{id}"),
+		semconv.URLTemplateKey.String("/assets/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10133,6 +11862,23 @@ func (c *Client) sendGetAssetInfo(ctx context.Context, params GetAssetInfoParams
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -10221,7 +11967,325 @@ func (c *Client) sendGetAssetInfo(ctx context.Context, params GetAssetInfoParams
 	return result, nil
 }
 
+// GetAssetMetadata invokes getAssetMetadata operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/metadata
+func (c *Client) GetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) ([]AssetMetadataResponseDto, error) {
+	res, err := c.sendGetAssetMetadata(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) (res []AssetMetadataResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/assets/{id}/metadata"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/metadata"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAssetMetadataResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetAssetMetadataByKey invokes getAssetMetadataByKey operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/metadata/{key}
+func (c *Client) GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error) {
+	res, err := c.sendGetAssetMetadataByKey(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (res *AssetMetadataResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAssetMetadataByKey"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/assets/{id}/metadata/{key}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAssetMetadataByKeyOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [4]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/metadata/"
+	{
+		// Encode "key" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "key",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Key)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetAssetMetadataByKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetAssetMetadataByKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetAssetMetadataByKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAssetMetadataByKeyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetAssetStatistics invokes getAssetStatistics operation.
+//
+// This endpoint requires the `asset.statistics` permission.
 //
 // GET /assets/statistics
 func (c *Client) GetAssetStatistics(ctx context.Context, params GetAssetStatisticsParams) (*AssetStatsResponseDto, error) {
@@ -10233,8 +12297,9 @@ func (c *Client) sendGetAssetStatistics(ctx context.Context, params GetAssetStat
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAssetStatistics"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/statistics"),
+		semconv.URLTemplateKey.String("/assets/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10405,6 +12470,8 @@ func (c *Client) sendGetAssetStatistics(ctx context.Context, params GetAssetStat
 
 // GetAssetsByCity invokes getAssetsByCity operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /search/cities
 func (c *Client) GetAssetsByCity(ctx context.Context) ([]AssetResponseDto, error) {
 	res, err := c.sendGetAssetsByCity(ctx)
@@ -10415,8 +12482,9 @@ func (c *Client) sendGetAssetsByCity(ctx context.Context) (res []AssetResponseDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAssetsByCity"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/search/cities"),
+		semconv.URLTemplateKey.String("/search/cities"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10542,8 +12610,9 @@ func (c *Client) sendGetAssetsByOriginalPath(ctx context.Context, params GetAsse
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAssetsByOriginalPath"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/view/folder"),
+		semconv.URLTemplateKey.String("/view/folder"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10687,8 +12756,9 @@ func (c *Client) sendGetAuthStatus(ctx context.Context) (res *AuthStatusResponse
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getAuthStatus"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/auth/status"),
+		semconv.URLTemplateKey.String("/auth/status"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10804,6 +12874,8 @@ func (c *Client) sendGetAuthStatus(ctx context.Context) (res *AuthStatusResponse
 
 // GetConfig invokes getConfig operation.
 //
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+//
 // GET /system-config
 func (c *Client) GetConfig(ctx context.Context) (*SystemConfigDto, error) {
 	res, err := c.sendGetConfig(ctx)
@@ -10814,8 +12886,9 @@ func (c *Client) sendGetConfig(ctx context.Context) (res *SystemConfigDto, err e
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getConfig"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/system-config"),
+		semconv.URLTemplateKey.String("/system-config"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -10931,6 +13004,8 @@ func (c *Client) sendGetConfig(ctx context.Context) (res *SystemConfigDto, err e
 
 // GetConfigDefaults invokes getConfigDefaults operation.
 //
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+//
 // GET /system-config/defaults
 func (c *Client) GetConfigDefaults(ctx context.Context) (*SystemConfigDto, error) {
 	res, err := c.sendGetConfigDefaults(ctx)
@@ -10941,8 +13016,9 @@ func (c *Client) sendGetConfigDefaults(ctx context.Context) (res *SystemConfigDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getConfigDefaults"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/system-config/defaults"),
+		semconv.URLTemplateKey.String("/system-config/defaults"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11068,8 +13144,9 @@ func (c *Client) sendGetDeltaSync(ctx context.Context, request *AssetDeltaSyncDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getDeltaSync"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sync/delta-sync"),
+		semconv.URLTemplateKey.String("/sync/delta-sync"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11188,6 +13265,8 @@ func (c *Client) sendGetDeltaSync(ctx context.Context, request *AssetDeltaSyncDt
 
 // GetDownloadInfo invokes getDownloadInfo operation.
 //
+// This endpoint requires the `asset.download` permission.
+//
 // POST /download/info
 func (c *Client) GetDownloadInfo(ctx context.Context, request *DownloadInfoDto, params GetDownloadInfoParams) (*DownloadResponseDto, error) {
 	res, err := c.sendGetDownloadInfo(ctx, request, params)
@@ -11198,8 +13277,9 @@ func (c *Client) sendGetDownloadInfo(ctx context.Context, request *DownloadInfoD
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getDownloadInfo"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/download/info"),
+		semconv.URLTemplateKey.String("/download/info"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11246,6 +13326,23 @@ func (c *Client) sendGetDownloadInfo(ctx context.Context, request *DownloadInfoD
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -11339,6 +13436,8 @@ func (c *Client) sendGetDownloadInfo(ctx context.Context, request *DownloadInfoD
 
 // GetExploreData invokes getExploreData operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /search/explore
 func (c *Client) GetExploreData(ctx context.Context) ([]SearchExploreResponseDto, error) {
 	res, err := c.sendGetExploreData(ctx)
@@ -11349,8 +13448,9 @@ func (c *Client) sendGetExploreData(ctx context.Context) (res []SearchExploreRes
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getExploreData"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/search/explore"),
+		semconv.URLTemplateKey.String("/search/explore"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11466,6 +13566,8 @@ func (c *Client) sendGetExploreData(ctx context.Context) (res []SearchExploreRes
 
 // GetFaces invokes getFaces operation.
 //
+// This endpoint requires the `face.read` permission.
+//
 // GET /faces
 func (c *Client) GetFaces(ctx context.Context, params GetFacesParams) ([]AssetFaceResponseDto, error) {
 	res, err := c.sendGetFaces(ctx, params)
@@ -11476,8 +13578,9 @@ func (c *Client) sendGetFaces(ctx context.Context, params GetFacesParams) (res [
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getFaces"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/faces"),
+		semconv.URLTemplateKey.String("/faces"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11621,8 +13724,9 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getFullSyncForUser"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sync/full-sync"),
+		semconv.URLTemplateKey.String("/sync/full-sync"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11741,6 +13845,8 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 
 // GetLibrary invokes getLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.read` permission.
+//
 // GET /libraries/{id}
 func (c *Client) GetLibrary(ctx context.Context, params GetLibraryParams) (*LibraryResponseDto, error) {
 	res, err := c.sendGetLibrary(ctx, params)
@@ -11751,8 +13857,9 @@ func (c *Client) sendGetLibrary(ctx context.Context, params GetLibraryParams) (r
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getLibrary"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/libraries/{id}"),
+		semconv.URLTemplateKey.String("/libraries/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -11886,6 +13993,8 @@ func (c *Client) sendGetLibrary(ctx context.Context, params GetLibraryParams) (r
 
 // GetLibraryStatistics invokes getLibraryStatistics operation.
 //
+// This endpoint is an admin-only route, and requires the `library.statistics` permission.
+//
 // GET /libraries/{id}/statistics
 func (c *Client) GetLibraryStatistics(ctx context.Context, params GetLibraryStatisticsParams) (*LibraryStatsResponseDto, error) {
 	res, err := c.sendGetLibraryStatistics(ctx, params)
@@ -11896,8 +14005,9 @@ func (c *Client) sendGetLibraryStatistics(ctx context.Context, params GetLibrary
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getLibraryStatistics"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/libraries/{id}/statistics"),
+		semconv.URLTemplateKey.String("/libraries/{id}/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -12042,8 +14152,9 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMapMarkers"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/map/markers"),
+		semconv.URLTemplateKey.String("/map/markers"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -12081,40 +14192,6 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
 	{
-		// Encode "fileCreatedAfter" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "fileCreatedAfter",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.FileCreatedAfter.Get(); ok {
-				return e.EncodeValue(conv.DateTimeToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "fileCreatedBefore" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "fileCreatedBefore",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.FileCreatedBefore.Get(); ok {
-				return e.EncodeValue(conv.DateTimeToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
 		// Encode "isArchived" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "isArchived",
@@ -12142,6 +14219,40 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.IsFavorite.Get(); ok {
 				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "fileCreatedAfter" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fileCreatedAfter",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.FileCreatedAfter.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "fileCreatedBefore" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fileCreatedBefore",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.FileCreatedBefore.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -12265,6 +14376,8 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 
 // GetMemory invokes getMemory operation.
 //
+// This endpoint requires the `memory.read` permission.
+//
 // GET /memories/{id}
 func (c *Client) GetMemory(ctx context.Context, params GetMemoryParams) (*MemoryResponseDto, error) {
 	res, err := c.sendGetMemory(ctx, params)
@@ -12275,8 +14388,9 @@ func (c *Client) sendGetMemory(ctx context.Context, params GetMemoryParams) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMemory"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/memories/{id}"),
+		semconv.URLTemplateKey.String("/memories/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -12408,7 +14522,137 @@ func (c *Client) sendGetMemory(ctx context.Context, params GetMemoryParams) (res
 	return result, nil
 }
 
+// GetMyApiKey invokes getMyApiKey operation.
+//
+// GET /api-keys/me
+func (c *Client) GetMyApiKey(ctx context.Context) (*APIKeyResponseDto, error) {
+	res, err := c.sendGetMyApiKey(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetMyApiKey(ctx context.Context) (res *APIKeyResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMyApiKey"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/api-keys/me"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMyApiKeyOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api-keys/me"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetMyApiKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetMyApiKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetMyApiKeyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMyApiKeyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetMyPreferences invokes getMyPreferences operation.
+//
+// This endpoint requires the `userPreference.read` permission.
 //
 // GET /users/me/preferences
 func (c *Client) GetMyPreferences(ctx context.Context) (*UserPreferencesResponseDto, error) {
@@ -12420,8 +14664,9 @@ func (c *Client) sendGetMyPreferences(ctx context.Context) (res *UserPreferences
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMyPreferences"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users/me/preferences"),
+		semconv.URLTemplateKey.String("/users/me/preferences"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -12547,8 +14792,9 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMySharedLink"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/shared-links/me"),
+		semconv.URLTemplateKey.String("/shared-links/me"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -12586,23 +14832,6 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
 	{
-		// Encode "key" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "key",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Key.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
 		// Encode "password" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "password",
@@ -12629,6 +14858,40 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Token.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -12719,6 +14982,8 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 
 // GetMyUser invokes getMyUser operation.
 //
+// This endpoint requires the `user.read` permission.
+//
 // GET /users/me
 func (c *Client) GetMyUser(ctx context.Context) (*UserAdminResponseDto, error) {
 	res, err := c.sendGetMyUser(ctx)
@@ -12729,8 +14994,9 @@ func (c *Client) sendGetMyUser(ctx context.Context) (res *UserAdminResponseDto, 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMyUser"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users/me"),
+		semconv.URLTemplateKey.String("/users/me"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -12846,6 +15112,8 @@ func (c *Client) sendGetMyUser(ctx context.Context) (res *UserAdminResponseDto, 
 
 // GetNotification invokes getNotification operation.
 //
+// This endpoint requires the `notification.read` permission.
+//
 // GET /notifications/{id}
 func (c *Client) GetNotification(ctx context.Context, params GetNotificationParams) (*NotificationDto, error) {
 	res, err := c.sendGetNotification(ctx, params)
@@ -12856,8 +15124,9 @@ func (c *Client) sendGetNotification(ctx context.Context, params GetNotification
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNotification"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/notifications/{id}"),
+		semconv.URLTemplateKey.String("/notifications/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13001,8 +15270,9 @@ func (c *Client) sendGetNotificationTemplateAdmin(ctx context.Context, request *
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNotificationTemplateAdmin"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/admin/notifications/templates/{name}"),
+		semconv.URLTemplateKey.String("/admin/notifications/templates/{name}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13139,6 +15409,8 @@ func (c *Client) sendGetNotificationTemplateAdmin(ctx context.Context, request *
 
 // GetNotifications invokes getNotifications operation.
 //
+// This endpoint requires the `notification.read` permission.
+//
 // GET /notifications
 func (c *Client) GetNotifications(ctx context.Context, params GetNotificationsParams) ([]NotificationDto, error) {
 	res, err := c.sendGetNotifications(ctx, params)
@@ -13149,8 +15421,9 @@ func (c *Client) sendGetNotifications(ctx context.Context, params GetNotificatio
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getNotifications"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/notifications"),
+		semconv.URLTemplateKey.String("/notifications"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13338,6 +15611,8 @@ func (c *Client) sendGetNotifications(ctx context.Context, params GetNotificatio
 
 // GetPartners invokes getPartners operation.
 //
+// This endpoint requires the `partner.read` permission.
+//
 // GET /partners
 func (c *Client) GetPartners(ctx context.Context, params GetPartnersParams) ([]PartnerResponseDto, error) {
 	res, err := c.sendGetPartners(ctx, params)
@@ -13348,8 +15623,9 @@ func (c *Client) sendGetPartners(ctx context.Context, params GetPartnersParams) 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getPartners"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/partners"),
+		semconv.URLTemplateKey.String("/partners"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13483,6 +15759,8 @@ func (c *Client) sendGetPartners(ctx context.Context, params GetPartnersParams) 
 
 // GetPerson invokes getPerson operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /people/{id}
 func (c *Client) GetPerson(ctx context.Context, params GetPersonParams) (*PersonResponseDto, error) {
 	res, err := c.sendGetPerson(ctx, params)
@@ -13493,8 +15771,9 @@ func (c *Client) sendGetPerson(ctx context.Context, params GetPersonParams) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getPerson"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/people/{id}"),
+		semconv.URLTemplateKey.String("/people/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13628,6 +15907,8 @@ func (c *Client) sendGetPerson(ctx context.Context, params GetPersonParams) (res
 
 // GetPersonStatistics invokes getPersonStatistics operation.
 //
+// This endpoint requires the `person.statistics` permission.
+//
 // GET /people/{id}/statistics
 func (c *Client) GetPersonStatistics(ctx context.Context, params GetPersonStatisticsParams) (*PersonStatisticsResponseDto, error) {
 	res, err := c.sendGetPersonStatistics(ctx, params)
@@ -13638,8 +15919,9 @@ func (c *Client) sendGetPersonStatistics(ctx context.Context, params GetPersonSt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getPersonStatistics"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/people/{id}/statistics"),
+		semconv.URLTemplateKey.String("/people/{id}/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13774,6 +16056,8 @@ func (c *Client) sendGetPersonStatistics(ctx context.Context, params GetPersonSt
 
 // GetPersonThumbnail invokes getPersonThumbnail operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /people/{id}/thumbnail
 func (c *Client) GetPersonThumbnail(ctx context.Context, params GetPersonThumbnailParams) (GetPersonThumbnailOK, error) {
 	res, err := c.sendGetPersonThumbnail(ctx, params)
@@ -13784,8 +16068,9 @@ func (c *Client) sendGetPersonThumbnail(ctx context.Context, params GetPersonThu
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getPersonThumbnail"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/people/{id}/thumbnail"),
+		semconv.URLTemplateKey.String("/people/{id}/thumbnail"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -13920,6 +16205,8 @@ func (c *Client) sendGetPersonThumbnail(ctx context.Context, params GetPersonThu
 
 // GetProfileImage invokes getProfileImage operation.
 //
+// This endpoint requires the `userProfileImage.read` permission.
+//
 // GET /users/{id}/profile-image
 func (c *Client) GetProfileImage(ctx context.Context, params GetProfileImageParams) (GetProfileImageOK, error) {
 	res, err := c.sendGetProfileImage(ctx, params)
@@ -13930,8 +16217,9 @@ func (c *Client) sendGetProfileImage(ctx context.Context, params GetProfileImage
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getProfileImage"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users/{id}/profile-image"),
+		semconv.URLTemplateKey.String("/users/{id}/profile-image"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14066,7 +16354,7 @@ func (c *Client) sendGetProfileImage(ctx context.Context, params GetProfileImage
 
 // GetRandom invokes getRandom operation.
 //
-// This property was deprecated in v1.116.0.
+// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
 //
 // Deprecated: schema marks this operation as deprecated.
 //
@@ -14080,8 +16368,9 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getRandom"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/random"),
+		semconv.URLTemplateKey.String("/assets/random"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14218,6 +16507,8 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 
 // GetReverseGeocodingState invokes getReverseGeocodingState operation.
 //
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+//
 // GET /system-metadata/reverse-geocoding-state
 func (c *Client) GetReverseGeocodingState(ctx context.Context) (*ReverseGeocodingStateResponseDto, error) {
 	res, err := c.sendGetReverseGeocodingState(ctx)
@@ -14228,8 +16519,9 @@ func (c *Client) sendGetReverseGeocodingState(ctx context.Context) (res *Reverse
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getReverseGeocodingState"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/system-metadata/reverse-geocoding-state"),
+		semconv.URLTemplateKey.String("/system-metadata/reverse-geocoding-state"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14345,6 +16637,8 @@ func (c *Client) sendGetReverseGeocodingState(ctx context.Context) (res *Reverse
 
 // GetSearchSuggestions invokes getSearchSuggestions operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /search/suggestions
 func (c *Client) GetSearchSuggestions(ctx context.Context, params GetSearchSuggestionsParams) ([]string, error) {
 	res, err := c.sendGetSearchSuggestions(ctx, params)
@@ -14355,8 +16649,9 @@ func (c *Client) sendGetSearchSuggestions(ctx context.Context, params GetSearchS
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSearchSuggestions"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/search/suggestions"),
+		semconv.URLTemplateKey.String("/search/suggestions"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14585,8 +16880,9 @@ func (c *Client) sendGetServerConfig(ctx context.Context) (res *ServerConfigDto,
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getServerConfig"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/config"),
+		semconv.URLTemplateKey.String("/server/config"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14655,8 +16951,9 @@ func (c *Client) sendGetServerFeatures(ctx context.Context) (res *ServerFeatures
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getServerFeatures"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/features"),
+		semconv.URLTemplateKey.String("/server/features"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14715,6 +17012,8 @@ func (c *Client) sendGetServerFeatures(ctx context.Context) (res *ServerFeatures
 
 // GetServerLicense invokes getServerLicense operation.
 //
+// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+//
 // GET /server/license
 func (c *Client) GetServerLicense(ctx context.Context) (GetServerLicenseRes, error) {
 	res, err := c.sendGetServerLicense(ctx)
@@ -14725,8 +17024,9 @@ func (c *Client) sendGetServerLicense(ctx context.Context) (res GetServerLicense
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getServerLicense"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/license"),
+		semconv.URLTemplateKey.String("/server/license"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14842,6 +17142,8 @@ func (c *Client) sendGetServerLicense(ctx context.Context) (res GetServerLicense
 
 // GetServerStatistics invokes getServerStatistics operation.
 //
+// This endpoint is an admin-only route, and requires the `server.statistics` permission.
+//
 // GET /server/statistics
 func (c *Client) GetServerStatistics(ctx context.Context) (*ServerStatsResponseDto, error) {
 	res, err := c.sendGetServerStatistics(ctx)
@@ -14852,8 +17154,9 @@ func (c *Client) sendGetServerStatistics(ctx context.Context) (res *ServerStatsR
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getServerStatistics"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/statistics"),
+		semconv.URLTemplateKey.String("/server/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -14979,8 +17282,9 @@ func (c *Client) sendGetServerVersion(ctx context.Context) (res *ServerVersionRe
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getServerVersion"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/version"),
+		semconv.URLTemplateKey.String("/server/version"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15039,6 +17343,8 @@ func (c *Client) sendGetServerVersion(ctx context.Context) (res *ServerVersionRe
 
 // GetSessions invokes getSessions operation.
 //
+// This endpoint requires the `session.read` permission.
+//
 // GET /sessions
 func (c *Client) GetSessions(ctx context.Context) ([]SessionResponseDto, error) {
 	res, err := c.sendGetSessions(ctx)
@@ -15049,8 +17355,9 @@ func (c *Client) sendGetSessions(ctx context.Context) (res []SessionResponseDto,
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSessions"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/sessions"),
+		semconv.URLTemplateKey.String("/sessions"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15166,6 +17473,8 @@ func (c *Client) sendGetSessions(ctx context.Context) (res []SessionResponseDto,
 
 // GetSharedLinkById invokes getSharedLinkById operation.
 //
+// This endpoint requires the `sharedLink.read` permission.
+//
 // GET /shared-links/{id}
 func (c *Client) GetSharedLinkById(ctx context.Context, params GetSharedLinkByIdParams) (*SharedLinkResponseDto, error) {
 	res, err := c.sendGetSharedLinkById(ctx, params)
@@ -15176,8 +17485,9 @@ func (c *Client) sendGetSharedLinkById(ctx context.Context, params GetSharedLink
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSharedLinkById"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/shared-links/{id}"),
+		semconv.URLTemplateKey.String("/shared-links/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15311,6 +17621,8 @@ func (c *Client) sendGetSharedLinkById(ctx context.Context, params GetSharedLink
 
 // GetStack invokes getStack operation.
 //
+// This endpoint requires the `stack.read` permission.
+//
 // GET /stacks/{id}
 func (c *Client) GetStack(ctx context.Context, params GetStackParams) (*StackResponseDto, error) {
 	res, err := c.sendGetStack(ctx, params)
@@ -15321,8 +17633,9 @@ func (c *Client) sendGetStack(ctx context.Context, params GetStackParams) (res *
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStack"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/stacks/{id}"),
+		semconv.URLTemplateKey.String("/stacks/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15456,6 +17769,8 @@ func (c *Client) sendGetStack(ctx context.Context, params GetStackParams) (res *
 
 // GetStorage invokes getStorage operation.
 //
+// This endpoint requires the `server.storage` permission.
+//
 // GET /server/storage
 func (c *Client) GetStorage(ctx context.Context) (*ServerStorageResponseDto, error) {
 	res, err := c.sendGetStorage(ctx)
@@ -15466,8 +17781,9 @@ func (c *Client) sendGetStorage(ctx context.Context) (res *ServerStorageResponse
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStorage"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/storage"),
+		semconv.URLTemplateKey.String("/server/storage"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15583,6 +17899,8 @@ func (c *Client) sendGetStorage(ctx context.Context) (res *ServerStorageResponse
 
 // GetStorageTemplateOptions invokes getStorageTemplateOptions operation.
 //
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+//
 // GET /system-config/storage-template-options
 func (c *Client) GetStorageTemplateOptions(ctx context.Context) (*SystemConfigTemplateStorageOptionDto, error) {
 	res, err := c.sendGetStorageTemplateOptions(ctx)
@@ -15593,8 +17911,9 @@ func (c *Client) sendGetStorageTemplateOptions(ctx context.Context) (res *System
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getStorageTemplateOptions"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/system-config/storage-template-options"),
+		semconv.URLTemplateKey.String("/system-config/storage-template-options"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15720,8 +18039,9 @@ func (c *Client) sendGetSupportedMediaTypes(ctx context.Context) (res *ServerMed
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSupportedMediaTypes"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/media-types"),
+		semconv.URLTemplateKey.String("/server/media-types"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15780,6 +18100,8 @@ func (c *Client) sendGetSupportedMediaTypes(ctx context.Context) (res *ServerMed
 
 // GetSyncAck invokes getSyncAck operation.
 //
+// This endpoint requires the `syncCheckpoint.read` permission.
+//
 // GET /sync/ack
 func (c *Client) GetSyncAck(ctx context.Context) ([]SyncAckDto, error) {
 	res, err := c.sendGetSyncAck(ctx)
@@ -15790,8 +18112,9 @@ func (c *Client) sendGetSyncAck(ctx context.Context) (res []SyncAckDto, err erro
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSyncAck"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/sync/ack"),
+		semconv.URLTemplateKey.String("/sync/ack"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -15907,6 +18230,8 @@ func (c *Client) sendGetSyncAck(ctx context.Context) (res []SyncAckDto, err erro
 
 // GetSyncStream invokes getSyncStream operation.
 //
+// This endpoint requires the `sync.stream` permission.
+//
 // POST /sync/stream
 func (c *Client) GetSyncStream(ctx context.Context, request *SyncStreamDto) error {
 	_, err := c.sendGetSyncStream(ctx, request)
@@ -15917,8 +18242,9 @@ func (c *Client) sendGetSyncStream(ctx context.Context, request *SyncStreamDto) 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getSyncStream"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sync/stream"),
+		semconv.URLTemplateKey.String("/sync/stream"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -16037,6 +18363,8 @@ func (c *Client) sendGetSyncStream(ctx context.Context, request *SyncStreamDto) 
 
 // GetTagById invokes getTagById operation.
 //
+// This endpoint requires the `tag.read` permission.
+//
 // GET /tags/{id}
 func (c *Client) GetTagById(ctx context.Context, params GetTagByIdParams) (*TagResponseDto, error) {
 	res, err := c.sendGetTagById(ctx, params)
@@ -16047,8 +18375,9 @@ func (c *Client) sendGetTagById(ctx context.Context, params GetTagByIdParams) (r
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getTagById"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/tags/{id}"),
+		semconv.URLTemplateKey.String("/tags/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -16192,8 +18521,9 @@ func (c *Client) sendGetTheme(ctx context.Context) (res *ServerThemeDto, err err
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getTheme"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/theme"),
+		semconv.URLTemplateKey.String("/server/theme"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -16252,6 +18582,8 @@ func (c *Client) sendGetTheme(ctx context.Context) (res *ServerThemeDto, err err
 
 // GetTimeBucket invokes getTimeBucket operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /timeline/bucket
 func (c *Client) GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (*TimeBucketAssetResponseDto, error) {
 	res, err := c.sendGetTimeBucket(ctx, params)
@@ -16262,8 +18594,9 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getTimeBucket"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/timeline/bucket"),
+		semconv.URLTemplateKey.String("/timeline/bucket"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -16403,6 +18736,23 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 		}
 	}
 	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "tagId" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "tagId",
@@ -16461,6 +18811,23 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Visibility.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "withCoordinates" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "withCoordinates",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.WithCoordinates.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -16584,6 +18951,8 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 
 // GetTimeBuckets invokes getTimeBuckets operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /timeline/buckets
 func (c *Client) GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketsResponseDto, error) {
 	res, err := c.sendGetTimeBuckets(ctx, params)
@@ -16594,8 +18963,9 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getTimeBuckets"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/timeline/buckets"),
+		semconv.URLTemplateKey.String("/timeline/buckets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -16735,6 +19105,23 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 		}
 	}
 	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "tagId" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "tagId",
@@ -16779,6 +19166,23 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Visibility.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "withCoordinates" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "withCoordinates",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.WithCoordinates.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -16912,8 +19316,9 @@ func (c *Client) sendGetUniqueOriginalPaths(ctx context.Context) (res []string, 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUniqueOriginalPaths"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/view/folder/unique-paths"),
+		semconv.URLTemplateKey.String("/view/folder/unique-paths"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17029,6 +19434,8 @@ func (c *Client) sendGetUniqueOriginalPaths(ctx context.Context) (res []string, 
 
 // GetUser invokes getUser operation.
 //
+// This endpoint requires the `user.read` permission.
+//
 // GET /users/{id}
 func (c *Client) GetUser(ctx context.Context, params GetUserParams) (*UserResponseDto, error) {
 	res, err := c.sendGetUser(ctx, params)
@@ -17039,8 +19446,9 @@ func (c *Client) sendGetUser(ctx context.Context, params GetUserParams) (res *Us
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUser"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users/{id}"),
+		semconv.URLTemplateKey.String("/users/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17174,6 +19582,8 @@ func (c *Client) sendGetUser(ctx context.Context, params GetUserParams) (res *Us
 
 // GetUserAdmin invokes getUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+//
 // GET /admin/users/{id}
 func (c *Client) GetUserAdmin(ctx context.Context, params GetUserAdminParams) (*UserAdminResponseDto, error) {
 	res, err := c.sendGetUserAdmin(ctx, params)
@@ -17184,8 +19594,9 @@ func (c *Client) sendGetUserAdmin(ctx context.Context, params GetUserAdminParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUserAdmin"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}"),
+		semconv.URLTemplateKey.String("/admin/users/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17319,6 +19730,8 @@ func (c *Client) sendGetUserAdmin(ctx context.Context, params GetUserAdminParams
 
 // GetUserLicense invokes getUserLicense operation.
 //
+// This endpoint requires the `userLicense.read` permission.
+//
 // GET /users/me/license
 func (c *Client) GetUserLicense(ctx context.Context) (*LicenseResponseDto, error) {
 	res, err := c.sendGetUserLicense(ctx)
@@ -17329,8 +19742,9 @@ func (c *Client) sendGetUserLicense(ctx context.Context) (res *LicenseResponseDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUserLicense"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users/me/license"),
+		semconv.URLTemplateKey.String("/users/me/license"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17446,6 +19860,8 @@ func (c *Client) sendGetUserLicense(ctx context.Context) (res *LicenseResponseDt
 
 // GetUserOnboarding invokes getUserOnboarding operation.
 //
+// This endpoint requires the `userOnboarding.read` permission.
+//
 // GET /users/me/onboarding
 func (c *Client) GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error) {
 	res, err := c.sendGetUserOnboarding(ctx)
@@ -17456,8 +19872,9 @@ func (c *Client) sendGetUserOnboarding(ctx context.Context) (res *OnboardingResp
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUserOnboarding"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users/me/onboarding"),
+		semconv.URLTemplateKey.String("/users/me/onboarding"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17573,6 +19990,8 @@ func (c *Client) sendGetUserOnboarding(ctx context.Context) (res *OnboardingResp
 
 // GetUserPreferencesAdmin invokes getUserPreferencesAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+//
 // GET /admin/users/{id}/preferences
 func (c *Client) GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error) {
 	res, err := c.sendGetUserPreferencesAdmin(ctx, params)
@@ -17583,8 +20002,9 @@ func (c *Client) sendGetUserPreferencesAdmin(ctx context.Context, params GetUser
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUserPreferencesAdmin"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}/preferences"),
+		semconv.URLTemplateKey.String("/admin/users/{id}/preferences"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17719,6 +20139,8 @@ func (c *Client) sendGetUserPreferencesAdmin(ctx context.Context, params GetUser
 
 // GetUserStatisticsAdmin invokes getUserStatisticsAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+//
 // GET /admin/users/{id}/statistics
 func (c *Client) GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error) {
 	res, err := c.sendGetUserStatisticsAdmin(ctx, params)
@@ -17729,8 +20151,9 @@ func (c *Client) sendGetUserStatisticsAdmin(ctx context.Context, params GetUserS
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUserStatisticsAdmin"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}/statistics"),
+		semconv.URLTemplateKey.String("/admin/users/{id}/statistics"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -17920,6 +20343,8 @@ func (c *Client) sendGetUserStatisticsAdmin(ctx context.Context, params GetUserS
 
 // GetVersionCheck invokes getVersionCheck operation.
 //
+// This endpoint requires the `server.versionCheck` permission.
+//
 // GET /server/version-check
 func (c *Client) GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error) {
 	res, err := c.sendGetVersionCheck(ctx)
@@ -17930,8 +20355,9 @@ func (c *Client) sendGetVersionCheck(ctx context.Context) (res *VersionCheckStat
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getVersionCheck"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/version-check"),
+		semconv.URLTemplateKey.String("/server/version-check"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18047,6 +20473,8 @@ func (c *Client) sendGetVersionCheck(ctx context.Context) (res *VersionCheckStat
 
 // GetVersionCheckState invokes getVersionCheckState operation.
 //
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+//
 // GET /system-metadata/version-check-state
 func (c *Client) GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error) {
 	res, err := c.sendGetVersionCheckState(ctx)
@@ -18057,8 +20485,9 @@ func (c *Client) sendGetVersionCheckState(ctx context.Context) (res *VersionChec
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getVersionCheckState"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/system-metadata/version-check-state"),
+		semconv.URLTemplateKey.String("/system-metadata/version-check-state"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18184,8 +20613,9 @@ func (c *Client) sendGetVersionHistory(ctx context.Context) (res []ServerVersion
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getVersionHistory"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/version-history"),
+		semconv.URLTemplateKey.String("/server/version-history"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18254,8 +20684,9 @@ func (c *Client) sendLinkOAuthAccount(ctx context.Context, request *OAuthCallbac
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("linkOAuthAccount"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/oauth/link"),
+		semconv.URLTemplateKey.String("/oauth/link"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18380,12 +20811,13 @@ func (c *Client) LockAuthSession(ctx context.Context) error {
 	return err
 }
 
-func (c *Client) sendLockAuthSession(ctx context.Context) (res *LockAuthSessionOK, err error) {
+func (c *Client) sendLockAuthSession(ctx context.Context) (res *LockAuthSessionNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("lockAuthSession"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/session/lock"),
+		semconv.URLTemplateKey.String("/auth/session/lock"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18501,6 +20933,8 @@ func (c *Client) sendLockAuthSession(ctx context.Context) (res *LockAuthSessionO
 
 // LockSession invokes lockSession operation.
 //
+// This endpoint requires the `session.lock` permission.
+//
 // POST /sessions/{id}/lock
 func (c *Client) LockSession(ctx context.Context, params LockSessionParams) error {
 	_, err := c.sendLockSession(ctx, params)
@@ -18511,8 +20945,9 @@ func (c *Client) sendLockSession(ctx context.Context, params LockSessionParams) 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("lockSession"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sessions/{id}/lock"),
+		semconv.URLTemplateKey.String("/sessions/{id}/lock"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18657,8 +21092,9 @@ func (c *Client) sendLogin(ctx context.Context, request *LoginCredentialDto) (re
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("login"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/login"),
+		semconv.URLTemplateKey.String("/auth/login"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18730,8 +21166,9 @@ func (c *Client) sendLogout(ctx context.Context) (res *LogoutResponseDto, err er
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("logout"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/logout"),
+		semconv.URLTemplateKey.String("/auth/logout"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -18845,7 +21282,211 @@ func (c *Client) sendLogout(ctx context.Context) (res *LogoutResponseDto, err er
 	return result, nil
 }
 
+// MemoriesStatistics invokes memoriesStatistics operation.
+//
+// This endpoint requires the `memory.statistics` permission.
+//
+// GET /memories/statistics
+func (c *Client) MemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (*MemoryStatisticsResponseDto, error) {
+	res, err := c.sendMemoriesStatistics(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendMemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (res *MemoryStatisticsResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("memoriesStatistics"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/memories/statistics"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, MemoriesStatisticsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/memories/statistics"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "for" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "for",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.For.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isSaved" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isSaved",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsSaved.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isTrashed" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isTrashed",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsTrashed.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "type" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Type.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, MemoriesStatisticsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, MemoriesStatisticsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, MemoriesStatisticsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeMemoriesStatisticsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // MergePerson invokes mergePerson operation.
+//
+// This endpoint requires the `person.merge` permission.
 //
 // POST /people/{id}/merge
 func (c *Client) MergePerson(ctx context.Context, request *MergePersonDto, params MergePersonParams) ([]BulkIdResponseDto, error) {
@@ -18857,8 +21498,9 @@ func (c *Client) sendMergePerson(ctx context.Context, request *MergePersonDto, p
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("mergePerson"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/people/{id}/merge"),
+		semconv.URLTemplateKey.String("/people/{id}/merge"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19006,8 +21648,9 @@ func (c *Client) sendPingServer(ctx context.Context) (res *ServerPingResponse, e
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("pingServer"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/ping"),
+		semconv.URLTemplateKey.String("/server/ping"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19066,6 +21709,8 @@ func (c *Client) sendPingServer(ctx context.Context) (res *ServerPingResponse, e
 
 // PlayAssetVideo invokes playAssetVideo operation.
 //
+// This endpoint requires the `asset.view` permission.
+//
 // GET /assets/{id}/video/playback
 func (c *Client) PlayAssetVideo(ctx context.Context, params PlayAssetVideoParams) (PlayAssetVideoOK, error) {
 	res, err := c.sendPlayAssetVideo(ctx, params)
@@ -19076,8 +21721,9 @@ func (c *Client) sendPlayAssetVideo(ctx context.Context, params PlayAssetVideoPa
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("playAssetVideo"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/{id}/video/playback"),
+		semconv.URLTemplateKey.String("/assets/{id}/video/playback"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19143,6 +21789,23 @@ func (c *Client) sendPlayAssetVideo(ctx context.Context, params PlayAssetVideoPa
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -19233,6 +21896,8 @@ func (c *Client) sendPlayAssetVideo(ctx context.Context, params PlayAssetVideoPa
 
 // ReassignFaces invokes reassignFaces operation.
 //
+// This endpoint requires the `person.reassign` permission.
+//
 // PUT /people/{id}/reassign
 func (c *Client) ReassignFaces(ctx context.Context, request *AssetFaceUpdateDto, params ReassignFacesParams) ([]PersonResponseDto, error) {
 	res, err := c.sendReassignFaces(ctx, request, params)
@@ -19243,8 +21908,9 @@ func (c *Client) sendReassignFaces(ctx context.Context, request *AssetFaceUpdate
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("reassignFaces"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/people/{id}/reassign"),
+		semconv.URLTemplateKey.String("/people/{id}/reassign"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19382,6 +22048,8 @@ func (c *Client) sendReassignFaces(ctx context.Context, request *AssetFaceUpdate
 
 // ReassignFacesById invokes reassignFacesById operation.
 //
+// This endpoint requires the `face.update` permission.
+//
 // PUT /faces/{id}
 func (c *Client) ReassignFacesById(ctx context.Context, request *FaceDto, params ReassignFacesByIdParams) (*PersonResponseDto, error) {
 	res, err := c.sendReassignFacesById(ctx, request, params)
@@ -19392,8 +22060,9 @@ func (c *Client) sendReassignFacesById(ctx context.Context, request *FaceDto, pa
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("reassignFacesById"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/faces/{id}"),
+		semconv.URLTemplateKey.String("/faces/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19540,8 +22209,9 @@ func (c *Client) sendRedirectOAuthToMobile(ctx context.Context) (res *RedirectOA
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("redirectOAuthToMobile"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/oauth/mobile-redirect"),
+		semconv.URLTemplateKey.String("/oauth/mobile-redirect"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19600,6 +22270,8 @@ func (c *Client) sendRedirectOAuthToMobile(ctx context.Context) (res *RedirectOA
 
 // RemoveAssetFromAlbum invokes removeAssetFromAlbum operation.
 //
+// This endpoint requires the `albumAsset.delete` permission.
+//
 // DELETE /albums/{id}/assets
 func (c *Client) RemoveAssetFromAlbum(ctx context.Context, request *BulkIdsDto, params RemoveAssetFromAlbumParams) ([]BulkIdResponseDto, error) {
 	res, err := c.sendRemoveAssetFromAlbum(ctx, request, params)
@@ -19610,8 +22282,9 @@ func (c *Client) sendRemoveAssetFromAlbum(ctx context.Context, request *BulkIdsD
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("removeAssetFromAlbum"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/albums/{id}/assets"),
+		semconv.URLTemplateKey.String("/albums/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19747,7 +22420,176 @@ func (c *Client) sendRemoveAssetFromAlbum(ctx context.Context, request *BulkIdsD
 	return result, nil
 }
 
+// RemoveAssetFromStack invokes removeAssetFromStack operation.
+//
+// This endpoint requires the `stack.update` permission.
+//
+// DELETE /stacks/{id}/assets/{assetId}
+func (c *Client) RemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) error {
+	_, err := c.sendRemoveAssetFromStack(ctx, params)
+	return err
+}
+
+func (c *Client) sendRemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) (res *RemoveAssetFromStackNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("removeAssetFromStack"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/stacks/{id}/assets/{assetId}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, RemoveAssetFromStackOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [4]string
+	pathParts[0] = "/stacks/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/assets/"
+	{
+		// Encode "assetId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "assetId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.AssetId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, RemoveAssetFromStackOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, RemoveAssetFromStackOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, RemoveAssetFromStackOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeRemoveAssetFromStackResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // RemoveMemoryAssets invokes removeMemoryAssets operation.
+//
+// This endpoint requires the `memoryAsset.delete` permission.
 //
 // DELETE /memories/{id}/assets
 func (c *Client) RemoveMemoryAssets(ctx context.Context, request *BulkIdsDto, params RemoveMemoryAssetsParams) ([]BulkIdResponseDto, error) {
@@ -19759,8 +22601,9 @@ func (c *Client) sendRemoveMemoryAssets(ctx context.Context, request *BulkIdsDto
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("removeMemoryAssets"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/memories/{id}/assets"),
+		semconv.URLTemplateKey.String("/memories/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -19898,18 +22741,21 @@ func (c *Client) sendRemoveMemoryAssets(ctx context.Context, request *BulkIdsDto
 
 // RemovePartner invokes removePartner operation.
 //
+// This endpoint requires the `partner.delete` permission.
+//
 // DELETE /partners/{id}
 func (c *Client) RemovePartner(ctx context.Context, params RemovePartnerParams) error {
 	_, err := c.sendRemovePartner(ctx, params)
 	return err
 }
 
-func (c *Client) sendRemovePartner(ctx context.Context, params RemovePartnerParams) (res *RemovePartnerOK, err error) {
+func (c *Client) sendRemovePartner(ctx context.Context, params RemovePartnerParams) (res *RemovePartnerNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("removePartner"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/partners/{id}"),
+		semconv.URLTemplateKey.String("/partners/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20043,18 +22889,21 @@ func (c *Client) sendRemovePartner(ctx context.Context, params RemovePartnerPara
 
 // RemoveSharedLink invokes removeSharedLink operation.
 //
+// This endpoint requires the `sharedLink.delete` permission.
+//
 // DELETE /shared-links/{id}
 func (c *Client) RemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) error {
 	_, err := c.sendRemoveSharedLink(ctx, params)
 	return err
 }
 
-func (c *Client) sendRemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) (res *RemoveSharedLinkOK, err error) {
+func (c *Client) sendRemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) (res *RemoveSharedLinkNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("removeSharedLink"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/shared-links/{id}"),
+		semconv.URLTemplateKey.String("/shared-links/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20198,8 +23047,9 @@ func (c *Client) sendRemoveSharedLinkAssets(ctx context.Context, request *AssetI
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("removeSharedLinkAssets"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/shared-links/{id}/assets"),
+		semconv.URLTemplateKey.String("/shared-links/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20265,6 +23115,23 @@ func (c *Client) sendRemoveSharedLinkAssets(ctx context.Context, request *AssetI
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -20358,18 +23225,21 @@ func (c *Client) sendRemoveSharedLinkAssets(ctx context.Context, request *AssetI
 
 // RemoveUserFromAlbum invokes removeUserFromAlbum operation.
 //
+// This endpoint requires the `albumUser.delete` permission.
+//
 // DELETE /albums/{id}/user/{userId}
 func (c *Client) RemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) error {
 	_, err := c.sendRemoveUserFromAlbum(ctx, params)
 	return err
 }
 
-func (c *Client) sendRemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) (res *RemoveUserFromAlbumOK, err error) {
+func (c *Client) sendRemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) (res *RemoveUserFromAlbumNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("removeUserFromAlbum"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/albums/{id}/user/{userId}"),
+		semconv.URLTemplateKey.String("/albums/{id}/user/{userId}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20522,7 +23392,11 @@ func (c *Client) sendRemoveUserFromAlbum(ctx context.Context, params RemoveUserF
 
 // ReplaceAsset invokes replaceAsset operation.
 //
-// Replace the asset with new file, without changing its id.
+// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
+//
+//	This endpoint requires the `asset.replace` permission.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets/{id}/original
 func (c *Client) ReplaceAsset(ctx context.Context, request *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (*AssetMediaResponseDto, error) {
@@ -20534,8 +23408,9 @@ func (c *Client) sendReplaceAsset(ctx context.Context, request *AssetMediaReplac
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("replaceAsset"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/assets/{id}/original"),
+		semconv.URLTemplateKey.String("/assets/{id}/original"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20601,6 +23476,23 @@ func (c *Client) sendReplaceAsset(ctx context.Context, request *AssetMediaReplac
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -20694,18 +23586,21 @@ func (c *Client) sendReplaceAsset(ctx context.Context, request *AssetMediaReplac
 
 // ResetPinCode invokes resetPinCode operation.
 //
+// This endpoint requires the `pinCode.delete` permission.
+//
 // DELETE /auth/pin-code
 func (c *Client) ResetPinCode(ctx context.Context, request *PinCodeResetDto) error {
 	_, err := c.sendResetPinCode(ctx, request)
 	return err
 }
 
-func (c *Client) sendResetPinCode(ctx context.Context, request *PinCodeResetDto) (res *ResetPinCodeOK, err error) {
+func (c *Client) sendResetPinCode(ctx context.Context, request *PinCodeResetDto) (res *ResetPinCodeNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("resetPinCode"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/auth/pin-code"),
+		semconv.URLTemplateKey.String("/auth/pin-code"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20824,6 +23719,8 @@ func (c *Client) sendResetPinCode(ctx context.Context, request *PinCodeResetDto)
 
 // RestoreAssets invokes restoreAssets operation.
 //
+// This endpoint requires the `asset.delete` permission.
+//
 // POST /trash/restore/assets
 func (c *Client) RestoreAssets(ctx context.Context, request *BulkIdsDto) (*TrashResponseDto, error) {
 	res, err := c.sendRestoreAssets(ctx, request)
@@ -20834,8 +23731,9 @@ func (c *Client) sendRestoreAssets(ctx context.Context, request *BulkIdsDto) (re
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("restoreAssets"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/trash/restore/assets"),
+		semconv.URLTemplateKey.String("/trash/restore/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -20954,6 +23852,8 @@ func (c *Client) sendRestoreAssets(ctx context.Context, request *BulkIdsDto) (re
 
 // RestoreTrash invokes restoreTrash operation.
 //
+// This endpoint requires the `asset.delete` permission.
+//
 // POST /trash/restore
 func (c *Client) RestoreTrash(ctx context.Context) (*TrashResponseDto, error) {
 	res, err := c.sendRestoreTrash(ctx)
@@ -20964,8 +23864,9 @@ func (c *Client) sendRestoreTrash(ctx context.Context) (res *TrashResponseDto, e
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("restoreTrash"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/trash/restore"),
+		semconv.URLTemplateKey.String("/trash/restore"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21081,6 +23982,8 @@ func (c *Client) sendRestoreTrash(ctx context.Context) (res *TrashResponseDto, e
 
 // RestoreUserAdmin invokes restoreUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+//
 // POST /admin/users/{id}/restore
 func (c *Client) RestoreUserAdmin(ctx context.Context, params RestoreUserAdminParams) (*UserAdminResponseDto, error) {
 	res, err := c.sendRestoreUserAdmin(ctx, params)
@@ -21091,8 +23994,9 @@ func (c *Client) sendRestoreUserAdmin(ctx context.Context, params RestoreUserAdm
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("restoreUserAdmin"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}/restore"),
+		semconv.URLTemplateKey.String("/admin/users/{id}/restore"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21237,8 +24141,9 @@ func (c *Client) sendReverseGeocode(ctx context.Context, params ReverseGeocodePa
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("reverseGeocode"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/map/reverse-geocode"),
+		semconv.URLTemplateKey.String("/map/reverse-geocode"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21396,8 +24301,9 @@ func (c *Client) sendRunAssetJobs(ctx context.Context, request *AssetJobsDto) (r
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("runAssetJobs"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/assets/jobs"),
+		semconv.URLTemplateKey.String("/assets/jobs"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21516,6 +24422,8 @@ func (c *Client) sendRunAssetJobs(ctx context.Context, request *AssetJobsDto) (r
 
 // ScanLibrary invokes scanLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.update` permission.
+//
 // POST /libraries/{id}/scan
 func (c *Client) ScanLibrary(ctx context.Context, params ScanLibraryParams) error {
 	_, err := c.sendScanLibrary(ctx, params)
@@ -21526,8 +24434,9 @@ func (c *Client) sendScanLibrary(ctx context.Context, params ScanLibraryParams) 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("scanLibrary"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/libraries/{id}/scan"),
+		semconv.URLTemplateKey.String("/libraries/{id}/scan"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21660,7 +24569,142 @@ func (c *Client) sendScanLibrary(ctx context.Context, params ScanLibraryParams) 
 	return result, nil
 }
 
+// SearchAssetStatistics invokes searchAssetStatistics operation.
+//
+// This endpoint requires the `asset.statistics` permission.
+//
+// POST /search/statistics
+func (c *Client) SearchAssetStatistics(ctx context.Context, request *StatisticsSearchDto) (*SearchStatisticsResponseDto, error) {
+	res, err := c.sendSearchAssetStatistics(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendSearchAssetStatistics(ctx context.Context, request *StatisticsSearchDto) (res *SearchStatisticsResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchAssetStatistics"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/search/statistics"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchAssetStatisticsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/search/statistics"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeSearchAssetStatisticsRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SearchAssetStatisticsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SearchAssetStatisticsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SearchAssetStatisticsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeSearchAssetStatisticsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // SearchAssets invokes searchAssets operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // POST /search/metadata
 func (c *Client) SearchAssets(ctx context.Context, request *MetadataSearchDto) (*SearchResponseDto, error) {
@@ -21672,8 +24716,9 @@ func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchAssets"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/search/metadata"),
+		semconv.URLTemplateKey.String("/search/metadata"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21790,7 +24835,697 @@ func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDt
 	return result, nil
 }
 
+// SearchLargeAssets invokes searchLargeAssets operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// POST /search/large-assets
+func (c *Client) SearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) ([]AssetResponseDto, error) {
+	res, err := c.sendSearchLargeAssets(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) (res []AssetResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchLargeAssets"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/search/large-assets"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchLargeAssetsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/search/large-assets"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "albumIds" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "albumIds",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.AlbumIds != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.AlbumIds {
+						if err := func() error {
+							return e.EncodeValue(conv.UUIDToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "city" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "city",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.City.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "country" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "country",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Country.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "createdAfter" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "createdAfter",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.CreatedAfter.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "createdBefore" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "createdBefore",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.CreatedBefore.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "deviceId" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "deviceId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.DeviceId.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isEncoded" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isEncoded",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsEncoded.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isFavorite" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isFavorite",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsFavorite.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isMotion" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isMotion",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsMotion.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isNotInAlbum" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isNotInAlbum",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsNotInAlbum.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isOffline" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isOffline",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsOffline.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "lensModel" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "lensModel",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.LensModel.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "libraryId" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "libraryId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.LibraryId.Get(); ok {
+				return e.EncodeValue(conv.UUIDToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "make" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "make",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Make.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "minFileSize" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "minFileSize",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.MinFileSize.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "model" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "model",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Model.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "personIds" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "personIds",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.PersonIds != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.PersonIds {
+						if err := func() error {
+							return e.EncodeValue(conv.UUIDToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "rating" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "rating",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Rating.Get(); ok {
+				return e.EncodeValue(conv.Float64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "size" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "size",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Size.Get(); ok {
+				return e.EncodeValue(conv.Float64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "state" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "state",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.State.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "tagIds" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "tagIds",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.TagIds.Get(); ok {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range val {
+						if err := func() error {
+							return e.EncodeValue(conv.UUIDToString(item))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "takenAfter" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "takenAfter",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.TakenAfter.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "takenBefore" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "takenBefore",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.TakenBefore.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "trashedAfter" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "trashedAfter",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.TrashedAfter.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "trashedBefore" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "trashedBefore",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.TrashedBefore.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "type" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Type.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "updatedAfter" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "updatedAfter",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.UpdatedAfter.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "updatedBefore" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "updatedBefore",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.UpdatedBefore.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "visibility" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "visibility",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Visibility.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "withDeleted" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "withDeleted",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.WithDeleted.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "withExif" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "withExif",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.WithExif.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SearchLargeAssetsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SearchLargeAssetsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SearchLargeAssetsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeSearchLargeAssetsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // SearchMemories invokes searchMemories operation.
+//
+// This endpoint requires the `memory.read` permission.
 //
 // GET /memories
 func (c *Client) SearchMemories(ctx context.Context, params SearchMemoriesParams) ([]MemoryResponseDto, error) {
@@ -21802,8 +25537,9 @@ func (c *Client) sendSearchMemories(ctx context.Context, params SearchMemoriesPa
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchMemories"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/memories"),
+		semconv.URLTemplateKey.String("/memories"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -21991,6 +25727,8 @@ func (c *Client) sendSearchMemories(ctx context.Context, params SearchMemoriesPa
 
 // SearchPerson invokes searchPerson operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /search/person
 func (c *Client) SearchPerson(ctx context.Context, params SearchPersonParams) ([]PersonResponseDto, error) {
 	res, err := c.sendSearchPerson(ctx, params)
@@ -22001,8 +25739,9 @@ func (c *Client) sendSearchPerson(ctx context.Context, params SearchPersonParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchPerson"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/search/person"),
+		semconv.URLTemplateKey.String("/search/person"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22153,6 +25892,8 @@ func (c *Client) sendSearchPerson(ctx context.Context, params SearchPersonParams
 
 // SearchPlaces invokes searchPlaces operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /search/places
 func (c *Client) SearchPlaces(ctx context.Context, params SearchPlacesParams) ([]PlacesResponseDto, error) {
 	res, err := c.sendSearchPlaces(ctx, params)
@@ -22163,8 +25904,9 @@ func (c *Client) sendSearchPlaces(ctx context.Context, params SearchPlacesParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchPlaces"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/search/places"),
+		semconv.URLTemplateKey.String("/search/places"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22298,6 +26040,8 @@ func (c *Client) sendSearchPlaces(ctx context.Context, params SearchPlacesParams
 
 // SearchRandom invokes searchRandom operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // POST /search/random
 func (c *Client) SearchRandom(ctx context.Context, request *RandomSearchDto) ([]AssetResponseDto, error) {
 	res, err := c.sendSearchRandom(ctx, request)
@@ -22308,8 +26052,9 @@ func (c *Client) sendSearchRandom(ctx context.Context, request *RandomSearchDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchRandom"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/search/random"),
+		semconv.URLTemplateKey.String("/search/random"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22428,6 +26173,8 @@ func (c *Client) sendSearchRandom(ctx context.Context, request *RandomSearchDto)
 
 // SearchSmart invokes searchSmart operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // POST /search/smart
 func (c *Client) SearchSmart(ctx context.Context, request *SmartSearchDto) (*SearchResponseDto, error) {
 	res, err := c.sendSearchSmart(ctx, request)
@@ -22438,8 +26185,9 @@ func (c *Client) sendSearchSmart(ctx context.Context, request *SmartSearchDto) (
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchSmart"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/search/smart"),
+		semconv.URLTemplateKey.String("/search/smart"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22558,6 +26306,8 @@ func (c *Client) sendSearchSmart(ctx context.Context, request *SmartSearchDto) (
 
 // SearchStacks invokes searchStacks operation.
 //
+// This endpoint requires the `stack.read` permission.
+//
 // GET /stacks
 func (c *Client) SearchStacks(ctx context.Context, params SearchStacksParams) ([]StackResponseDto, error) {
 	res, err := c.sendSearchStacks(ctx, params)
@@ -22568,8 +26318,9 @@ func (c *Client) sendSearchStacks(ctx context.Context, params SearchStacksParams
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchStacks"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/stacks"),
+		semconv.URLTemplateKey.String("/stacks"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22706,6 +26457,8 @@ func (c *Client) sendSearchStacks(ctx context.Context, params SearchStacksParams
 
 // SearchUsers invokes searchUsers operation.
 //
+// This endpoint requires the `user.read` permission.
+//
 // GET /users
 func (c *Client) SearchUsers(ctx context.Context) ([]UserResponseDto, error) {
 	res, err := c.sendSearchUsers(ctx)
@@ -22716,8 +26469,9 @@ func (c *Client) sendSearchUsers(ctx context.Context) (res []UserResponseDto, er
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchUsers"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/users"),
+		semconv.URLTemplateKey.String("/users"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22833,6 +26587,8 @@ func (c *Client) sendSearchUsers(ctx context.Context) (res []UserResponseDto, er
 
 // SearchUsersAdmin invokes searchUsersAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+//
 // GET /admin/users
 func (c *Client) SearchUsersAdmin(ctx context.Context, params SearchUsersAdminParams) ([]UserAdminResponseDto, error) {
 	res, err := c.sendSearchUsersAdmin(ctx, params)
@@ -22843,8 +26599,9 @@ func (c *Client) sendSearchUsersAdmin(ctx context.Context, params SearchUsersAdm
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchUsersAdmin"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/admin/users"),
+		semconv.URLTemplateKey.String("/admin/users"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -22998,6 +26755,8 @@ func (c *Client) sendSearchUsersAdmin(ctx context.Context, params SearchUsersAdm
 
 // SendJobCommand invokes sendJobCommand operation.
 //
+// This endpoint is an admin-only route, and requires the `job.create` permission.
+//
 // PUT /jobs/{id}
 func (c *Client) SendJobCommand(ctx context.Context, request *JobCommandDto, params SendJobCommandParams) (*JobStatusDto, error) {
 	res, err := c.sendSendJobCommand(ctx, request, params)
@@ -23008,8 +26767,9 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("sendJobCommand"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/jobs/{id}"),
+		semconv.URLTemplateKey.String("/jobs/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23146,6 +26906,8 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 
 // SendSyncAck invokes sendSyncAck operation.
 //
+// This endpoint requires the `syncCheckpoint.update` permission.
+//
 // POST /sync/ack
 func (c *Client) SendSyncAck(ctx context.Context, request *SyncAckSetDto) error {
 	_, err := c.sendSendSyncAck(ctx, request)
@@ -23156,8 +26918,9 @@ func (c *Client) sendSendSyncAck(ctx context.Context, request *SyncAckSetDto) (r
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("sendSyncAck"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sync/ack"),
+		semconv.URLTemplateKey.String("/sync/ack"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23286,8 +27049,9 @@ func (c *Client) sendSendTestEmailAdmin(ctx context.Context, request *SystemConf
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("sendTestEmailAdmin"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/admin/notifications/test-email"),
+		semconv.URLTemplateKey.String("/admin/notifications/test-email"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23406,6 +27170,8 @@ func (c *Client) sendSendTestEmailAdmin(ctx context.Context, request *SystemConf
 
 // SetServerLicense invokes setServerLicense operation.
 //
+// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+//
 // PUT /server/license
 func (c *Client) SetServerLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error) {
 	res, err := c.sendSetServerLicense(ctx, request)
@@ -23416,8 +27182,9 @@ func (c *Client) sendSetServerLicense(ctx context.Context, request *LicenseKeyDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("setServerLicense"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/server/license"),
+		semconv.URLTemplateKey.String("/server/license"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23536,6 +27303,8 @@ func (c *Client) sendSetServerLicense(ctx context.Context, request *LicenseKeyDt
 
 // SetUserLicense invokes setUserLicense operation.
 //
+// This endpoint requires the `userLicense.update` permission.
+//
 // PUT /users/me/license
 func (c *Client) SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error) {
 	res, err := c.sendSetUserLicense(ctx, request)
@@ -23546,8 +27315,9 @@ func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("setUserLicense"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/users/me/license"),
+		semconv.URLTemplateKey.String("/users/me/license"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23666,6 +27436,8 @@ func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto)
 
 // SetUserOnboarding invokes setUserOnboarding operation.
 //
+// This endpoint requires the `userOnboarding.update` permission.
+//
 // PUT /users/me/onboarding
 func (c *Client) SetUserOnboarding(ctx context.Context, request *OnboardingDto) (*OnboardingResponseDto, error) {
 	res, err := c.sendSetUserOnboarding(ctx, request)
@@ -23676,8 +27448,9 @@ func (c *Client) sendSetUserOnboarding(ctx context.Context, request *OnboardingD
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("setUserOnboarding"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/users/me/onboarding"),
+		semconv.URLTemplateKey.String("/users/me/onboarding"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23796,18 +27569,21 @@ func (c *Client) sendSetUserOnboarding(ctx context.Context, request *OnboardingD
 
 // SetupPinCode invokes setupPinCode operation.
 //
+// This endpoint requires the `pinCode.create` permission.
+//
 // POST /auth/pin-code
 func (c *Client) SetupPinCode(ctx context.Context, request *PinCodeSetupDto) error {
 	_, err := c.sendSetupPinCode(ctx, request)
 	return err
 }
 
-func (c *Client) sendSetupPinCode(ctx context.Context, request *PinCodeSetupDto) (res *SetupPinCodeCreated, err error) {
+func (c *Client) sendSetupPinCode(ctx context.Context, request *PinCodeSetupDto) (res *SetupPinCodeNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("setupPinCode"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/pin-code"),
+		semconv.URLTemplateKey.String("/auth/pin-code"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -23936,8 +27712,9 @@ func (c *Client) sendSignUpAdmin(ctx context.Context, request *SignUpDto) (res *
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("signUpAdmin"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/admin-sign-up"),
+		semconv.URLTemplateKey.String("/auth/admin-sign-up"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24009,8 +27786,9 @@ func (c *Client) sendStartOAuth(ctx context.Context, request *OAuthConfigDto) (r
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("startOAuth"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/oauth/authorize"),
+		semconv.URLTemplateKey.String("/oauth/authorize"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24072,6 +27850,8 @@ func (c *Client) sendStartOAuth(ctx context.Context, request *OAuthConfigDto) (r
 
 // TagAssets invokes tagAssets operation.
 //
+// This endpoint requires the `tag.asset` permission.
+//
 // PUT /tags/{id}/assets
 func (c *Client) TagAssets(ctx context.Context, request *BulkIdsDto, params TagAssetsParams) ([]BulkIdResponseDto, error) {
 	res, err := c.sendTagAssets(ctx, request, params)
@@ -24082,8 +27862,9 @@ func (c *Client) sendTagAssets(ctx context.Context, request *BulkIdsDto, params 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("tagAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/tags/{id}/assets"),
+		semconv.URLTemplateKey.String("/tags/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24219,6 +28000,136 @@ func (c *Client) sendTagAssets(ctx context.Context, request *BulkIdsDto, params 
 	return result, nil
 }
 
+// UnlinkAllOAuthAccountsAdmin invokes unlinkAllOAuthAccountsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+//
+// POST /admin/auth/unlink-all
+func (c *Client) UnlinkAllOAuthAccountsAdmin(ctx context.Context) error {
+	_, err := c.sendUnlinkAllOAuthAccountsAdmin(ctx)
+	return err
+}
+
+func (c *Client) sendUnlinkAllOAuthAccountsAdmin(ctx context.Context) (res *UnlinkAllOAuthAccountsAdminNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("unlinkAllOAuthAccountsAdmin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/admin/auth/unlink-all"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UnlinkAllOAuthAccountsAdminOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/auth/unlink-all"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UnlinkAllOAuthAccountsAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UnlinkAllOAuthAccountsAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UnlinkAllOAuthAccountsAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeUnlinkAllOAuthAccountsAdminResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UnlinkOAuthAccount invokes unlinkOAuthAccount operation.
 //
 // POST /oauth/unlink
@@ -24231,8 +28142,9 @@ func (c *Client) sendUnlinkOAuthAccount(ctx context.Context) (res *UserAdminResp
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("unlinkOAuthAccount"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/oauth/unlink"),
+		semconv.URLTemplateKey.String("/oauth/unlink"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24354,12 +28266,13 @@ func (c *Client) UnlockAuthSession(ctx context.Context, request *SessionUnlockDt
 	return err
 }
 
-func (c *Client) sendUnlockAuthSession(ctx context.Context, request *SessionUnlockDto) (res *UnlockAuthSessionOK, err error) {
+func (c *Client) sendUnlockAuthSession(ctx context.Context, request *SessionUnlockDto) (res *UnlockAuthSessionNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("unlockAuthSession"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/session/unlock"),
+		semconv.URLTemplateKey.String("/auth/session/unlock"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24478,6 +28391,8 @@ func (c *Client) sendUnlockAuthSession(ctx context.Context, request *SessionUnlo
 
 // UntagAssets invokes untagAssets operation.
 //
+// This endpoint requires the `tag.asset` permission.
+//
 // DELETE /tags/{id}/assets
 func (c *Client) UntagAssets(ctx context.Context, request *BulkIdsDto, params UntagAssetsParams) ([]BulkIdResponseDto, error) {
 	res, err := c.sendUntagAssets(ctx, request, params)
@@ -24488,8 +28403,9 @@ func (c *Client) sendUntagAssets(ctx context.Context, request *BulkIdsDto, param
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("untagAssets"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/tags/{id}/assets"),
+		semconv.URLTemplateKey.String("/tags/{id}/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24627,6 +28543,8 @@ func (c *Client) sendUntagAssets(ctx context.Context, request *BulkIdsDto, param
 
 // UpdateAdminOnboarding invokes updateAdminOnboarding operation.
 //
+// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
+//
 // POST /system-metadata/admin-onboarding
 func (c *Client) UpdateAdminOnboarding(ctx context.Context, request *AdminOnboardingUpdateDto) error {
 	_, err := c.sendUpdateAdminOnboarding(ctx, request)
@@ -24637,8 +28555,9 @@ func (c *Client) sendUpdateAdminOnboarding(ctx context.Context, request *AdminOn
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAdminOnboarding"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/system-metadata/admin-onboarding"),
+		semconv.URLTemplateKey.String("/system-metadata/admin-onboarding"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24757,6 +28676,8 @@ func (c *Client) sendUpdateAdminOnboarding(ctx context.Context, request *AdminOn
 
 // UpdateAlbumInfo invokes updateAlbumInfo operation.
 //
+// This endpoint requires the `album.update` permission.
+//
 // PATCH /albums/{id}
 func (c *Client) UpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDto, params UpdateAlbumInfoParams) (*AlbumResponseDto, error) {
 	res, err := c.sendUpdateAlbumInfo(ctx, request, params)
@@ -24767,8 +28688,9 @@ func (c *Client) sendUpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAlbumInfo"),
 		semconv.HTTPRequestMethodKey.String("PATCH"),
-		semconv.HTTPRouteKey.String("/albums/{id}"),
+		semconv.URLTemplateKey.String("/albums/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -24905,18 +28827,21 @@ func (c *Client) sendUpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDt
 
 // UpdateAlbumUser invokes updateAlbumUser operation.
 //
+// This endpoint requires the `albumUser.update` permission.
+//
 // PUT /albums/{id}/user/{userId}
 func (c *Client) UpdateAlbumUser(ctx context.Context, request *UpdateAlbumUserDto, params UpdateAlbumUserParams) error {
 	_, err := c.sendUpdateAlbumUser(ctx, request, params)
 	return err
 }
 
-func (c *Client) sendUpdateAlbumUser(ctx context.Context, request *UpdateAlbumUserDto, params UpdateAlbumUserParams) (res *UpdateAlbumUserOK, err error) {
+func (c *Client) sendUpdateAlbumUser(ctx context.Context, request *UpdateAlbumUserDto, params UpdateAlbumUserParams) (res *UpdateAlbumUserNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAlbumUser"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/albums/{id}/user/{userId}"),
+		semconv.URLTemplateKey.String("/albums/{id}/user/{userId}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25072,6 +28997,8 @@ func (c *Client) sendUpdateAlbumUser(ctx context.Context, request *UpdateAlbumUs
 
 // UpdateApiKey invokes updateApiKey operation.
 //
+// This endpoint requires the `apiKey.update` permission.
+//
 // PUT /api-keys/{id}
 func (c *Client) UpdateApiKey(ctx context.Context, request *APIKeyUpdateDto, params UpdateApiKeyParams) (*APIKeyResponseDto, error) {
 	res, err := c.sendUpdateApiKey(ctx, request, params)
@@ -25082,8 +29009,9 @@ func (c *Client) sendUpdateApiKey(ctx context.Context, request *APIKeyUpdateDto,
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateApiKey"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/api-keys/{id}"),
+		semconv.URLTemplateKey.String("/api-keys/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25220,6 +29148,8 @@ func (c *Client) sendUpdateApiKey(ctx context.Context, request *APIKeyUpdateDto,
 
 // UpdateAsset invokes updateAsset operation.
 //
+// This endpoint requires the `asset.update` permission.
+//
 // PUT /assets/{id}
 func (c *Client) UpdateAsset(ctx context.Context, request *UpdateAssetDto, params UpdateAssetParams) (*AssetResponseDto, error) {
 	res, err := c.sendUpdateAsset(ctx, request, params)
@@ -25230,8 +29160,9 @@ func (c *Client) sendUpdateAsset(ctx context.Context, request *UpdateAssetDto, p
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAsset"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/assets/{id}"),
+		semconv.URLTemplateKey.String("/assets/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25366,7 +29297,161 @@ func (c *Client) sendUpdateAsset(ctx context.Context, request *UpdateAssetDto, p
 	return result, nil
 }
 
+// UpdateAssetMetadata invokes updateAssetMetadata operation.
+//
+// This endpoint requires the `asset.update` permission.
+//
+// PUT /assets/{id}/metadata
+func (c *Client) UpdateAssetMetadata(ctx context.Context, request *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) ([]AssetMetadataResponseDto, error) {
+	res, err := c.sendUpdateAssetMetadata(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendUpdateAssetMetadata(ctx context.Context, request *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) (res []AssetMetadataResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/assets/{id}/metadata"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdateAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/metadata"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdateAssetMetadataRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UpdateAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UpdateAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UpdateAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdateAssetMetadataResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UpdateAssets invokes updateAssets operation.
+//
+// This endpoint requires the `asset.update` permission.
 //
 // PUT /assets
 func (c *Client) UpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) error {
@@ -25378,8 +29463,9 @@ func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateD
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/assets"),
+		semconv.URLTemplateKey.String("/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25498,6 +29584,8 @@ func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateD
 
 // UpdateConfig invokes updateConfig operation.
 //
+// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+//
 // PUT /system-config
 func (c *Client) UpdateConfig(ctx context.Context, request *SystemConfigDto) (*SystemConfigDto, error) {
 	res, err := c.sendUpdateConfig(ctx, request)
@@ -25508,8 +29596,9 @@ func (c *Client) sendUpdateConfig(ctx context.Context, request *SystemConfigDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateConfig"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/system-config"),
+		semconv.URLTemplateKey.String("/system-config"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25628,6 +29717,8 @@ func (c *Client) sendUpdateConfig(ctx context.Context, request *SystemConfigDto)
 
 // UpdateLibrary invokes updateLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.update` permission.
+//
 // PUT /libraries/{id}
 func (c *Client) UpdateLibrary(ctx context.Context, request *UpdateLibraryDto, params UpdateLibraryParams) (*LibraryResponseDto, error) {
 	res, err := c.sendUpdateLibrary(ctx, request, params)
@@ -25638,8 +29729,9 @@ func (c *Client) sendUpdateLibrary(ctx context.Context, request *UpdateLibraryDt
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateLibrary"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/libraries/{id}"),
+		semconv.URLTemplateKey.String("/libraries/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25776,6 +29868,8 @@ func (c *Client) sendUpdateLibrary(ctx context.Context, request *UpdateLibraryDt
 
 // UpdateMemory invokes updateMemory operation.
 //
+// This endpoint requires the `memory.update` permission.
+//
 // PUT /memories/{id}
 func (c *Client) UpdateMemory(ctx context.Context, request *MemoryUpdateDto, params UpdateMemoryParams) (*MemoryResponseDto, error) {
 	res, err := c.sendUpdateMemory(ctx, request, params)
@@ -25786,8 +29880,9 @@ func (c *Client) sendUpdateMemory(ctx context.Context, request *MemoryUpdateDto,
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateMemory"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/memories/{id}"),
+		semconv.URLTemplateKey.String("/memories/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -25924,6 +30019,8 @@ func (c *Client) sendUpdateMemory(ctx context.Context, request *MemoryUpdateDto,
 
 // UpdateMyPreferences invokes updateMyPreferences operation.
 //
+// This endpoint requires the `userPreference.update` permission.
+//
 // PUT /users/me/preferences
 func (c *Client) UpdateMyPreferences(ctx context.Context, request *UserPreferencesUpdateDto) (*UserPreferencesResponseDto, error) {
 	res, err := c.sendUpdateMyPreferences(ctx, request)
@@ -25934,8 +30031,9 @@ func (c *Client) sendUpdateMyPreferences(ctx context.Context, request *UserPrefe
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateMyPreferences"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/users/me/preferences"),
+		semconv.URLTemplateKey.String("/users/me/preferences"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26054,6 +30152,8 @@ func (c *Client) sendUpdateMyPreferences(ctx context.Context, request *UserPrefe
 
 // UpdateMyUser invokes updateMyUser operation.
 //
+// This endpoint requires the `user.update` permission.
+//
 // PUT /users/me
 func (c *Client) UpdateMyUser(ctx context.Context, request *UserUpdateMeDto) (*UserAdminResponseDto, error) {
 	res, err := c.sendUpdateMyUser(ctx, request)
@@ -26064,8 +30164,9 @@ func (c *Client) sendUpdateMyUser(ctx context.Context, request *UserUpdateMeDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateMyUser"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/users/me"),
+		semconv.URLTemplateKey.String("/users/me"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26184,6 +30285,8 @@ func (c *Client) sendUpdateMyUser(ctx context.Context, request *UserUpdateMeDto)
 
 // UpdateNotification invokes updateNotification operation.
 //
+// This endpoint requires the `notification.update` permission.
+//
 // PUT /notifications/{id}
 func (c *Client) UpdateNotification(ctx context.Context, request *NotificationUpdateDto, params UpdateNotificationParams) (*NotificationDto, error) {
 	res, err := c.sendUpdateNotification(ctx, request, params)
@@ -26194,8 +30297,9 @@ func (c *Client) sendUpdateNotification(ctx context.Context, request *Notificati
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateNotification"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/notifications/{id}"),
+		semconv.URLTemplateKey.String("/notifications/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26332,18 +30436,21 @@ func (c *Client) sendUpdateNotification(ctx context.Context, request *Notificati
 
 // UpdateNotifications invokes updateNotifications operation.
 //
+// This endpoint requires the `notification.update` permission.
+//
 // PUT /notifications
 func (c *Client) UpdateNotifications(ctx context.Context, request *NotificationUpdateAllDto) error {
 	_, err := c.sendUpdateNotifications(ctx, request)
 	return err
 }
 
-func (c *Client) sendUpdateNotifications(ctx context.Context, request *NotificationUpdateAllDto) (res *UpdateNotificationsOK, err error) {
+func (c *Client) sendUpdateNotifications(ctx context.Context, request *NotificationUpdateAllDto) (res *UpdateNotificationsNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateNotifications"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/notifications"),
+		semconv.URLTemplateKey.String("/notifications"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26462,18 +30569,21 @@ func (c *Client) sendUpdateNotifications(ctx context.Context, request *Notificat
 
 // UpdatePartner invokes updatePartner operation.
 //
+// This endpoint requires the `partner.update` permission.
+//
 // PUT /partners/{id}
-func (c *Client) UpdatePartner(ctx context.Context, request *UpdatePartnerDto, params UpdatePartnerParams) (*PartnerResponseDto, error) {
+func (c *Client) UpdatePartner(ctx context.Context, request *PartnerUpdateDto, params UpdatePartnerParams) (*PartnerResponseDto, error) {
 	res, err := c.sendUpdatePartner(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendUpdatePartner(ctx context.Context, request *UpdatePartnerDto, params UpdatePartnerParams) (res *PartnerResponseDto, err error) {
+func (c *Client) sendUpdatePartner(ctx context.Context, request *PartnerUpdateDto, params UpdatePartnerParams) (res *PartnerResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updatePartner"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/partners/{id}"),
+		semconv.URLTemplateKey.String("/partners/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26610,6 +30720,8 @@ func (c *Client) sendUpdatePartner(ctx context.Context, request *UpdatePartnerDt
 
 // UpdatePeople invokes updatePeople operation.
 //
+// This endpoint requires the `person.update` permission.
+//
 // PUT /people
 func (c *Client) UpdatePeople(ctx context.Context, request *PeopleUpdateDto) ([]BulkIdResponseDto, error) {
 	res, err := c.sendUpdatePeople(ctx, request)
@@ -26620,8 +30732,9 @@ func (c *Client) sendUpdatePeople(ctx context.Context, request *PeopleUpdateDto)
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updatePeople"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/people"),
+		semconv.URLTemplateKey.String("/people"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26740,6 +30853,8 @@ func (c *Client) sendUpdatePeople(ctx context.Context, request *PeopleUpdateDto)
 
 // UpdatePerson invokes updatePerson operation.
 //
+// This endpoint requires the `person.update` permission.
+//
 // PUT /people/{id}
 func (c *Client) UpdatePerson(ctx context.Context, request *PersonUpdateDto, params UpdatePersonParams) (*PersonResponseDto, error) {
 	res, err := c.sendUpdatePerson(ctx, request, params)
@@ -26750,8 +30865,9 @@ func (c *Client) sendUpdatePerson(ctx context.Context, request *PersonUpdateDto,
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updatePerson"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/people/{id}"),
+		semconv.URLTemplateKey.String("/people/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -26886,7 +31002,160 @@ func (c *Client) sendUpdatePerson(ctx context.Context, request *PersonUpdateDto,
 	return result, nil
 }
 
+// UpdateSession invokes updateSession operation.
+//
+// This endpoint requires the `session.update` permission.
+//
+// PUT /sessions/{id}
+func (c *Client) UpdateSession(ctx context.Context, request *SessionUpdateDto, params UpdateSessionParams) (*SessionResponseDto, error) {
+	res, err := c.sendUpdateSession(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendUpdateSession(ctx context.Context, request *SessionUpdateDto, params UpdateSessionParams) (res *SessionResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateSession"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/sessions/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdateSessionOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/sessions/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdateSessionRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UpdateSessionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UpdateSessionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UpdateSessionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdateSessionResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UpdateSharedLink invokes updateSharedLink operation.
+//
+// This endpoint requires the `sharedLink.update` permission.
 //
 // PATCH /shared-links/{id}
 func (c *Client) UpdateSharedLink(ctx context.Context, request *SharedLinkEditDto, params UpdateSharedLinkParams) (*SharedLinkResponseDto, error) {
@@ -26898,8 +31167,9 @@ func (c *Client) sendUpdateSharedLink(ctx context.Context, request *SharedLinkEd
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateSharedLink"),
 		semconv.HTTPRequestMethodKey.String("PATCH"),
-		semconv.HTTPRouteKey.String("/shared-links/{id}"),
+		semconv.URLTemplateKey.String("/shared-links/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27036,6 +31306,8 @@ func (c *Client) sendUpdateSharedLink(ctx context.Context, request *SharedLinkEd
 
 // UpdateStack invokes updateStack operation.
 //
+// This endpoint requires the `stack.update` permission.
+//
 // PUT /stacks/{id}
 func (c *Client) UpdateStack(ctx context.Context, request *StackUpdateDto, params UpdateStackParams) (*StackResponseDto, error) {
 	res, err := c.sendUpdateStack(ctx, request, params)
@@ -27046,8 +31318,9 @@ func (c *Client) sendUpdateStack(ctx context.Context, request *StackUpdateDto, p
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateStack"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/stacks/{id}"),
+		semconv.URLTemplateKey.String("/stacks/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27184,6 +31457,8 @@ func (c *Client) sendUpdateStack(ctx context.Context, request *StackUpdateDto, p
 
 // UpdateTag invokes updateTag operation.
 //
+// This endpoint requires the `tag.update` permission.
+//
 // PUT /tags/{id}
 func (c *Client) UpdateTag(ctx context.Context, request *TagUpdateDto, params UpdateTagParams) (*TagResponseDto, error) {
 	res, err := c.sendUpdateTag(ctx, request, params)
@@ -27194,8 +31469,9 @@ func (c *Client) sendUpdateTag(ctx context.Context, request *TagUpdateDto, param
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateTag"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/tags/{id}"),
+		semconv.URLTemplateKey.String("/tags/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27332,6 +31608,8 @@ func (c *Client) sendUpdateTag(ctx context.Context, request *TagUpdateDto, param
 
 // UpdateUserAdmin invokes updateUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+//
 // PUT /admin/users/{id}
 func (c *Client) UpdateUserAdmin(ctx context.Context, request *UserAdminUpdateDto, params UpdateUserAdminParams) (*UserAdminResponseDto, error) {
 	res, err := c.sendUpdateUserAdmin(ctx, request, params)
@@ -27342,8 +31620,9 @@ func (c *Client) sendUpdateUserAdmin(ctx context.Context, request *UserAdminUpda
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateUserAdmin"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}"),
+		semconv.URLTemplateKey.String("/admin/users/{id}"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27480,6 +31759,8 @@ func (c *Client) sendUpdateUserAdmin(ctx context.Context, request *UserAdminUpda
 
 // UpdateUserPreferencesAdmin invokes updateUserPreferencesAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+//
 // PUT /admin/users/{id}/preferences
 func (c *Client) UpdateUserPreferencesAdmin(ctx context.Context, request *UserPreferencesUpdateDto, params UpdateUserPreferencesAdminParams) (*UserPreferencesResponseDto, error) {
 	res, err := c.sendUpdateUserPreferencesAdmin(ctx, request, params)
@@ -27490,8 +31771,9 @@ func (c *Client) sendUpdateUserPreferencesAdmin(ctx context.Context, request *Us
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateUserPreferencesAdmin"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/admin/users/{id}/preferences"),
+		semconv.URLTemplateKey.String("/admin/users/{id}/preferences"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27629,18 +31911,21 @@ func (c *Client) sendUpdateUserPreferencesAdmin(ctx context.Context, request *Us
 
 // UploadAsset invokes uploadAsset operation.
 //
+// This endpoint requires the `asset.upload` permission.
+//
 // POST /assets
-func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error) {
+func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error) {
 	res, err := c.sendUploadAsset(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (res UploadAssetRes, err error) {
+func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (res *AssetMediaResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("uploadAsset"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/assets"),
+		semconv.URLTemplateKey.String("/assets"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27687,6 +31972,23 @@ func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateD
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
 				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
@@ -27797,6 +32099,8 @@ func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateD
 
 // UpsertTags invokes upsertTags operation.
 //
+// This endpoint requires the `tag.create` permission.
+//
 // PUT /tags
 func (c *Client) UpsertTags(ctx context.Context, request *TagUpsertDto) ([]TagResponseDto, error) {
 	res, err := c.sendUpsertTags(ctx, request)
@@ -27807,8 +32111,9 @@ func (c *Client) sendUpsertTags(ctx context.Context, request *TagUpsertDto) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("upsertTags"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/tags"),
+		semconv.URLTemplateKey.String("/tags"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -27937,8 +32242,9 @@ func (c *Client) sendValidate(ctx context.Context, request *ValidateLibraryDto, 
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("validate"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/libraries/{id}/validate"),
+		semconv.URLTemplateKey.String("/libraries/{id}/validate"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -28086,8 +32392,9 @@ func (c *Client) sendValidateAccessToken(ctx context.Context) (res *ValidateAcce
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("validateAccessToken"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/auth/validateToken"),
+		semconv.URLTemplateKey.String("/auth/validateToken"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -28203,6 +32510,8 @@ func (c *Client) sendValidateAccessToken(ctx context.Context) (res *ValidateAcce
 
 // ViewAsset invokes viewAsset operation.
 //
+// This endpoint requires the `asset.view` permission.
+//
 // GET /assets/{id}/thumbnail
 func (c *Client) ViewAsset(ctx context.Context, params ViewAssetParams) (ViewAssetOK, error) {
 	res, err := c.sendViewAsset(ctx, params)
@@ -28213,8 +32522,9 @@ func (c *Client) sendViewAsset(ctx context.Context, params ViewAssetParams) (res
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("viewAsset"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/{id}/thumbnail"),
+		semconv.URLTemplateKey.String("/assets/{id}/thumbnail"),
 	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
 	// Run stopwatch.
 	startTime := time.Now()
@@ -28298,6 +32608,23 @@ func (c *Client) sendViewAsset(ctx context.Context, params ViewAssetParams) (res
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Size.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
 		}); err != nil {

@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
-
 	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/uri"
@@ -18,6 +17,20 @@ import (
 
 func encodeAddAssetsToAlbumRequest(
 	req *BulkIdsDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeAddAssetsToAlbumsRequest(
+	req *AlbumsAddAssetsDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -254,6 +267,20 @@ func encodeCreateNotificationRequest(
 	return nil
 }
 
+func encodeCreatePartnerRequest(
+	req *PartnerCreateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeCreatePersonRequest(
 	req *PersonCreateDto,
 	r *http.Request,
@@ -373,6 +400,20 @@ func encodeDeleteAssetsRequest(
 	return nil
 }
 
+func encodeDeleteDuplicatesRequest(
+	req *BulkIdsDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeDeleteFaceRequest(
 	req *AssetFaceDeleteDto,
 	r *http.Request,
@@ -389,6 +430,20 @@ func encodeDeleteFaceRequest(
 
 func encodeDeleteNotificationsRequest(
 	req *NotificationDeleteAllDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeDeletePeopleRequest(
+	req *BulkIdsDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -729,6 +784,22 @@ func encodeReplaceAssetRequest(
 			return errors.Wrap(err, "encode query")
 		}
 	}
+	{
+		// Encode "filename" form field.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "filename",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := request.Filename.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "encode query")
+		}
+	}
 	body, boundary := ht.CreateMultipartBody(func(w *multipart.Writer) error {
 		if err := request.AssetData.WriteMultipart("assetData", w); err != nil {
 			return errors.Wrap(err, "write \"assetData\"")
@@ -772,6 +843,20 @@ func encodeRestoreAssetsRequest(
 
 func encodeRunAssetJobsRequest(
 	req *AssetJobsDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeSearchAssetStatisticsRequest(
+	req *StatisticsSearchDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -1064,6 +1149,20 @@ func encodeUpdateAssetRequest(
 	return nil
 }
 
+func encodeUpdateAssetMetadataRequest(
+	req *AssetMetadataUpsertDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeUpdateAssetsRequest(
 	req *AssetBulkUpdateDto,
 	r *http.Request,
@@ -1177,7 +1276,7 @@ func encodeUpdateNotificationsRequest(
 }
 
 func encodeUpdatePartnerRequest(
-	req *UpdatePartnerDto,
+	req *PartnerUpdateDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -1206,6 +1305,20 @@ func encodeUpdatePeopleRequest(
 
 func encodeUpdatePersonRequest(
 	req *PersonUpdateDto,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeUpdateSessionRequest(
+	req *SessionUpdateDto,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -1295,7 +1408,10 @@ func encodeUploadAssetRequest(
 	const contentType = "multipart/form-data"
 	request := req
 
-	q := uri.NewFormEncoder(map[string]string{})
+	q := uri.NewFormEncoder(map[string]string{
+		"metadata":   "application/json; charset=utf-8",
+		"visibility": "application/json; charset=utf-8",
+	})
 	{
 		// Encode "deviceAssetId" form field.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -1365,6 +1481,22 @@ func encodeUploadAssetRequest(
 		}
 	}
 	{
+		// Encode "filename" form field.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "filename",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := request.Filename.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "isFavorite" form field.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "isFavorite",
@@ -1397,6 +1529,27 @@ func encodeUploadAssetRequest(
 		}
 	}
 	{
+		// Encode "metadata" form field.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "metadata",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			var enc jx.Encoder
+			func(e *jx.Encoder) {
+				e.ArrStart()
+				for _, elem := range request.Metadata {
+					elem.Encode(e)
+				}
+				e.ArrEnd()
+			}(&enc)
+			return e.EncodeValue(string(enc.Bytes()))
+		}); err != nil {
+			return errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "visibility" form field.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "visibility",
@@ -1410,10 +1563,7 @@ func encodeUploadAssetRequest(
 					request.Visibility.Encode(e)
 				}
 			}(&enc)
-			if request.Visibility.Set {
-				return e.EncodeValue(string(enc.Bytes()))
-			}
-			return nil
+			return e.EncodeValue(string(enc.Bytes()))
 		}); err != nil {
 			return errors.Wrap(err, "encode query")
 		}

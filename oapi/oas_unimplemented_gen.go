@@ -15,12 +15,25 @@ var _ Handler = UnimplementedHandler{}
 
 // AddAssetsToAlbum implements addAssetsToAlbum operation.
 //
+// This endpoint requires the `albumAsset.create` permission.
+//
 // PUT /albums/{id}/assets
 func (UnimplementedHandler) AddAssetsToAlbum(ctx context.Context, req *BulkIdsDto, params AddAssetsToAlbumParams) (r []BulkIdResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// AddAssetsToAlbums implements addAssetsToAlbums operation.
+//
+// This endpoint requires the `albumAsset.create` permission.
+//
+// PUT /albums/assets
+func (UnimplementedHandler) AddAssetsToAlbums(ctx context.Context, req *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (r *AlbumsAddAssetsResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AddMemoryAssets implements addMemoryAssets operation.
+//
+// This endpoint requires the `memoryAsset.create` permission.
 //
 // PUT /memories/{id}/assets
 func (UnimplementedHandler) AddMemoryAssets(ctx context.Context, req *BulkIdsDto, params AddMemoryAssetsParams) (r []BulkIdResponseDto, _ error) {
@@ -36,12 +49,16 @@ func (UnimplementedHandler) AddSharedLinkAssets(ctx context.Context, req *AssetI
 
 // AddUsersToAlbum implements addUsersToAlbum operation.
 //
+// This endpoint requires the `albumUser.create` permission.
+//
 // PUT /albums/{id}/users
 func (UnimplementedHandler) AddUsersToAlbum(ctx context.Context, req *AddUsersDto, params AddUsersToAlbumParams) (r *AlbumResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // BulkTagAssets implements bulkTagAssets operation.
+//
+// This endpoint requires the `tag.asset` permission.
 //
 // PUT /tags/assets
 func (UnimplementedHandler) BulkTagAssets(ctx context.Context, req *TagBulkAssetsDto) (r *TagBulkAssetsResponseDto, _ error) {
@@ -50,12 +67,16 @@ func (UnimplementedHandler) BulkTagAssets(ctx context.Context, req *TagBulkAsset
 
 // ChangePassword implements changePassword operation.
 //
+// This endpoint requires the `auth.changePassword` permission.
+//
 // POST /auth/change-password
 func (UnimplementedHandler) ChangePassword(ctx context.Context, req *ChangePasswordDto) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // ChangePinCode implements changePinCode operation.
+//
+// This endpoint requires the `pinCode.update` permission.
 //
 // PUT /auth/pin-code
 func (UnimplementedHandler) ChangePinCode(ctx context.Context, req *PinCodeChangeDto) error {
@@ -64,7 +85,7 @@ func (UnimplementedHandler) ChangePinCode(ctx context.Context, req *PinCodeChang
 
 // CheckBulkUpload implements checkBulkUpload operation.
 //
-// Checks if assets exist by checksums.
+// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
 //
 // POST /assets/bulk-upload-check
 func (UnimplementedHandler) CheckBulkUpload(ctx context.Context, req *AssetBulkUploadCheckDto) (r *AssetBulkUploadCheckResponseDto, _ error) {
@@ -82,12 +103,16 @@ func (UnimplementedHandler) CheckExistingAssets(ctx context.Context, req *CheckE
 
 // CreateActivity implements createActivity operation.
 //
+// This endpoint requires the `activity.create` permission.
+//
 // POST /activities
 func (UnimplementedHandler) CreateActivity(ctx context.Context, req *ActivityCreateDto) (r *ActivityResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateAlbum implements createAlbum operation.
+//
+// This endpoint requires the `album.create` permission.
 //
 // POST /albums
 func (UnimplementedHandler) CreateAlbum(ctx context.Context, req *CreateAlbumDto) (r *AlbumResponseDto, _ error) {
@@ -96,12 +121,16 @@ func (UnimplementedHandler) CreateAlbum(ctx context.Context, req *CreateAlbumDto
 
 // CreateApiKey implements createApiKey operation.
 //
+// This endpoint requires the `apiKey.create` permission.
+//
 // POST /api-keys
 func (UnimplementedHandler) CreateApiKey(ctx context.Context, req *APIKeyCreateDto) (r *APIKeyCreateResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateFace implements createFace operation.
+//
+// This endpoint requires the `face.create` permission.
 //
 // POST /faces
 func (UnimplementedHandler) CreateFace(ctx context.Context, req *AssetFaceCreateDto) error {
@@ -110,6 +139,8 @@ func (UnimplementedHandler) CreateFace(ctx context.Context, req *AssetFaceCreate
 
 // CreateJob implements createJob operation.
 //
+// This endpoint is an admin-only route, and requires the `job.create` permission.
+//
 // POST /jobs
 func (UnimplementedHandler) CreateJob(ctx context.Context, req *JobCreateDto) error {
 	return ht.ErrNotImplemented
@@ -117,12 +148,16 @@ func (UnimplementedHandler) CreateJob(ctx context.Context, req *JobCreateDto) er
 
 // CreateLibrary implements createLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.create` permission.
+//
 // POST /libraries
 func (UnimplementedHandler) CreateLibrary(ctx context.Context, req *CreateLibraryDto) (r *LibraryResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateMemory implements createMemory operation.
+//
+// This endpoint requires the `memory.create` permission.
 //
 // POST /memories
 func (UnimplementedHandler) CreateMemory(ctx context.Context, req *MemoryCreateDto) (r *MemoryResponseDto, _ error) {
@@ -138,12 +173,27 @@ func (UnimplementedHandler) CreateNotification(ctx context.Context, req *Notific
 
 // CreatePartner implements createPartner operation.
 //
+// This endpoint requires the `partner.create` permission.
+//
+// POST /partners
+func (UnimplementedHandler) CreatePartner(ctx context.Context, req *PartnerCreateDto) (r *PartnerResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreatePartnerDeprecated implements createPartnerDeprecated operation.
+//
+// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
 // POST /partners/{id}
-func (UnimplementedHandler) CreatePartner(ctx context.Context, params CreatePartnerParams) (r *PartnerResponseDto, _ error) {
+func (UnimplementedHandler) CreatePartnerDeprecated(ctx context.Context, params CreatePartnerDeprecatedParams) (r *PartnerResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreatePerson implements createPerson operation.
+//
+// This endpoint requires the `person.create` permission.
 //
 // POST /people
 func (UnimplementedHandler) CreatePerson(ctx context.Context, req *PersonCreateDto) (r *PersonResponseDto, _ error) {
@@ -152,12 +202,16 @@ func (UnimplementedHandler) CreatePerson(ctx context.Context, req *PersonCreateD
 
 // CreateProfileImage implements createProfileImage operation.
 //
+// This endpoint requires the `userProfileImage.update` permission.
+//
 // POST /users/profile-image
 func (UnimplementedHandler) CreateProfileImage(ctx context.Context, req *CreateProfileImageDtoMultipart) (r *CreateProfileImageResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateSession implements createSession operation.
+//
+// This endpoint requires the `session.create` permission.
 //
 // POST /sessions
 func (UnimplementedHandler) CreateSession(ctx context.Context, req *SessionCreateDto) (r *SessionCreateResponseDto, _ error) {
@@ -166,12 +220,16 @@ func (UnimplementedHandler) CreateSession(ctx context.Context, req *SessionCreat
 
 // CreateSharedLink implements createSharedLink operation.
 //
+// This endpoint requires the `sharedLink.create` permission.
+//
 // POST /shared-links
 func (UnimplementedHandler) CreateSharedLink(ctx context.Context, req *SharedLinkCreateDto) (r *SharedLinkResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateStack implements createStack operation.
+//
+// This endpoint requires the `stack.create` permission.
 //
 // POST /stacks
 func (UnimplementedHandler) CreateStack(ctx context.Context, req *StackCreateDto) (r *StackResponseDto, _ error) {
@@ -180,12 +238,16 @@ func (UnimplementedHandler) CreateStack(ctx context.Context, req *StackCreateDto
 
 // CreateTag implements createTag operation.
 //
+// This endpoint requires the `tag.create` permission.
+//
 // POST /tags
 func (UnimplementedHandler) CreateTag(ctx context.Context, req *TagCreateDto) (r *TagResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // CreateUserAdmin implements createUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
 //
 // POST /admin/users
 func (UnimplementedHandler) CreateUserAdmin(ctx context.Context, req *UserAdminCreateDto) (r *UserAdminResponseDto, _ error) {
@@ -194,12 +256,16 @@ func (UnimplementedHandler) CreateUserAdmin(ctx context.Context, req *UserAdminC
 
 // DeleteActivity implements deleteActivity operation.
 //
+// This endpoint requires the `activity.delete` permission.
+//
 // DELETE /activities/{id}
 func (UnimplementedHandler) DeleteActivity(ctx context.Context, params DeleteActivityParams) error {
 	return ht.ErrNotImplemented
 }
 
 // DeleteAlbum implements deleteAlbum operation.
+//
+// This endpoint requires the `album.delete` permission.
 //
 // DELETE /albums/{id}
 func (UnimplementedHandler) DeleteAlbum(ctx context.Context, params DeleteAlbumParams) error {
@@ -208,6 +274,8 @@ func (UnimplementedHandler) DeleteAlbum(ctx context.Context, params DeleteAlbumP
 
 // DeleteAllSessions implements deleteAllSessions operation.
 //
+// This endpoint requires the `session.delete` permission.
+//
 // DELETE /sessions
 func (UnimplementedHandler) DeleteAllSessions(ctx context.Context) error {
 	return ht.ErrNotImplemented
@@ -215,19 +283,52 @@ func (UnimplementedHandler) DeleteAllSessions(ctx context.Context) error {
 
 // DeleteApiKey implements deleteApiKey operation.
 //
+// This endpoint requires the `apiKey.delete` permission.
+//
 // DELETE /api-keys/{id}
 func (UnimplementedHandler) DeleteApiKey(ctx context.Context, params DeleteApiKeyParams) error {
 	return ht.ErrNotImplemented
 }
 
+// DeleteAssetMetadata implements deleteAssetMetadata operation.
+//
+// This endpoint requires the `asset.update` permission.
+//
+// DELETE /assets/{id}/metadata/{key}
+func (UnimplementedHandler) DeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) error {
+	return ht.ErrNotImplemented
+}
+
 // DeleteAssets implements deleteAssets operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // DELETE /assets
 func (UnimplementedHandler) DeleteAssets(ctx context.Context, req *AssetBulkDeleteDto) error {
 	return ht.ErrNotImplemented
 }
 
+// DeleteDuplicate implements deleteDuplicate operation.
+//
+// This endpoint requires the `duplicate.delete` permission.
+//
+// DELETE /duplicates/{id}
+func (UnimplementedHandler) DeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) error {
+	return ht.ErrNotImplemented
+}
+
+// DeleteDuplicates implements deleteDuplicates operation.
+//
+// This endpoint requires the `duplicate.delete` permission.
+//
+// DELETE /duplicates
+func (UnimplementedHandler) DeleteDuplicates(ctx context.Context, req *BulkIdsDto) error {
+	return ht.ErrNotImplemented
+}
+
 // DeleteFace implements deleteFace operation.
+//
+// This endpoint requires the `face.delete` permission.
 //
 // DELETE /faces/{id}
 func (UnimplementedHandler) DeleteFace(ctx context.Context, req *AssetFaceDeleteDto, params DeleteFaceParams) error {
@@ -236,12 +337,16 @@ func (UnimplementedHandler) DeleteFace(ctx context.Context, req *AssetFaceDelete
 
 // DeleteLibrary implements deleteLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.delete` permission.
+//
 // DELETE /libraries/{id}
 func (UnimplementedHandler) DeleteLibrary(ctx context.Context, params DeleteLibraryParams) error {
 	return ht.ErrNotImplemented
 }
 
 // DeleteMemory implements deleteMemory operation.
+//
+// This endpoint requires the `memory.delete` permission.
 //
 // DELETE /memories/{id}
 func (UnimplementedHandler) DeleteMemory(ctx context.Context, params DeleteMemoryParams) error {
@@ -250,6 +355,8 @@ func (UnimplementedHandler) DeleteMemory(ctx context.Context, params DeleteMemor
 
 // DeleteNotification implements deleteNotification operation.
 //
+// This endpoint requires the `notification.delete` permission.
+//
 // DELETE /notifications/{id}
 func (UnimplementedHandler) DeleteNotification(ctx context.Context, params DeleteNotificationParams) error {
 	return ht.ErrNotImplemented
@@ -257,12 +364,34 @@ func (UnimplementedHandler) DeleteNotification(ctx context.Context, params Delet
 
 // DeleteNotifications implements deleteNotifications operation.
 //
+// This endpoint requires the `notification.delete` permission.
+//
 // DELETE /notifications
 func (UnimplementedHandler) DeleteNotifications(ctx context.Context, req *NotificationDeleteAllDto) error {
 	return ht.ErrNotImplemented
 }
 
+// DeletePeople implements deletePeople operation.
+//
+// This endpoint requires the `person.delete` permission.
+//
+// DELETE /people
+func (UnimplementedHandler) DeletePeople(ctx context.Context, req *BulkIdsDto) error {
+	return ht.ErrNotImplemented
+}
+
+// DeletePerson implements deletePerson operation.
+//
+// This endpoint requires the `person.delete` permission.
+//
+// DELETE /people/{id}
+func (UnimplementedHandler) DeletePerson(ctx context.Context, params DeletePersonParams) error {
+	return ht.ErrNotImplemented
+}
+
 // DeleteProfileImage implements deleteProfileImage operation.
+//
+// This endpoint requires the `userProfileImage.delete` permission.
 //
 // DELETE /users/profile-image
 func (UnimplementedHandler) DeleteProfileImage(ctx context.Context) error {
@@ -271,12 +400,16 @@ func (UnimplementedHandler) DeleteProfileImage(ctx context.Context) error {
 
 // DeleteServerLicense implements deleteServerLicense operation.
 //
+// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+//
 // DELETE /server/license
 func (UnimplementedHandler) DeleteServerLicense(ctx context.Context) error {
 	return ht.ErrNotImplemented
 }
 
 // DeleteSession implements deleteSession operation.
+//
+// This endpoint requires the `session.delete` permission.
 //
 // DELETE /sessions/{id}
 func (UnimplementedHandler) DeleteSession(ctx context.Context, params DeleteSessionParams) error {
@@ -285,12 +418,16 @@ func (UnimplementedHandler) DeleteSession(ctx context.Context, params DeleteSess
 
 // DeleteStack implements deleteStack operation.
 //
+// This endpoint requires the `stack.delete` permission.
+//
 // DELETE /stacks/{id}
 func (UnimplementedHandler) DeleteStack(ctx context.Context, params DeleteStackParams) error {
 	return ht.ErrNotImplemented
 }
 
 // DeleteStacks implements deleteStacks operation.
+//
+// This endpoint requires the `stack.delete` permission.
 //
 // DELETE /stacks
 func (UnimplementedHandler) DeleteStacks(ctx context.Context, req *BulkIdsDto) error {
@@ -299,12 +436,16 @@ func (UnimplementedHandler) DeleteStacks(ctx context.Context, req *BulkIdsDto) e
 
 // DeleteSyncAck implements deleteSyncAck operation.
 //
+// This endpoint requires the `syncCheckpoint.delete` permission.
+//
 // DELETE /sync/ack
 func (UnimplementedHandler) DeleteSyncAck(ctx context.Context, req *SyncAckDeleteDto) error {
 	return ht.ErrNotImplemented
 }
 
 // DeleteTag implements deleteTag operation.
+//
+// This endpoint requires the `tag.delete` permission.
 //
 // DELETE /tags/{id}
 func (UnimplementedHandler) DeleteTag(ctx context.Context, params DeleteTagParams) error {
@@ -313,12 +454,16 @@ func (UnimplementedHandler) DeleteTag(ctx context.Context, params DeleteTagParam
 
 // DeleteUserAdmin implements deleteUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+//
 // DELETE /admin/users/{id}
 func (UnimplementedHandler) DeleteUserAdmin(ctx context.Context, req *UserAdminDeleteDto, params DeleteUserAdminParams) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // DeleteUserLicense implements deleteUserLicense operation.
+//
+// This endpoint requires the `userLicense.delete` permission.
 //
 // DELETE /users/me/license
 func (UnimplementedHandler) DeleteUserLicense(ctx context.Context) error {
@@ -327,12 +472,16 @@ func (UnimplementedHandler) DeleteUserLicense(ctx context.Context) error {
 
 // DeleteUserOnboarding implements deleteUserOnboarding operation.
 //
+// This endpoint requires the `userOnboarding.delete` permission.
+//
 // DELETE /users/me/onboarding
 func (UnimplementedHandler) DeleteUserOnboarding(ctx context.Context) error {
 	return ht.ErrNotImplemented
 }
 
 // DownloadArchive implements downloadArchive operation.
+//
+// This endpoint requires the `asset.download` permission.
 //
 // POST /download/archive
 func (UnimplementedHandler) DownloadArchive(ctx context.Context, req *AssetIdsDto, params DownloadArchiveParams) (r DownloadArchiveOK, _ error) {
@@ -341,12 +490,16 @@ func (UnimplementedHandler) DownloadArchive(ctx context.Context, req *AssetIdsDt
 
 // DownloadAsset implements downloadAsset operation.
 //
+// This endpoint requires the `asset.download` permission.
+//
 // GET /assets/{id}/original
 func (UnimplementedHandler) DownloadAsset(ctx context.Context, params DownloadAssetParams) (r DownloadAssetOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // EmptyTrash implements emptyTrash operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // POST /trash/empty
 func (UnimplementedHandler) EmptyTrash(ctx context.Context) (r *TrashResponseDto, _ error) {
@@ -362,12 +515,16 @@ func (UnimplementedHandler) FinishOAuth(ctx context.Context, req *OAuthCallbackD
 
 // GetAboutInfo implements getAboutInfo operation.
 //
+// This endpoint requires the `server.about` permission.
+//
 // GET /server/about
 func (UnimplementedHandler) GetAboutInfo(ctx context.Context) (r *ServerAboutResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetActivities implements getActivities operation.
+//
+// This endpoint requires the `activity.read` permission.
 //
 // GET /activities
 func (UnimplementedHandler) GetActivities(ctx context.Context, params GetActivitiesParams) (r []ActivityResponseDto, _ error) {
@@ -376,12 +533,16 @@ func (UnimplementedHandler) GetActivities(ctx context.Context, params GetActivit
 
 // GetActivityStatistics implements getActivityStatistics operation.
 //
+// This endpoint requires the `activity.statistics` permission.
+//
 // GET /activities/statistics
 func (UnimplementedHandler) GetActivityStatistics(ctx context.Context, params GetActivityStatisticsParams) (r *ActivityStatisticsResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetAdminOnboarding implements getAdminOnboarding operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 //
 // GET /system-metadata/admin-onboarding
 func (UnimplementedHandler) GetAdminOnboarding(ctx context.Context) (r *AdminOnboardingUpdateDto, _ error) {
@@ -390,12 +551,16 @@ func (UnimplementedHandler) GetAdminOnboarding(ctx context.Context) (r *AdminOnb
 
 // GetAlbumInfo implements getAlbumInfo operation.
 //
+// This endpoint requires the `album.read` permission.
+//
 // GET /albums/{id}
 func (UnimplementedHandler) GetAlbumInfo(ctx context.Context, params GetAlbumInfoParams) (r *AlbumResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetAlbumStatistics implements getAlbumStatistics operation.
+//
+// This endpoint requires the `album.statistics` permission.
 //
 // GET /albums/statistics
 func (UnimplementedHandler) GetAlbumStatistics(ctx context.Context) (r *AlbumStatisticsResponseDto, _ error) {
@@ -404,12 +569,16 @@ func (UnimplementedHandler) GetAlbumStatistics(ctx context.Context) (r *AlbumSta
 
 // GetAllAlbums implements getAllAlbums operation.
 //
+// This endpoint requires the `album.read` permission.
+//
 // GET /albums
 func (UnimplementedHandler) GetAllAlbums(ctx context.Context, params GetAllAlbumsParams) (r []AlbumResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetAllJobsStatus implements getAllJobsStatus operation.
+//
+// This endpoint is an admin-only route, and requires the `job.read` permission.
 //
 // GET /jobs
 func (UnimplementedHandler) GetAllJobsStatus(ctx context.Context) (r *AllJobStatusResponseDto, _ error) {
@@ -418,12 +587,16 @@ func (UnimplementedHandler) GetAllJobsStatus(ctx context.Context) (r *AllJobStat
 
 // GetAllLibraries implements getAllLibraries operation.
 //
+// This endpoint is an admin-only route, and requires the `library.read` permission.
+//
 // GET /libraries
 func (UnimplementedHandler) GetAllLibraries(ctx context.Context) (r []LibraryResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetAllPeople implements getAllPeople operation.
+//
+// This endpoint requires the `person.read` permission.
 //
 // GET /people
 func (UnimplementedHandler) GetAllPeople(ctx context.Context, params GetAllPeopleParams) (r *PeopleResponseDto, _ error) {
@@ -432,12 +605,16 @@ func (UnimplementedHandler) GetAllPeople(ctx context.Context, params GetAllPeopl
 
 // GetAllSharedLinks implements getAllSharedLinks operation.
 //
+// This endpoint requires the `sharedLink.read` permission.
+//
 // GET /shared-links
 func (UnimplementedHandler) GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) (r []SharedLinkResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetAllTags implements getAllTags operation.
+//
+// This endpoint requires the `tag.read` permission.
 //
 // GET /tags
 func (UnimplementedHandler) GetAllTags(ctx context.Context) (r []TagResponseDto, _ error) {
@@ -455,12 +632,16 @@ func (UnimplementedHandler) GetAllUserAssetsByDeviceId(ctx context.Context, para
 
 // GetApiKey implements getApiKey operation.
 //
+// This endpoint requires the `apiKey.read` permission.
+//
 // GET /api-keys/{id}
 func (UnimplementedHandler) GetApiKey(ctx context.Context, params GetApiKeyParams) (r *APIKeyResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetApiKeys implements getApiKeys operation.
+//
+// This endpoint requires the `apiKey.read` permission.
 //
 // GET /api-keys
 func (UnimplementedHandler) GetApiKeys(ctx context.Context) (r []APIKeyResponseDto, _ error) {
@@ -469,12 +650,16 @@ func (UnimplementedHandler) GetApiKeys(ctx context.Context) (r []APIKeyResponseD
 
 // GetApkLinks implements getApkLinks operation.
 //
+// This endpoint requires the `server.apkLinks` permission.
+//
 // GET /server/apk-links
 func (UnimplementedHandler) GetApkLinks(ctx context.Context) (r *ServerApkLinksDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetAssetDuplicates implements getAssetDuplicates operation.
+//
+// This endpoint requires the `duplicate.read` permission.
 //
 // GET /duplicates
 func (UnimplementedHandler) GetAssetDuplicates(ctx context.Context) (r []DuplicateResponseDto, _ error) {
@@ -483,12 +668,34 @@ func (UnimplementedHandler) GetAssetDuplicates(ctx context.Context) (r []Duplica
 
 // GetAssetInfo implements getAssetInfo operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /assets/{id}
 func (UnimplementedHandler) GetAssetInfo(ctx context.Context, params GetAssetInfoParams) (r *AssetResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// GetAssetMetadata implements getAssetMetadata operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/metadata
+func (UnimplementedHandler) GetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) (r []AssetMetadataResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetAssetMetadataByKey implements getAssetMetadataByKey operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/metadata/{key}
+func (UnimplementedHandler) GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (r *AssetMetadataResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetAssetStatistics implements getAssetStatistics operation.
+//
+// This endpoint requires the `asset.statistics` permission.
 //
 // GET /assets/statistics
 func (UnimplementedHandler) GetAssetStatistics(ctx context.Context, params GetAssetStatisticsParams) (r *AssetStatsResponseDto, _ error) {
@@ -496,6 +703,8 @@ func (UnimplementedHandler) GetAssetStatistics(ctx context.Context, params GetAs
 }
 
 // GetAssetsByCity implements getAssetsByCity operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /search/cities
 func (UnimplementedHandler) GetAssetsByCity(ctx context.Context) (r []AssetResponseDto, _ error) {
@@ -518,12 +727,16 @@ func (UnimplementedHandler) GetAuthStatus(ctx context.Context) (r *AuthStatusRes
 
 // GetConfig implements getConfig operation.
 //
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+//
 // GET /system-config
 func (UnimplementedHandler) GetConfig(ctx context.Context) (r *SystemConfigDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetConfigDefaults implements getConfigDefaults operation.
+//
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 //
 // GET /system-config/defaults
 func (UnimplementedHandler) GetConfigDefaults(ctx context.Context) (r *SystemConfigDto, _ error) {
@@ -539,6 +752,8 @@ func (UnimplementedHandler) GetDeltaSync(ctx context.Context, req *AssetDeltaSyn
 
 // GetDownloadInfo implements getDownloadInfo operation.
 //
+// This endpoint requires the `asset.download` permission.
+//
 // POST /download/info
 func (UnimplementedHandler) GetDownloadInfo(ctx context.Context, req *DownloadInfoDto, params GetDownloadInfoParams) (r *DownloadResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
@@ -546,12 +761,16 @@ func (UnimplementedHandler) GetDownloadInfo(ctx context.Context, req *DownloadIn
 
 // GetExploreData implements getExploreData operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /search/explore
 func (UnimplementedHandler) GetExploreData(ctx context.Context) (r []SearchExploreResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetFaces implements getFaces operation.
+//
+// This endpoint requires the `face.read` permission.
 //
 // GET /faces
 func (UnimplementedHandler) GetFaces(ctx context.Context, params GetFacesParams) (r []AssetFaceResponseDto, _ error) {
@@ -567,12 +786,16 @@ func (UnimplementedHandler) GetFullSyncForUser(ctx context.Context, req *AssetFu
 
 // GetLibrary implements getLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.read` permission.
+//
 // GET /libraries/{id}
 func (UnimplementedHandler) GetLibrary(ctx context.Context, params GetLibraryParams) (r *LibraryResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetLibraryStatistics implements getLibraryStatistics operation.
+//
+// This endpoint is an admin-only route, and requires the `library.statistics` permission.
 //
 // GET /libraries/{id}/statistics
 func (UnimplementedHandler) GetLibraryStatistics(ctx context.Context, params GetLibraryStatisticsParams) (r *LibraryStatsResponseDto, _ error) {
@@ -588,12 +811,23 @@ func (UnimplementedHandler) GetMapMarkers(ctx context.Context, params GetMapMark
 
 // GetMemory implements getMemory operation.
 //
+// This endpoint requires the `memory.read` permission.
+//
 // GET /memories/{id}
 func (UnimplementedHandler) GetMemory(ctx context.Context, params GetMemoryParams) (r *MemoryResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// GetMyApiKey implements getMyApiKey operation.
+//
+// GET /api-keys/me
+func (UnimplementedHandler) GetMyApiKey(ctx context.Context) (r *APIKeyResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetMyPreferences implements getMyPreferences operation.
+//
+// This endpoint requires the `userPreference.read` permission.
 //
 // GET /users/me/preferences
 func (UnimplementedHandler) GetMyPreferences(ctx context.Context) (r *UserPreferencesResponseDto, _ error) {
@@ -609,12 +843,16 @@ func (UnimplementedHandler) GetMySharedLink(ctx context.Context, params GetMySha
 
 // GetMyUser implements getMyUser operation.
 //
+// This endpoint requires the `user.read` permission.
+//
 // GET /users/me
 func (UnimplementedHandler) GetMyUser(ctx context.Context) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetNotification implements getNotification operation.
+//
+// This endpoint requires the `notification.read` permission.
 //
 // GET /notifications/{id}
 func (UnimplementedHandler) GetNotification(ctx context.Context, params GetNotificationParams) (r *NotificationDto, _ error) {
@@ -630,12 +868,16 @@ func (UnimplementedHandler) GetNotificationTemplateAdmin(ctx context.Context, re
 
 // GetNotifications implements getNotifications operation.
 //
+// This endpoint requires the `notification.read` permission.
+//
 // GET /notifications
 func (UnimplementedHandler) GetNotifications(ctx context.Context, params GetNotificationsParams) (r []NotificationDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetPartners implements getPartners operation.
+//
+// This endpoint requires the `partner.read` permission.
 //
 // GET /partners
 func (UnimplementedHandler) GetPartners(ctx context.Context, params GetPartnersParams) (r []PartnerResponseDto, _ error) {
@@ -644,12 +886,16 @@ func (UnimplementedHandler) GetPartners(ctx context.Context, params GetPartnersP
 
 // GetPerson implements getPerson operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /people/{id}
 func (UnimplementedHandler) GetPerson(ctx context.Context, params GetPersonParams) (r *PersonResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetPersonStatistics implements getPersonStatistics operation.
+//
+// This endpoint requires the `person.statistics` permission.
 //
 // GET /people/{id}/statistics
 func (UnimplementedHandler) GetPersonStatistics(ctx context.Context, params GetPersonStatisticsParams) (r *PersonStatisticsResponseDto, _ error) {
@@ -658,12 +904,16 @@ func (UnimplementedHandler) GetPersonStatistics(ctx context.Context, params GetP
 
 // GetPersonThumbnail implements getPersonThumbnail operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /people/{id}/thumbnail
 func (UnimplementedHandler) GetPersonThumbnail(ctx context.Context, params GetPersonThumbnailParams) (r GetPersonThumbnailOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetProfileImage implements getProfileImage operation.
+//
+// This endpoint requires the `userProfileImage.read` permission.
 //
 // GET /users/{id}/profile-image
 func (UnimplementedHandler) GetProfileImage(ctx context.Context, params GetProfileImageParams) (r GetProfileImageOK, _ error) {
@@ -672,7 +922,7 @@ func (UnimplementedHandler) GetProfileImage(ctx context.Context, params GetProfi
 
 // GetRandom implements getRandom operation.
 //
-// This property was deprecated in v1.116.0.
+// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
 //
 // Deprecated: schema marks this operation as deprecated.
 //
@@ -683,12 +933,16 @@ func (UnimplementedHandler) GetRandom(ctx context.Context, params GetRandomParam
 
 // GetReverseGeocodingState implements getReverseGeocodingState operation.
 //
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+//
 // GET /system-metadata/reverse-geocoding-state
 func (UnimplementedHandler) GetReverseGeocodingState(ctx context.Context) (r *ReverseGeocodingStateResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetSearchSuggestions implements getSearchSuggestions operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /search/suggestions
 func (UnimplementedHandler) GetSearchSuggestions(ctx context.Context, params GetSearchSuggestionsParams) (r []string, _ error) {
@@ -711,12 +965,16 @@ func (UnimplementedHandler) GetServerFeatures(ctx context.Context) (r *ServerFea
 
 // GetServerLicense implements getServerLicense operation.
 //
+// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+//
 // GET /server/license
 func (UnimplementedHandler) GetServerLicense(ctx context.Context) (r GetServerLicenseRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetServerStatistics implements getServerStatistics operation.
+//
+// This endpoint is an admin-only route, and requires the `server.statistics` permission.
 //
 // GET /server/statistics
 func (UnimplementedHandler) GetServerStatistics(ctx context.Context) (r *ServerStatsResponseDto, _ error) {
@@ -732,12 +990,16 @@ func (UnimplementedHandler) GetServerVersion(ctx context.Context) (r *ServerVers
 
 // GetSessions implements getSessions operation.
 //
+// This endpoint requires the `session.read` permission.
+//
 // GET /sessions
 func (UnimplementedHandler) GetSessions(ctx context.Context) (r []SessionResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetSharedLinkById implements getSharedLinkById operation.
+//
+// This endpoint requires the `sharedLink.read` permission.
 //
 // GET /shared-links/{id}
 func (UnimplementedHandler) GetSharedLinkById(ctx context.Context, params GetSharedLinkByIdParams) (r *SharedLinkResponseDto, _ error) {
@@ -746,6 +1008,8 @@ func (UnimplementedHandler) GetSharedLinkById(ctx context.Context, params GetSha
 
 // GetStack implements getStack operation.
 //
+// This endpoint requires the `stack.read` permission.
+//
 // GET /stacks/{id}
 func (UnimplementedHandler) GetStack(ctx context.Context, params GetStackParams) (r *StackResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
@@ -753,12 +1017,16 @@ func (UnimplementedHandler) GetStack(ctx context.Context, params GetStackParams)
 
 // GetStorage implements getStorage operation.
 //
+// This endpoint requires the `server.storage` permission.
+//
 // GET /server/storage
 func (UnimplementedHandler) GetStorage(ctx context.Context) (r *ServerStorageResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetStorageTemplateOptions implements getStorageTemplateOptions operation.
+//
+// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
 //
 // GET /system-config/storage-template-options
 func (UnimplementedHandler) GetStorageTemplateOptions(ctx context.Context) (r *SystemConfigTemplateStorageOptionDto, _ error) {
@@ -774,6 +1042,8 @@ func (UnimplementedHandler) GetSupportedMediaTypes(ctx context.Context) (r *Serv
 
 // GetSyncAck implements getSyncAck operation.
 //
+// This endpoint requires the `syncCheckpoint.read` permission.
+//
 // GET /sync/ack
 func (UnimplementedHandler) GetSyncAck(ctx context.Context) (r []SyncAckDto, _ error) {
 	return r, ht.ErrNotImplemented
@@ -781,12 +1051,16 @@ func (UnimplementedHandler) GetSyncAck(ctx context.Context) (r []SyncAckDto, _ e
 
 // GetSyncStream implements getSyncStream operation.
 //
+// This endpoint requires the `sync.stream` permission.
+//
 // POST /sync/stream
 func (UnimplementedHandler) GetSyncStream(ctx context.Context, req *SyncStreamDto) error {
 	return ht.ErrNotImplemented
 }
 
 // GetTagById implements getTagById operation.
+//
+// This endpoint requires the `tag.read` permission.
 //
 // GET /tags/{id}
 func (UnimplementedHandler) GetTagById(ctx context.Context, params GetTagByIdParams) (r *TagResponseDto, _ error) {
@@ -802,12 +1076,16 @@ func (UnimplementedHandler) GetTheme(ctx context.Context) (r *ServerThemeDto, _ 
 
 // GetTimeBucket implements getTimeBucket operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // GET /timeline/bucket
 func (UnimplementedHandler) GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (r *TimeBucketAssetResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetTimeBuckets implements getTimeBuckets operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /timeline/buckets
 func (UnimplementedHandler) GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) (r []TimeBucketsResponseDto, _ error) {
@@ -823,12 +1101,16 @@ func (UnimplementedHandler) GetUniqueOriginalPaths(ctx context.Context) (r []str
 
 // GetUser implements getUser operation.
 //
+// This endpoint requires the `user.read` permission.
+//
 // GET /users/{id}
 func (UnimplementedHandler) GetUser(ctx context.Context, params GetUserParams) (r *UserResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetUserAdmin implements getUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 //
 // GET /admin/users/{id}
 func (UnimplementedHandler) GetUserAdmin(ctx context.Context, params GetUserAdminParams) (r *UserAdminResponseDto, _ error) {
@@ -837,12 +1119,16 @@ func (UnimplementedHandler) GetUserAdmin(ctx context.Context, params GetUserAdmi
 
 // GetUserLicense implements getUserLicense operation.
 //
+// This endpoint requires the `userLicense.read` permission.
+//
 // GET /users/me/license
 func (UnimplementedHandler) GetUserLicense(ctx context.Context) (r *LicenseResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetUserOnboarding implements getUserOnboarding operation.
+//
+// This endpoint requires the `userOnboarding.read` permission.
 //
 // GET /users/me/onboarding
 func (UnimplementedHandler) GetUserOnboarding(ctx context.Context) (r *OnboardingResponseDto, _ error) {
@@ -851,12 +1137,16 @@ func (UnimplementedHandler) GetUserOnboarding(ctx context.Context) (r *Onboardin
 
 // GetUserPreferencesAdmin implements getUserPreferencesAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+//
 // GET /admin/users/{id}/preferences
 func (UnimplementedHandler) GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (r *UserPreferencesResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetUserStatisticsAdmin implements getUserStatisticsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
 //
 // GET /admin/users/{id}/statistics
 func (UnimplementedHandler) GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (r *AssetStatsResponseDto, _ error) {
@@ -865,12 +1155,16 @@ func (UnimplementedHandler) GetUserStatisticsAdmin(ctx context.Context, params G
 
 // GetVersionCheck implements getVersionCheck operation.
 //
+// This endpoint requires the `server.versionCheck` permission.
+//
 // GET /server/version-check
 func (UnimplementedHandler) GetVersionCheck(ctx context.Context) (r *VersionCheckStateResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // GetVersionCheckState implements getVersionCheckState operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
 //
 // GET /system-metadata/version-check-state
 func (UnimplementedHandler) GetVersionCheckState(ctx context.Context) (r *VersionCheckStateResponseDto, _ error) {
@@ -900,6 +1194,8 @@ func (UnimplementedHandler) LockAuthSession(ctx context.Context) error {
 
 // LockSession implements lockSession operation.
 //
+// This endpoint requires the `session.lock` permission.
+//
 // POST /sessions/{id}/lock
 func (UnimplementedHandler) LockSession(ctx context.Context, params LockSessionParams) error {
 	return ht.ErrNotImplemented
@@ -919,7 +1215,18 @@ func (UnimplementedHandler) Logout(ctx context.Context) (r *LogoutResponseDto, _
 	return r, ht.ErrNotImplemented
 }
 
+// MemoriesStatistics implements memoriesStatistics operation.
+//
+// This endpoint requires the `memory.statistics` permission.
+//
+// GET /memories/statistics
+func (UnimplementedHandler) MemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (r *MemoryStatisticsResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // MergePerson implements mergePerson operation.
+//
+// This endpoint requires the `person.merge` permission.
 //
 // POST /people/{id}/merge
 func (UnimplementedHandler) MergePerson(ctx context.Context, req *MergePersonDto, params MergePersonParams) (r []BulkIdResponseDto, _ error) {
@@ -935,6 +1242,8 @@ func (UnimplementedHandler) PingServer(ctx context.Context) (r *ServerPingRespon
 
 // PlayAssetVideo implements playAssetVideo operation.
 //
+// This endpoint requires the `asset.view` permission.
+//
 // GET /assets/{id}/video/playback
 func (UnimplementedHandler) PlayAssetVideo(ctx context.Context, params PlayAssetVideoParams) (r PlayAssetVideoOK, _ error) {
 	return r, ht.ErrNotImplemented
@@ -942,12 +1251,16 @@ func (UnimplementedHandler) PlayAssetVideo(ctx context.Context, params PlayAsset
 
 // ReassignFaces implements reassignFaces operation.
 //
+// This endpoint requires the `person.reassign` permission.
+//
 // PUT /people/{id}/reassign
 func (UnimplementedHandler) ReassignFaces(ctx context.Context, req *AssetFaceUpdateDto, params ReassignFacesParams) (r []PersonResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // ReassignFacesById implements reassignFacesById operation.
+//
+// This endpoint requires the `face.update` permission.
 //
 // PUT /faces/{id}
 func (UnimplementedHandler) ReassignFacesById(ctx context.Context, req *FaceDto, params ReassignFacesByIdParams) (r *PersonResponseDto, _ error) {
@@ -963,12 +1276,25 @@ func (UnimplementedHandler) RedirectOAuthToMobile(ctx context.Context) error {
 
 // RemoveAssetFromAlbum implements removeAssetFromAlbum operation.
 //
+// This endpoint requires the `albumAsset.delete` permission.
+//
 // DELETE /albums/{id}/assets
 func (UnimplementedHandler) RemoveAssetFromAlbum(ctx context.Context, req *BulkIdsDto, params RemoveAssetFromAlbumParams) (r []BulkIdResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// RemoveAssetFromStack implements removeAssetFromStack operation.
+//
+// This endpoint requires the `stack.update` permission.
+//
+// DELETE /stacks/{id}/assets/{assetId}
+func (UnimplementedHandler) RemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) error {
+	return ht.ErrNotImplemented
+}
+
 // RemoveMemoryAssets implements removeMemoryAssets operation.
+//
+// This endpoint requires the `memoryAsset.delete` permission.
 //
 // DELETE /memories/{id}/assets
 func (UnimplementedHandler) RemoveMemoryAssets(ctx context.Context, req *BulkIdsDto, params RemoveMemoryAssetsParams) (r []BulkIdResponseDto, _ error) {
@@ -977,12 +1303,16 @@ func (UnimplementedHandler) RemoveMemoryAssets(ctx context.Context, req *BulkIds
 
 // RemovePartner implements removePartner operation.
 //
+// This endpoint requires the `partner.delete` permission.
+//
 // DELETE /partners/{id}
 func (UnimplementedHandler) RemovePartner(ctx context.Context, params RemovePartnerParams) error {
 	return ht.ErrNotImplemented
 }
 
 // RemoveSharedLink implements removeSharedLink operation.
+//
+// This endpoint requires the `sharedLink.delete` permission.
 //
 // DELETE /shared-links/{id}
 func (UnimplementedHandler) RemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) error {
@@ -998,6 +1328,8 @@ func (UnimplementedHandler) RemoveSharedLinkAssets(ctx context.Context, req *Ass
 
 // RemoveUserFromAlbum implements removeUserFromAlbum operation.
 //
+// This endpoint requires the `albumUser.delete` permission.
+//
 // DELETE /albums/{id}/user/{userId}
 func (UnimplementedHandler) RemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) error {
 	return ht.ErrNotImplemented
@@ -1005,7 +1337,11 @@ func (UnimplementedHandler) RemoveUserFromAlbum(ctx context.Context, params Remo
 
 // ReplaceAsset implements replaceAsset operation.
 //
-// Replace the asset with new file, without changing its id.
+// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
+//
+//	This endpoint requires the `asset.replace` permission.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets/{id}/original
 func (UnimplementedHandler) ReplaceAsset(ctx context.Context, req *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (r *AssetMediaResponseDto, _ error) {
@@ -1014,12 +1350,16 @@ func (UnimplementedHandler) ReplaceAsset(ctx context.Context, req *AssetMediaRep
 
 // ResetPinCode implements resetPinCode operation.
 //
+// This endpoint requires the `pinCode.delete` permission.
+//
 // DELETE /auth/pin-code
 func (UnimplementedHandler) ResetPinCode(ctx context.Context, req *PinCodeResetDto) error {
 	return ht.ErrNotImplemented
 }
 
 // RestoreAssets implements restoreAssets operation.
+//
+// This endpoint requires the `asset.delete` permission.
 //
 // POST /trash/restore/assets
 func (UnimplementedHandler) RestoreAssets(ctx context.Context, req *BulkIdsDto) (r *TrashResponseDto, _ error) {
@@ -1028,12 +1368,16 @@ func (UnimplementedHandler) RestoreAssets(ctx context.Context, req *BulkIdsDto) 
 
 // RestoreTrash implements restoreTrash operation.
 //
+// This endpoint requires the `asset.delete` permission.
+//
 // POST /trash/restore
 func (UnimplementedHandler) RestoreTrash(ctx context.Context) (r *TrashResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // RestoreUserAdmin implements restoreUserAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
 //
 // POST /admin/users/{id}/restore
 func (UnimplementedHandler) RestoreUserAdmin(ctx context.Context, params RestoreUserAdminParams) (r *UserAdminResponseDto, _ error) {
@@ -1056,19 +1400,43 @@ func (UnimplementedHandler) RunAssetJobs(ctx context.Context, req *AssetJobsDto)
 
 // ScanLibrary implements scanLibrary operation.
 //
+// This endpoint is an admin-only route, and requires the `library.update` permission.
+//
 // POST /libraries/{id}/scan
 func (UnimplementedHandler) ScanLibrary(ctx context.Context, params ScanLibraryParams) error {
 	return ht.ErrNotImplemented
 }
 
+// SearchAssetStatistics implements searchAssetStatistics operation.
+//
+// This endpoint requires the `asset.statistics` permission.
+//
+// POST /search/statistics
+func (UnimplementedHandler) SearchAssetStatistics(ctx context.Context, req *StatisticsSearchDto) (r *SearchStatisticsResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SearchAssets implements searchAssets operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // POST /search/metadata
 func (UnimplementedHandler) SearchAssets(ctx context.Context, req *MetadataSearchDto) (r *SearchResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// SearchLargeAssets implements searchLargeAssets operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// POST /search/large-assets
+func (UnimplementedHandler) SearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) (r []AssetResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SearchMemories implements searchMemories operation.
+//
+// This endpoint requires the `memory.read` permission.
 //
 // GET /memories
 func (UnimplementedHandler) SearchMemories(ctx context.Context, params SearchMemoriesParams) (r []MemoryResponseDto, _ error) {
@@ -1077,12 +1445,16 @@ func (UnimplementedHandler) SearchMemories(ctx context.Context, params SearchMem
 
 // SearchPerson implements searchPerson operation.
 //
+// This endpoint requires the `person.read` permission.
+//
 // GET /search/person
 func (UnimplementedHandler) SearchPerson(ctx context.Context, params SearchPersonParams) (r []PersonResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // SearchPlaces implements searchPlaces operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // GET /search/places
 func (UnimplementedHandler) SearchPlaces(ctx context.Context, params SearchPlacesParams) (r []PlacesResponseDto, _ error) {
@@ -1091,12 +1463,16 @@ func (UnimplementedHandler) SearchPlaces(ctx context.Context, params SearchPlace
 
 // SearchRandom implements searchRandom operation.
 //
+// This endpoint requires the `asset.read` permission.
+//
 // POST /search/random
 func (UnimplementedHandler) SearchRandom(ctx context.Context, req *RandomSearchDto) (r []AssetResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // SearchSmart implements searchSmart operation.
+//
+// This endpoint requires the `asset.read` permission.
 //
 // POST /search/smart
 func (UnimplementedHandler) SearchSmart(ctx context.Context, req *SmartSearchDto) (r *SearchResponseDto, _ error) {
@@ -1105,12 +1481,16 @@ func (UnimplementedHandler) SearchSmart(ctx context.Context, req *SmartSearchDto
 
 // SearchStacks implements searchStacks operation.
 //
+// This endpoint requires the `stack.read` permission.
+//
 // GET /stacks
 func (UnimplementedHandler) SearchStacks(ctx context.Context, params SearchStacksParams) (r []StackResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // SearchUsers implements searchUsers operation.
+//
+// This endpoint requires the `user.read` permission.
 //
 // GET /users
 func (UnimplementedHandler) SearchUsers(ctx context.Context) (r []UserResponseDto, _ error) {
@@ -1119,6 +1499,8 @@ func (UnimplementedHandler) SearchUsers(ctx context.Context) (r []UserResponseDt
 
 // SearchUsersAdmin implements searchUsersAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+//
 // GET /admin/users
 func (UnimplementedHandler) SearchUsersAdmin(ctx context.Context, params SearchUsersAdminParams) (r []UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
@@ -1126,12 +1508,16 @@ func (UnimplementedHandler) SearchUsersAdmin(ctx context.Context, params SearchU
 
 // SendJobCommand implements sendJobCommand operation.
 //
+// This endpoint is an admin-only route, and requires the `job.create` permission.
+//
 // PUT /jobs/{id}
 func (UnimplementedHandler) SendJobCommand(ctx context.Context, req *JobCommandDto, params SendJobCommandParams) (r *JobStatusDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // SendSyncAck implements sendSyncAck operation.
+//
+// This endpoint requires the `syncCheckpoint.update` permission.
 //
 // POST /sync/ack
 func (UnimplementedHandler) SendSyncAck(ctx context.Context, req *SyncAckSetDto) error {
@@ -1147,12 +1533,16 @@ func (UnimplementedHandler) SendTestEmailAdmin(ctx context.Context, req *SystemC
 
 // SetServerLicense implements setServerLicense operation.
 //
+// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+//
 // PUT /server/license
 func (UnimplementedHandler) SetServerLicense(ctx context.Context, req *LicenseKeyDto) (r *LicenseResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // SetUserLicense implements setUserLicense operation.
+//
+// This endpoint requires the `userLicense.update` permission.
 //
 // PUT /users/me/license
 func (UnimplementedHandler) SetUserLicense(ctx context.Context, req *LicenseKeyDto) (r *LicenseResponseDto, _ error) {
@@ -1161,12 +1551,16 @@ func (UnimplementedHandler) SetUserLicense(ctx context.Context, req *LicenseKeyD
 
 // SetUserOnboarding implements setUserOnboarding operation.
 //
+// This endpoint requires the `userOnboarding.update` permission.
+//
 // PUT /users/me/onboarding
 func (UnimplementedHandler) SetUserOnboarding(ctx context.Context, req *OnboardingDto) (r *OnboardingResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // SetupPinCode implements setupPinCode operation.
+//
+// This endpoint requires the `pinCode.create` permission.
 //
 // POST /auth/pin-code
 func (UnimplementedHandler) SetupPinCode(ctx context.Context, req *PinCodeSetupDto) error {
@@ -1189,9 +1583,20 @@ func (UnimplementedHandler) StartOAuth(ctx context.Context, req *OAuthConfigDto)
 
 // TagAssets implements tagAssets operation.
 //
+// This endpoint requires the `tag.asset` permission.
+//
 // PUT /tags/{id}/assets
 func (UnimplementedHandler) TagAssets(ctx context.Context, req *BulkIdsDto, params TagAssetsParams) (r []BulkIdResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
+}
+
+// UnlinkAllOAuthAccountsAdmin implements unlinkAllOAuthAccountsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+//
+// POST /admin/auth/unlink-all
+func (UnimplementedHandler) UnlinkAllOAuthAccountsAdmin(ctx context.Context) error {
+	return ht.ErrNotImplemented
 }
 
 // UnlinkOAuthAccount implements unlinkOAuthAccount operation.
@@ -1210,12 +1615,16 @@ func (UnimplementedHandler) UnlockAuthSession(ctx context.Context, req *SessionU
 
 // UntagAssets implements untagAssets operation.
 //
+// This endpoint requires the `tag.asset` permission.
+//
 // DELETE /tags/{id}/assets
 func (UnimplementedHandler) UntagAssets(ctx context.Context, req *BulkIdsDto, params UntagAssetsParams) (r []BulkIdResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateAdminOnboarding implements updateAdminOnboarding operation.
+//
+// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
 //
 // POST /system-metadata/admin-onboarding
 func (UnimplementedHandler) UpdateAdminOnboarding(ctx context.Context, req *AdminOnboardingUpdateDto) error {
@@ -1224,12 +1633,16 @@ func (UnimplementedHandler) UpdateAdminOnboarding(ctx context.Context, req *Admi
 
 // UpdateAlbumInfo implements updateAlbumInfo operation.
 //
+// This endpoint requires the `album.update` permission.
+//
 // PATCH /albums/{id}
 func (UnimplementedHandler) UpdateAlbumInfo(ctx context.Context, req *UpdateAlbumDto, params UpdateAlbumInfoParams) (r *AlbumResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateAlbumUser implements updateAlbumUser operation.
+//
+// This endpoint requires the `albumUser.update` permission.
 //
 // PUT /albums/{id}/user/{userId}
 func (UnimplementedHandler) UpdateAlbumUser(ctx context.Context, req *UpdateAlbumUserDto, params UpdateAlbumUserParams) error {
@@ -1238,6 +1651,8 @@ func (UnimplementedHandler) UpdateAlbumUser(ctx context.Context, req *UpdateAlbu
 
 // UpdateApiKey implements updateApiKey operation.
 //
+// This endpoint requires the `apiKey.update` permission.
+//
 // PUT /api-keys/{id}
 func (UnimplementedHandler) UpdateApiKey(ctx context.Context, req *APIKeyUpdateDto, params UpdateApiKeyParams) (r *APIKeyResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
@@ -1245,12 +1660,25 @@ func (UnimplementedHandler) UpdateApiKey(ctx context.Context, req *APIKeyUpdateD
 
 // UpdateAsset implements updateAsset operation.
 //
+// This endpoint requires the `asset.update` permission.
+//
 // PUT /assets/{id}
 func (UnimplementedHandler) UpdateAsset(ctx context.Context, req *UpdateAssetDto, params UpdateAssetParams) (r *AssetResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// UpdateAssetMetadata implements updateAssetMetadata operation.
+//
+// This endpoint requires the `asset.update` permission.
+//
+// PUT /assets/{id}/metadata
+func (UnimplementedHandler) UpdateAssetMetadata(ctx context.Context, req *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) (r []AssetMetadataResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdateAssets implements updateAssets operation.
+//
+// This endpoint requires the `asset.update` permission.
 //
 // PUT /assets
 func (UnimplementedHandler) UpdateAssets(ctx context.Context, req *AssetBulkUpdateDto) error {
@@ -1259,12 +1687,16 @@ func (UnimplementedHandler) UpdateAssets(ctx context.Context, req *AssetBulkUpda
 
 // UpdateConfig implements updateConfig operation.
 //
+// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+//
 // PUT /system-config
 func (UnimplementedHandler) UpdateConfig(ctx context.Context, req *SystemConfigDto) (r *SystemConfigDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateLibrary implements updateLibrary operation.
+//
+// This endpoint is an admin-only route, and requires the `library.update` permission.
 //
 // PUT /libraries/{id}
 func (UnimplementedHandler) UpdateLibrary(ctx context.Context, req *UpdateLibraryDto, params UpdateLibraryParams) (r *LibraryResponseDto, _ error) {
@@ -1273,12 +1705,16 @@ func (UnimplementedHandler) UpdateLibrary(ctx context.Context, req *UpdateLibrar
 
 // UpdateMemory implements updateMemory operation.
 //
+// This endpoint requires the `memory.update` permission.
+//
 // PUT /memories/{id}
 func (UnimplementedHandler) UpdateMemory(ctx context.Context, req *MemoryUpdateDto, params UpdateMemoryParams) (r *MemoryResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateMyPreferences implements updateMyPreferences operation.
+//
+// This endpoint requires the `userPreference.update` permission.
 //
 // PUT /users/me/preferences
 func (UnimplementedHandler) UpdateMyPreferences(ctx context.Context, req *UserPreferencesUpdateDto) (r *UserPreferencesResponseDto, _ error) {
@@ -1287,12 +1723,16 @@ func (UnimplementedHandler) UpdateMyPreferences(ctx context.Context, req *UserPr
 
 // UpdateMyUser implements updateMyUser operation.
 //
+// This endpoint requires the `user.update` permission.
+//
 // PUT /users/me
 func (UnimplementedHandler) UpdateMyUser(ctx context.Context, req *UserUpdateMeDto) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateNotification implements updateNotification operation.
+//
+// This endpoint requires the `notification.update` permission.
 //
 // PUT /notifications/{id}
 func (UnimplementedHandler) UpdateNotification(ctx context.Context, req *NotificationUpdateDto, params UpdateNotificationParams) (r *NotificationDto, _ error) {
@@ -1301,6 +1741,8 @@ func (UnimplementedHandler) UpdateNotification(ctx context.Context, req *Notific
 
 // UpdateNotifications implements updateNotifications operation.
 //
+// This endpoint requires the `notification.update` permission.
+//
 // PUT /notifications
 func (UnimplementedHandler) UpdateNotifications(ctx context.Context, req *NotificationUpdateAllDto) error {
 	return ht.ErrNotImplemented
@@ -1308,12 +1750,16 @@ func (UnimplementedHandler) UpdateNotifications(ctx context.Context, req *Notifi
 
 // UpdatePartner implements updatePartner operation.
 //
+// This endpoint requires the `partner.update` permission.
+//
 // PUT /partners/{id}
-func (UnimplementedHandler) UpdatePartner(ctx context.Context, req *UpdatePartnerDto, params UpdatePartnerParams) (r *PartnerResponseDto, _ error) {
+func (UnimplementedHandler) UpdatePartner(ctx context.Context, req *PartnerUpdateDto, params UpdatePartnerParams) (r *PartnerResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdatePeople implements updatePeople operation.
+//
+// This endpoint requires the `person.update` permission.
 //
 // PUT /people
 func (UnimplementedHandler) UpdatePeople(ctx context.Context, req *PeopleUpdateDto) (r []BulkIdResponseDto, _ error) {
@@ -1322,12 +1768,25 @@ func (UnimplementedHandler) UpdatePeople(ctx context.Context, req *PeopleUpdateD
 
 // UpdatePerson implements updatePerson operation.
 //
+// This endpoint requires the `person.update` permission.
+//
 // PUT /people/{id}
 func (UnimplementedHandler) UpdatePerson(ctx context.Context, req *PersonUpdateDto, params UpdatePersonParams) (r *PersonResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// UpdateSession implements updateSession operation.
+//
+// This endpoint requires the `session.update` permission.
+//
+// PUT /sessions/{id}
+func (UnimplementedHandler) UpdateSession(ctx context.Context, req *SessionUpdateDto, params UpdateSessionParams) (r *SessionResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UpdateSharedLink implements updateSharedLink operation.
+//
+// This endpoint requires the `sharedLink.update` permission.
 //
 // PATCH /shared-links/{id}
 func (UnimplementedHandler) UpdateSharedLink(ctx context.Context, req *SharedLinkEditDto, params UpdateSharedLinkParams) (r *SharedLinkResponseDto, _ error) {
@@ -1336,12 +1795,16 @@ func (UnimplementedHandler) UpdateSharedLink(ctx context.Context, req *SharedLin
 
 // UpdateStack implements updateStack operation.
 //
+// This endpoint requires the `stack.update` permission.
+//
 // PUT /stacks/{id}
 func (UnimplementedHandler) UpdateStack(ctx context.Context, req *StackUpdateDto, params UpdateStackParams) (r *StackResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateTag implements updateTag operation.
+//
+// This endpoint requires the `tag.update` permission.
 //
 // PUT /tags/{id}
 func (UnimplementedHandler) UpdateTag(ctx context.Context, req *TagUpdateDto, params UpdateTagParams) (r *TagResponseDto, _ error) {
@@ -1350,12 +1813,16 @@ func (UnimplementedHandler) UpdateTag(ctx context.Context, req *TagUpdateDto, pa
 
 // UpdateUserAdmin implements updateUserAdmin operation.
 //
+// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+//
 // PUT /admin/users/{id}
 func (UnimplementedHandler) UpdateUserAdmin(ctx context.Context, req *UserAdminUpdateDto, params UpdateUserAdminParams) (r *UserAdminResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpdateUserPreferencesAdmin implements updateUserPreferencesAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
 //
 // PUT /admin/users/{id}/preferences
 func (UnimplementedHandler) UpdateUserPreferencesAdmin(ctx context.Context, req *UserPreferencesUpdateDto, params UpdateUserPreferencesAdminParams) (r *UserPreferencesResponseDto, _ error) {
@@ -1364,12 +1831,16 @@ func (UnimplementedHandler) UpdateUserPreferencesAdmin(ctx context.Context, req 
 
 // UploadAsset implements uploadAsset operation.
 //
+// This endpoint requires the `asset.upload` permission.
+//
 // POST /assets
-func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r UploadAssetRes, _ error) {
+func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r *AssetMediaResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // UpsertTags implements upsertTags operation.
+//
+// This endpoint requires the `tag.create` permission.
 //
 // PUT /tags
 func (UnimplementedHandler) UpsertTags(ctx context.Context, req *TagUpsertDto) (r []TagResponseDto, _ error) {
@@ -1391,6 +1862,8 @@ func (UnimplementedHandler) ValidateAccessToken(ctx context.Context) (r *Validat
 }
 
 // ViewAsset implements viewAsset operation.
+//
+// This endpoint requires the `asset.view` permission.
 //
 // GET /assets/{id}/thumbnail
 func (UnimplementedHandler) ViewAsset(ctx context.Context, params ViewAssetParams) (r ViewAssetOK, _ error) {

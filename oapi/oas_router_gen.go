@@ -165,6 +165,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
+					case 'a': // Prefix: "auth/unlink-all"
+
+						if l := len("auth/unlink-all"); len(elem) >= l && elem[0:l] == "auth/unlink-all" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleUnlinkAllOAuthAccountsAdminRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "POST")
+							}
+
+							return
+						}
+
 					case 'n': // Prefix: "notifications"
 
 						if l := len("notifications"); len(elem) >= l && elem[0:l] == "notifications" {
@@ -433,6 +453,27 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 						switch elem[0] {
+						case 'a': // Prefix: "assets"
+							origElem := elem
+							if l := len("assets"); len(elem) >= l && elem[0:l] == "assets" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "PUT":
+									s.handleAddAssetsToAlbumsRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "PUT")
+								}
+
+								return
+							}
+
+							elem = origElem
 						case 's': // Prefix: "statistics"
 							origElem := elem
 							if l := len("statistics"); len(elem) >= l && elem[0:l] == "statistics" {
@@ -631,6 +672,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'm': // Prefix: "me"
+							origElem := elem
+							if l := len("me"); len(elem) >= l && elem[0:l] == "me" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleGetMyApiKeyRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET")
+								}
+
+								return
+							}
+
+							elem = origElem
+						}
 						// Param: "id"
 						// Leaf parameter, slashes are prohibited
 						idx := strings.IndexByte(elem, '/')
@@ -875,6 +942,70 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
+							case 'm': // Prefix: "metadata"
+
+								if l := len("metadata"); len(elem) >= l && elem[0:l] == "metadata" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleGetAssetMetadataRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									case "PUT":
+										s.handleUpdateAssetMetadataRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "GET,PUT")
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "key"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[1] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleDeleteAssetMetadataRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										case "GET":
+											s.handleGetAssetMetadataByKeyRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE,GET")
+										}
+
+										return
+									}
+
+								}
+
 							case 'o': // Prefix: "original"
 
 								if l := len("original"); len(elem) >= l && elem[0:l] == "original" {
@@ -1268,15 +1399,49 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					if len(elem) == 0 {
-						// Leaf node.
 						switch r.Method {
+						case "DELETE":
+							s.handleDeleteDuplicatesRequest([0]string{}, elemIsEscaped, w, r)
 						case "GET":
 							s.handleGetAssetDuplicatesRequest([0]string{}, elemIsEscaped, w, r)
 						default:
-							s.notAllowed(w, r, "GET")
+							s.notAllowed(w, r, "DELETE,GET")
 						}
 
 						return
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "id"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "DELETE":
+								s.handleDeleteDuplicateRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "DELETE")
+							}
+
+							return
+						}
+
 					}
 
 				}
@@ -1645,6 +1810,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 's': // Prefix: "statistics"
+							origElem := elem
+							if l := len("statistics"); len(elem) >= l && elem[0:l] == "statistics" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleMemoriesStatisticsRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "GET")
+								}
+
+								return
+							}
+
+							elem = origElem
+						}
 						// Param: "id"
 						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
@@ -1909,8 +2100,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						switch r.Method {
 						case "GET":
 							s.handleGetPartnersRequest([0]string{}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleCreatePartnerRequest([0]string{}, elemIsEscaped, w, r)
 						default:
-							s.notAllowed(w, r, "GET")
+							s.notAllowed(w, r, "GET,POST")
 						}
 
 						return
@@ -1941,7 +2134,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									args[0],
 								}, elemIsEscaped, w, r)
 							case "POST":
-								s.handleCreatePartnerRequest([1]string{
+								s.handleCreatePartnerDeprecatedRequest([1]string{
 									args[0],
 								}, elemIsEscaped, w, r)
 							case "PUT":
@@ -1967,6 +2160,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					if len(elem) == 0 {
 						switch r.Method {
+						case "DELETE":
+							s.handleDeletePeopleRequest([0]string{}, elemIsEscaped, w, r)
 						case "GET":
 							s.handleGetAllPeopleRequest([0]string{}, elemIsEscaped, w, r)
 						case "POST":
@@ -1974,7 +2169,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						case "PUT":
 							s.handleUpdatePeopleRequest([0]string{}, elemIsEscaped, w, r)
 						default:
-							s.notAllowed(w, r, "GET,POST,PUT")
+							s.notAllowed(w, r, "DELETE,GET,POST,PUT")
 						}
 
 						return
@@ -1999,6 +2194,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						if len(elem) == 0 {
 							switch r.Method {
+							case "DELETE":
+								s.handleDeletePersonRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
 							case "GET":
 								s.handleGetPersonRequest([1]string{
 									args[0],
@@ -2008,7 +2207,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									args[0],
 								}, elemIsEscaped, w, r)
 							default:
-								s.notAllowed(w, r, "GET,PUT")
+								s.notAllowed(w, r, "DELETE,GET,PUT")
 							}
 
 							return
@@ -2198,6 +2397,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+						case 'l': // Prefix: "large-assets"
+
+							if l := len("large-assets"); len(elem) >= l && elem[0:l] == "large-assets" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleSearchLargeAssetsRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						case 'm': // Prefix: "metadata"
 
 							if l := len("metadata"); len(elem) >= l && elem[0:l] == "metadata" {
@@ -2317,6 +2536,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									switch r.Method {
 									case "POST":
 										s.handleSearchSmartRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
+							case 't': // Prefix: "tatistics"
+
+								if l := len("tatistics"); len(elem) >= l && elem[0:l] == "tatistics" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleSearchAssetStatisticsRequest([0]string{}, elemIsEscaped, w, r)
 									default:
 										s.notAllowed(w, r, "POST")
 									}
@@ -2715,8 +2954,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									s.handleDeleteSessionRequest([1]string{
 										args[0],
 									}, elemIsEscaped, w, r)
+								case "PUT":
+									s.handleUpdateSessionRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
 								default:
-									s.notAllowed(w, r, "DELETE")
+									s.notAllowed(w, r, "DELETE,PUT")
 								}
 
 								return
@@ -2897,16 +3140,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						}
 
 						// Param: "id"
-						// Leaf parameter, slashes are prohibited
+						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
-						if idx >= 0 {
-							break
+						if idx < 0 {
+							idx = len(elem)
 						}
-						args[0] = elem
-						elem = ""
+						args[0] = elem[:idx]
+						elem = elem[idx:]
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch r.Method {
 							case "DELETE":
 								s.handleDeleteStackRequest([1]string{
@@ -2925,6 +3167,40 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							}
 
 							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/assets/"
+
+							if l := len("/assets/"); len(elem) >= l && elem[0:l] == "/assets/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "assetId"
+							// Leaf parameter, slashes are prohibited
+							idx := strings.IndexByte(elem, '/')
+							if idx >= 0 {
+								break
+							}
+							args[1] = elem
+							elem = ""
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "DELETE":
+									s.handleRemoveAssetFromStackRequest([2]string{
+										args[0],
+										args[1],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "DELETE")
+								}
+
+								return
+							}
+
 						}
 
 					}
@@ -3923,6 +4199,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
+					case 'a': // Prefix: "auth/unlink-all"
+
+						if l := len("auth/unlink-all"); len(elem) >= l && elem[0:l] == "auth/unlink-all" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = UnlinkAllOAuthAccountsAdminOperation
+								r.summary = ""
+								r.operationID = "unlinkAllOAuthAccountsAdmin"
+								r.pathPattern = "/admin/auth/unlink-all"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
 					case 'n': // Prefix: "notifications"
 
 						if l := len("notifications"); len(elem) >= l && elem[0:l] == "notifications" {
@@ -4241,6 +4541,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 						switch elem[0] {
+						case 'a': // Prefix: "assets"
+							origElem := elem
+							if l := len("assets"); len(elem) >= l && elem[0:l] == "assets" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "PUT":
+									r.name = AddAssetsToAlbumsOperation
+									r.summary = ""
+									r.operationID = "addAssetsToAlbums"
+									r.pathPattern = "/albums/assets"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+							elem = origElem
 						case 's': // Prefix: "statistics"
 							origElem := elem
 							if l := len("statistics"); len(elem) >= l && elem[0:l] == "statistics" {
@@ -4475,6 +4800,36 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'm': // Prefix: "me"
+							origElem := elem
+							if l := len("me"); len(elem) >= l && elem[0:l] == "me" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = GetMyApiKeyOperation
+									r.summary = ""
+									r.operationID = "getMyApiKey"
+									r.pathPattern = "/api-keys/me"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+							elem = origElem
+						}
 						// Param: "id"
 						// Leaf parameter, slashes are prohibited
 						idx := strings.IndexByte(elem, '/')
@@ -4773,6 +5128,80 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
+							case 'm': // Prefix: "metadata"
+
+								if l := len("metadata"); len(elem) >= l && elem[0:l] == "metadata" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = GetAssetMetadataOperation
+										r.summary = ""
+										r.operationID = "getAssetMetadata"
+										r.pathPattern = "/assets/{id}/metadata"
+										r.args = args
+										r.count = 1
+										return r, true
+									case "PUT":
+										r.name = UpdateAssetMetadataOperation
+										r.summary = ""
+										r.operationID = "updateAssetMetadata"
+										r.pathPattern = "/assets/{id}/metadata"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "key"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[1] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = DeleteAssetMetadataOperation
+											r.summary = ""
+											r.operationID = "deleteAssetMetadata"
+											r.pathPattern = "/assets/{id}/metadata/{key}"
+											r.args = args
+											r.count = 2
+											return r, true
+										case "GET":
+											r.name = GetAssetMetadataByKeyOperation
+											r.summary = ""
+											r.operationID = "getAssetMetadataByKey"
+											r.pathPattern = "/assets/{id}/metadata/{key}"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
 							case 'o': // Prefix: "original"
 
 								if l := len("original"); len(elem) >= l && elem[0:l] == "original" {
@@ -4794,7 +5223,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "PUT":
 										r.name = ReplaceAssetOperation
-										r.summary = "replaceAsset"
+										r.summary = "Replace the asset with new file, without changing its id"
 										r.operationID = "replaceAsset"
 										r.pathPattern = "/assets/{id}/original"
 										r.args = args
@@ -5232,8 +5661,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					}
 
 					if len(elem) == 0 {
-						// Leaf node.
 						switch method {
+						case "DELETE":
+							r.name = DeleteDuplicatesOperation
+							r.summary = ""
+							r.operationID = "deleteDuplicates"
+							r.pathPattern = "/duplicates"
+							r.args = args
+							r.count = 0
+							return r, true
 						case "GET":
 							r.name = GetAssetDuplicatesOperation
 							r.summary = ""
@@ -5245,6 +5681,41 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						default:
 							return
 						}
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "id"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "DELETE":
+								r.name = DeleteDuplicateOperation
+								r.summary = ""
+								r.operationID = "deleteDuplicate"
+								r.pathPattern = "/duplicates/{id}"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
 					}
 
 				}
@@ -5685,6 +6156,36 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 's': // Prefix: "statistics"
+							origElem := elem
+							if l := len("statistics"); len(elem) >= l && elem[0:l] == "statistics" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = MemoriesStatisticsOperation
+									r.summary = ""
+									r.operationID = "memoriesStatistics"
+									r.pathPattern = "/memories/statistics"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+							elem = origElem
+						}
 						// Param: "id"
 						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
@@ -6017,6 +6518,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							r.args = args
 							r.count = 0
 							return r, true
+						case "POST":
+							r.name = CreatePartnerOperation
+							r.summary = ""
+							r.operationID = "createPartner"
+							r.pathPattern = "/partners"
+							r.args = args
+							r.count = 0
+							return r, true
 						default:
 							return
 						}
@@ -6051,9 +6560,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								r.count = 1
 								return r, true
 							case "POST":
-								r.name = CreatePartnerOperation
+								r.name = CreatePartnerDeprecatedOperation
 								r.summary = ""
-								r.operationID = "createPartner"
+								r.operationID = "createPartnerDeprecated"
 								r.pathPattern = "/partners/{id}"
 								r.args = args
 								r.count = 1
@@ -6083,6 +6592,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					if len(elem) == 0 {
 						switch method {
+						case "DELETE":
+							r.name = DeletePeopleOperation
+							r.summary = ""
+							r.operationID = "deletePeople"
+							r.pathPattern = "/people"
+							r.args = args
+							r.count = 0
+							return r, true
 						case "GET":
 							r.name = GetAllPeopleOperation
 							r.summary = ""
@@ -6131,6 +6648,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 						if len(elem) == 0 {
 							switch method {
+							case "DELETE":
+								r.name = DeletePersonOperation
+								r.summary = ""
+								r.operationID = "deletePerson"
+								r.pathPattern = "/people/{id}"
+								r.args = args
+								r.count = 1
+								return r, true
 							case "GET":
 								r.name = GetPersonOperation
 								r.summary = ""
@@ -6352,6 +6877,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 							}
 
+						case 'l': // Prefix: "large-assets"
+
+							if l := len("large-assets"); len(elem) >= l && elem[0:l] == "large-assets" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = SearchLargeAssetsOperation
+									r.summary = ""
+									r.operationID = "searchLargeAssets"
+									r.pathPattern = "/search/large-assets"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
 						case 'm': // Prefix: "metadata"
 
 							if l := len("metadata"); len(elem) >= l && elem[0:l] == "metadata" {
@@ -6490,6 +7039,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										r.summary = ""
 										r.operationID = "searchSmart"
 										r.pathPattern = "/search/smart"
+										r.args = args
+										r.count = 0
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 't': // Prefix: "tatistics"
+
+								if l := len("tatistics"); len(elem) >= l && elem[0:l] == "tatistics" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = SearchAssetStatisticsOperation
+										r.summary = ""
+										r.operationID = "searchAssetStatistics"
+										r.pathPattern = "/search/statistics"
 										r.args = args
 										r.count = 0
 										return r, true
@@ -6977,6 +7550,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									r.args = args
 									r.count = 1
 									return r, true
+								case "PUT":
+									r.name = UpdateSessionOperation
+									r.summary = ""
+									r.operationID = "updateSession"
+									r.pathPattern = "/sessions/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
 								default:
 									return
 								}
@@ -7205,16 +7786,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 
 						// Param: "id"
-						// Leaf parameter, slashes are prohibited
+						// Match until "/"
 						idx := strings.IndexByte(elem, '/')
-						if idx >= 0 {
-							break
+						if idx < 0 {
+							idx = len(elem)
 						}
-						args[0] = elem
-						elem = ""
+						args[0] = elem[:idx]
+						elem = elem[idx:]
 
 						if len(elem) == 0 {
-							// Leaf node.
 							switch method {
 							case "DELETE":
 								r.name = DeleteStackOperation
@@ -7243,6 +7823,41 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							default:
 								return
 							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/assets/"
+
+							if l := len("/assets/"); len(elem) >= l && elem[0:l] == "/assets/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "assetId"
+							// Leaf parameter, slashes are prohibited
+							idx := strings.IndexByte(elem, '/')
+							if idx >= 0 {
+								break
+							}
+							args[1] = elem
+							elem = ""
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "DELETE":
+									r.name = RemoveAssetFromStackOperation
+									r.summary = ""
+									r.operationID = "removeAssetFromStack"
+									r.pathPattern = "/stacks/{id}/assets/{assetId}"
+									r.args = args
+									r.count = 2
+									return r, true
+								default:
+									return
+								}
+							}
+
 						}
 
 					}

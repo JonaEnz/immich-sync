@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
-
 	ht "github.com/ogen-go/ogen/http"
 )
 
@@ -296,6 +295,7 @@ func (s *ActivityResponseDto) SetUser(val UserResponseDto) {
 // Ref: #/components/schemas/ActivityStatisticsResponseDto
 type ActivityStatisticsResponseDto struct {
 	Comments int `json:"comments"`
+	Likes    int `json:"likes"`
 }
 
 // GetComments returns the value of Comments.
@@ -303,9 +303,19 @@ func (s *ActivityStatisticsResponseDto) GetComments() int {
 	return s.Comments
 }
 
+// GetLikes returns the value of Likes.
+func (s *ActivityStatisticsResponseDto) GetLikes() int {
+	return s.Likes
+}
+
 // SetComments sets the value of Comments.
 func (s *ActivityStatisticsResponseDto) SetComments(val int) {
 	s.Comments = val
+}
+
+// SetLikes sets the value of Likes.
+func (s *ActivityStatisticsResponseDto) SetLikes(val int) {
+	s.Likes = val
 }
 
 // Ref: #/components/schemas/AddUsersDto
@@ -340,24 +350,25 @@ func (s *AdminOnboardingUpdateDto) SetIsOnboarded(val bool) {
 
 // Ref: #/components/schemas/AlbumResponseDto
 type AlbumResponseDto struct {
-	AlbumName                  string                 `json:"albumName"`
-	AlbumThumbnailAssetId      NilString              `json:"albumThumbnailAssetId"`
-	AlbumUsers                 []AlbumUserResponseDto `json:"albumUsers"`
-	AssetCount                 int                    `json:"assetCount"`
-	Assets                     []AssetResponseDto     `json:"assets"`
-	CreatedAt                  time.Time              `json:"createdAt"`
-	Description                string                 `json:"description"`
-	EndDate                    OptDateTime            `json:"endDate"`
-	HasSharedLink              bool                   `json:"hasSharedLink"`
-	ID                         string                 `json:"id"`
-	IsActivityEnabled          bool                   `json:"isActivityEnabled"`
-	LastModifiedAssetTimestamp OptDateTime            `json:"lastModifiedAssetTimestamp"`
-	Order                      OptAssetOrder          `json:"order"`
-	Owner                      UserResponseDto        `json:"owner"`
-	OwnerId                    string                 `json:"ownerId"`
-	Shared                     bool                   `json:"shared"`
-	StartDate                  OptDateTime            `json:"startDate"`
-	UpdatedAt                  time.Time              `json:"updatedAt"`
+	AlbumName                  string                        `json:"albumName"`
+	AlbumThumbnailAssetId      NilString                     `json:"albumThumbnailAssetId"`
+	AlbumUsers                 []AlbumUserResponseDto        `json:"albumUsers"`
+	AssetCount                 int                           `json:"assetCount"`
+	Assets                     []AssetResponseDto            `json:"assets"`
+	ContributorCounts          []ContributorCountResponseDto `json:"contributorCounts"`
+	CreatedAt                  time.Time                     `json:"createdAt"`
+	Description                string                        `json:"description"`
+	EndDate                    OptDateTime                   `json:"endDate"`
+	HasSharedLink              bool                          `json:"hasSharedLink"`
+	ID                         string                        `json:"id"`
+	IsActivityEnabled          bool                          `json:"isActivityEnabled"`
+	LastModifiedAssetTimestamp OptDateTime                   `json:"lastModifiedAssetTimestamp"`
+	Order                      OptAssetOrder                 `json:"order"`
+	Owner                      UserResponseDto               `json:"owner"`
+	OwnerId                    string                        `json:"ownerId"`
+	Shared                     bool                          `json:"shared"`
+	StartDate                  OptDateTime                   `json:"startDate"`
+	UpdatedAt                  time.Time                     `json:"updatedAt"`
 }
 
 // GetAlbumName returns the value of AlbumName.
@@ -383,6 +394,11 @@ func (s *AlbumResponseDto) GetAssetCount() int {
 // GetAssets returns the value of Assets.
 func (s *AlbumResponseDto) GetAssets() []AssetResponseDto {
 	return s.Assets
+}
+
+// GetContributorCounts returns the value of ContributorCounts.
+func (s *AlbumResponseDto) GetContributorCounts() []ContributorCountResponseDto {
+	return s.ContributorCounts
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -473,6 +489,11 @@ func (s *AlbumResponseDto) SetAssetCount(val int) {
 // SetAssets sets the value of Assets.
 func (s *AlbumResponseDto) SetAssets(val []AssetResponseDto) {
 	s.Assets = val
+}
+
+// SetContributorCounts sets the value of ContributorCounts.
+func (s *AlbumResponseDto) SetContributorCounts(val []ContributorCountResponseDto) {
+	s.ContributorCounts = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -697,6 +718,88 @@ func (s *AlbumUserRole) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/AlbumsAddAssetsDto
+type AlbumsAddAssetsDto struct {
+	AlbumIds []uuid.UUID `json:"albumIds"`
+	AssetIds []uuid.UUID `json:"assetIds"`
+}
+
+// GetAlbumIds returns the value of AlbumIds.
+func (s *AlbumsAddAssetsDto) GetAlbumIds() []uuid.UUID {
+	return s.AlbumIds
+}
+
+// GetAssetIds returns the value of AssetIds.
+func (s *AlbumsAddAssetsDto) GetAssetIds() []uuid.UUID {
+	return s.AssetIds
+}
+
+// SetAlbumIds sets the value of AlbumIds.
+func (s *AlbumsAddAssetsDto) SetAlbumIds(val []uuid.UUID) {
+	s.AlbumIds = val
+}
+
+// SetAssetIds sets the value of AssetIds.
+func (s *AlbumsAddAssetsDto) SetAssetIds(val []uuid.UUID) {
+	s.AssetIds = val
+}
+
+// Ref: #/components/schemas/AlbumsAddAssetsResponseDto
+type AlbumsAddAssetsResponseDto struct {
+	Error   OptBulkIdErrorReason `json:"error"`
+	Success bool                 `json:"success"`
+}
+
+// GetError returns the value of Error.
+func (s *AlbumsAddAssetsResponseDto) GetError() OptBulkIdErrorReason {
+	return s.Error
+}
+
+// GetSuccess returns the value of Success.
+func (s *AlbumsAddAssetsResponseDto) GetSuccess() bool {
+	return s.Success
+}
+
+// SetError sets the value of Error.
+func (s *AlbumsAddAssetsResponseDto) SetError(val OptBulkIdErrorReason) {
+	s.Error = val
+}
+
+// SetSuccess sets the value of Success.
+func (s *AlbumsAddAssetsResponseDto) SetSuccess(val bool) {
+	s.Success = val
+}
+
+// Ref: #/components/schemas/AlbumsResponse
+type AlbumsResponse struct {
+	DefaultAssetOrder AssetOrder `json:"defaultAssetOrder"`
+}
+
+// GetDefaultAssetOrder returns the value of DefaultAssetOrder.
+func (s *AlbumsResponse) GetDefaultAssetOrder() AssetOrder {
+	return s.DefaultAssetOrder
+}
+
+// SetDefaultAssetOrder sets the value of DefaultAssetOrder.
+func (s *AlbumsResponse) SetDefaultAssetOrder(val AssetOrder) {
+	s.DefaultAssetOrder = val
+}
+
+// Ref: #/components/schemas/AlbumsUpdate
+type AlbumsUpdate struct {
+	DefaultAssetOrder OptAssetOrder `json:"defaultAssetOrder"`
+}
+
+// GetDefaultAssetOrder returns the value of DefaultAssetOrder.
+func (s *AlbumsUpdate) GetDefaultAssetOrder() OptAssetOrder {
+	return s.DefaultAssetOrder
+}
+
+// SetDefaultAssetOrder sets the value of DefaultAssetOrder.
+func (s *AlbumsUpdate) SetDefaultAssetOrder(val OptAssetOrder) {
+	s.DefaultAssetOrder = val
+}
+
 // Ref: #/components/schemas/AllJobStatusResponseDto
 type AllJobStatusResponseDto struct {
 	BackgroundTask           JobStatusDto `json:"backgroundTask"`
@@ -895,6 +998,7 @@ func (s *AssetBulkDeleteDto) SetIds(val []uuid.UUID) {
 // Ref: #/components/schemas/AssetBulkUpdateDto
 type AssetBulkUpdateDto struct {
 	DateTimeOriginal OptString          `json:"dateTimeOriginal"`
+	DateTimeRelative OptFloat64         `json:"dateTimeRelative"`
 	Description      OptString          `json:"description"`
 	DuplicateId      OptNilString       `json:"duplicateId"`
 	Ids              []uuid.UUID        `json:"ids"`
@@ -902,12 +1006,18 @@ type AssetBulkUpdateDto struct {
 	Latitude         OptFloat64         `json:"latitude"`
 	Longitude        OptFloat64         `json:"longitude"`
 	Rating           OptFloat64         `json:"rating"`
+	TimeZone         OptString          `json:"timeZone"`
 	Visibility       OptAssetVisibility `json:"visibility"`
 }
 
 // GetDateTimeOriginal returns the value of DateTimeOriginal.
 func (s *AssetBulkUpdateDto) GetDateTimeOriginal() OptString {
 	return s.DateTimeOriginal
+}
+
+// GetDateTimeRelative returns the value of DateTimeRelative.
+func (s *AssetBulkUpdateDto) GetDateTimeRelative() OptFloat64 {
+	return s.DateTimeRelative
 }
 
 // GetDescription returns the value of Description.
@@ -945,6 +1055,11 @@ func (s *AssetBulkUpdateDto) GetRating() OptFloat64 {
 	return s.Rating
 }
 
+// GetTimeZone returns the value of TimeZone.
+func (s *AssetBulkUpdateDto) GetTimeZone() OptString {
+	return s.TimeZone
+}
+
 // GetVisibility returns the value of Visibility.
 func (s *AssetBulkUpdateDto) GetVisibility() OptAssetVisibility {
 	return s.Visibility
@@ -953,6 +1068,11 @@ func (s *AssetBulkUpdateDto) GetVisibility() OptAssetVisibility {
 // SetDateTimeOriginal sets the value of DateTimeOriginal.
 func (s *AssetBulkUpdateDto) SetDateTimeOriginal(val OptString) {
 	s.DateTimeOriginal = val
+}
+
+// SetDateTimeRelative sets the value of DateTimeRelative.
+func (s *AssetBulkUpdateDto) SetDateTimeRelative(val OptFloat64) {
+	s.DateTimeRelative = val
 }
 
 // SetDescription sets the value of Description.
@@ -988,6 +1108,11 @@ func (s *AssetBulkUpdateDto) SetLongitude(val OptFloat64) {
 // SetRating sets the value of Rating.
 func (s *AssetBulkUpdateDto) SetRating(val OptFloat64) {
 	s.Rating = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *AssetBulkUpdateDto) SetTimeZone(val OptString) {
+	s.TimeZone = val
 }
 
 // SetVisibility sets the value of Visibility.
@@ -1831,16 +1956,18 @@ func (s *AssetJobsDto) SetName(val AssetJobName) {
 
 // Ref: #/components/schemas/AssetMediaCreateDto
 type AssetMediaCreateDtoMultipart struct {
-	AssetData        ht.MultipartFile   `json:"assetData"`
-	DeviceAssetId    string             `json:"deviceAssetId"`
-	DeviceId         string             `json:"deviceId"`
-	Duration         OptString          `json:"duration"`
-	FileCreatedAt    time.Time          `json:"fileCreatedAt"`
-	FileModifiedAt   time.Time          `json:"fileModifiedAt"`
-	IsFavorite       OptBool            `json:"isFavorite"`
-	LivePhotoVideoId OptUUID            `json:"livePhotoVideoId"`
-	SidecarData      OptMultipartFile   `json:"sidecarData"`
-	Visibility       OptAssetVisibility `json:"visibility"`
+	AssetData        ht.MultipartFile             `json:"assetData"`
+	DeviceAssetId    string                       `json:"deviceAssetId"`
+	DeviceId         string                       `json:"deviceId"`
+	Duration         OptString                    `json:"duration"`
+	FileCreatedAt    time.Time                    `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time                    `json:"fileModifiedAt"`
+	Filename         OptString                    `json:"filename"`
+	IsFavorite       OptBool                      `json:"isFavorite"`
+	LivePhotoVideoId OptUUID                      `json:"livePhotoVideoId"`
+	Metadata         []AssetMetadataUpsertItemDto `json:"metadata"`
+	SidecarData      OptMultipartFile             `json:"sidecarData"`
+	Visibility       OptAssetVisibility           `json:"visibility"`
 }
 
 // GetAssetData returns the value of AssetData.
@@ -1873,6 +2000,11 @@ func (s *AssetMediaCreateDtoMultipart) GetFileModifiedAt() time.Time {
 	return s.FileModifiedAt
 }
 
+// GetFilename returns the value of Filename.
+func (s *AssetMediaCreateDtoMultipart) GetFilename() OptString {
+	return s.Filename
+}
+
 // GetIsFavorite returns the value of IsFavorite.
 func (s *AssetMediaCreateDtoMultipart) GetIsFavorite() OptBool {
 	return s.IsFavorite
@@ -1881,6 +2013,11 @@ func (s *AssetMediaCreateDtoMultipart) GetIsFavorite() OptBool {
 // GetLivePhotoVideoId returns the value of LivePhotoVideoId.
 func (s *AssetMediaCreateDtoMultipart) GetLivePhotoVideoId() OptUUID {
 	return s.LivePhotoVideoId
+}
+
+// GetMetadata returns the value of Metadata.
+func (s *AssetMediaCreateDtoMultipart) GetMetadata() []AssetMetadataUpsertItemDto {
+	return s.Metadata
 }
 
 // GetSidecarData returns the value of SidecarData.
@@ -1923,6 +2060,11 @@ func (s *AssetMediaCreateDtoMultipart) SetFileModifiedAt(val time.Time) {
 	s.FileModifiedAt = val
 }
 
+// SetFilename sets the value of Filename.
+func (s *AssetMediaCreateDtoMultipart) SetFilename(val OptString) {
+	s.Filename = val
+}
+
 // SetIsFavorite sets the value of IsFavorite.
 func (s *AssetMediaCreateDtoMultipart) SetIsFavorite(val OptBool) {
 	s.IsFavorite = val
@@ -1931,6 +2073,11 @@ func (s *AssetMediaCreateDtoMultipart) SetIsFavorite(val OptBool) {
 // SetLivePhotoVideoId sets the value of LivePhotoVideoId.
 func (s *AssetMediaCreateDtoMultipart) SetLivePhotoVideoId(val OptUUID) {
 	s.LivePhotoVideoId = val
+}
+
+// SetMetadata sets the value of Metadata.
+func (s *AssetMediaCreateDtoMultipart) SetMetadata(val []AssetMetadataUpsertItemDto) {
+	s.Metadata = val
 }
 
 // SetSidecarData sets the value of SidecarData.
@@ -1951,6 +2098,7 @@ type AssetMediaReplaceDtoMultipart struct {
 	Duration       OptString        `json:"duration"`
 	FileCreatedAt  time.Time        `json:"fileCreatedAt"`
 	FileModifiedAt time.Time        `json:"fileModifiedAt"`
+	Filename       OptString        `json:"filename"`
 }
 
 // GetAssetData returns the value of AssetData.
@@ -1983,6 +2131,11 @@ func (s *AssetMediaReplaceDtoMultipart) GetFileModifiedAt() time.Time {
 	return s.FileModifiedAt
 }
 
+// GetFilename returns the value of Filename.
+func (s *AssetMediaReplaceDtoMultipart) GetFilename() OptString {
+	return s.Filename
+}
+
 // SetAssetData sets the value of AssetData.
 func (s *AssetMediaReplaceDtoMultipart) SetAssetData(val ht.MultipartFile) {
 	s.AssetData = val
@@ -2011,6 +2164,11 @@ func (s *AssetMediaReplaceDtoMultipart) SetFileCreatedAt(val time.Time) {
 // SetFileModifiedAt sets the value of FileModifiedAt.
 func (s *AssetMediaReplaceDtoMultipart) SetFileModifiedAt(val time.Time) {
 	s.FileModifiedAt = val
+}
+
+// SetFilename sets the value of Filename.
+func (s *AssetMediaReplaceDtoMultipart) SetFilename(val OptString) {
+	s.Filename = val
 }
 
 // Ref: #/components/schemas/AssetMediaResponseDto
@@ -2137,6 +2295,123 @@ func (s *AssetMediaStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/AssetMetadataKey
+type AssetMetadataKey string
+
+const (
+	AssetMetadataKeyMobileApp AssetMetadataKey = "mobile-app"
+)
+
+// AllValues returns all AssetMetadataKey values.
+func (AssetMetadataKey) AllValues() []AssetMetadataKey {
+	return []AssetMetadataKey{
+		AssetMetadataKeyMobileApp,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AssetMetadataKey) MarshalText() ([]byte, error) {
+	switch s {
+	case AssetMetadataKeyMobileApp:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AssetMetadataKey) UnmarshalText(data []byte) error {
+	switch AssetMetadataKey(data) {
+	case AssetMetadataKeyMobileApp:
+		*s = AssetMetadataKeyMobileApp
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AssetMetadataResponseDto
+type AssetMetadataResponseDto struct {
+	Key       AssetMetadataKey              `json:"key"`
+	UpdatedAt time.Time                     `json:"updatedAt"`
+	Value     AssetMetadataResponseDtoValue `json:"value"`
+}
+
+// GetKey returns the value of Key.
+func (s *AssetMetadataResponseDto) GetKey() AssetMetadataKey {
+	return s.Key
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *AssetMetadataResponseDto) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetValue returns the value of Value.
+func (s *AssetMetadataResponseDto) GetValue() AssetMetadataResponseDtoValue {
+	return s.Value
+}
+
+// SetKey sets the value of Key.
+func (s *AssetMetadataResponseDto) SetKey(val AssetMetadataKey) {
+	s.Key = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *AssetMetadataResponseDto) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetValue sets the value of Value.
+func (s *AssetMetadataResponseDto) SetValue(val AssetMetadataResponseDtoValue) {
+	s.Value = val
+}
+
+type AssetMetadataResponseDtoValue struct{}
+
+// Ref: #/components/schemas/AssetMetadataUpsertDto
+type AssetMetadataUpsertDto struct {
+	Items []AssetMetadataUpsertItemDto `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *AssetMetadataUpsertDto) GetItems() []AssetMetadataUpsertItemDto {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *AssetMetadataUpsertDto) SetItems(val []AssetMetadataUpsertItemDto) {
+	s.Items = val
+}
+
+// Ref: #/components/schemas/AssetMetadataUpsertItemDto
+type AssetMetadataUpsertItemDto struct {
+	Key   AssetMetadataKey                `json:"key"`
+	Value AssetMetadataUpsertItemDtoValue `json:"value"`
+}
+
+// GetKey returns the value of Key.
+func (s *AssetMetadataUpsertItemDto) GetKey() AssetMetadataKey {
+	return s.Key
+}
+
+// GetValue returns the value of Value.
+func (s *AssetMetadataUpsertItemDto) GetValue() AssetMetadataUpsertItemDtoValue {
+	return s.Value
+}
+
+// SetKey sets the value of Key.
+func (s *AssetMetadataUpsertItemDto) SetKey(val AssetMetadataKey) {
+	s.Key = val
+}
+
+// SetValue sets the value of Value.
+func (s *AssetMetadataUpsertItemDto) SetValue(val AssetMetadataUpsertItemDtoValue) {
+	s.Value = val
+}
+
+type AssetMetadataUpsertItemDtoValue struct{}
+
 // Ref: #/components/schemas/AssetOrder
 type AssetOrder string
 
@@ -2182,25 +2457,35 @@ func (s *AssetOrder) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/AssetResponseDto
 type AssetResponseDto struct {
 	// Base64 encoded sha1 hash.
-	Checksum       string             `json:"checksum"`
-	DeviceAssetId  string             `json:"deviceAssetId"`
-	DeviceId       string             `json:"deviceId"`
-	DuplicateId    OptNilString       `json:"duplicateId"`
-	Duration       string             `json:"duration"`
-	ExifInfo       OptExifResponseDto `json:"exifInfo"`
-	FileCreatedAt  time.Time          `json:"fileCreatedAt"`
-	FileModifiedAt time.Time          `json:"fileModifiedAt"`
-	HasMetadata    bool               `json:"hasMetadata"`
-	ID             string             `json:"id"`
-	IsArchived     bool               `json:"isArchived"`
-	IsFavorite     bool               `json:"isFavorite"`
-	IsOffline      bool               `json:"isOffline"`
-	IsTrashed      bool               `json:"isTrashed"`
+	Checksum string `json:"checksum"`
+	// The UTC timestamp when the asset was originally uploaded to Immich.
+	CreatedAt     time.Time          `json:"createdAt"`
+	DeviceAssetId string             `json:"deviceAssetId"`
+	DeviceId      string             `json:"deviceId"`
+	DuplicateId   OptNilString       `json:"duplicateId"`
+	Duration      string             `json:"duration"`
+	ExifInfo      OptExifResponseDto `json:"exifInfo"`
+	// The actual UTC timestamp when the file was created/captured, preserving timezone information. This
+	// is the authoritative timestamp for chronological sorting within timeline groups. Combined with
+	// timezone data, this can be used to determine the exact moment the photo was taken.
+	FileCreatedAt time.Time `json:"fileCreatedAt"`
+	// The UTC timestamp when the file was last modified on the filesystem. This reflects the last time
+	// the physical file was changed, which may be different from when the photo was originally taken.
+	FileModifiedAt time.Time `json:"fileModifiedAt"`
+	HasMetadata    bool      `json:"hasMetadata"`
+	ID             string    `json:"id"`
+	IsArchived     bool      `json:"isArchived"`
+	IsFavorite     bool      `json:"isFavorite"`
+	IsOffline      bool      `json:"isOffline"`
+	IsTrashed      bool      `json:"isTrashed"`
 	// This property was deprecated in v1.106.0.
 	//
 	// Deprecated: schema marks this property as deprecated.
-	LibraryId        OptNilString                 `json:"libraryId"`
-	LivePhotoVideoId OptNilString                 `json:"livePhotoVideoId"`
+	LibraryId        OptNilString `json:"libraryId"`
+	LivePhotoVideoId OptNilString `json:"livePhotoVideoId"`
+	// The local date and time when the photo/video was taken, derived from EXIF metadata. This
+	// represents the photographer's local time regardless of timezone, stored as a timezone-agnostic
+	// timestamp. Used for timeline grouping by "local" days and months.
 	LocalDateTime    time.Time                    `json:"localDateTime"`
 	OriginalFileName string                       `json:"originalFileName"`
 	OriginalMimeType OptString                    `json:"originalMimeType"`
@@ -2217,13 +2502,20 @@ type AssetResponseDto struct {
 	Thumbhash       NilString                           `json:"thumbhash"`
 	Type            AssetTypeEnum                       `json:"type"`
 	UnassignedFaces []AssetFaceWithoutPersonResponseDto `json:"unassignedFaces"`
-	UpdatedAt       time.Time                           `json:"updatedAt"`
-	Visibility      AssetVisibility                     `json:"visibility"`
+	// The UTC timestamp when the asset record was last updated in the database. This is automatically
+	// maintained by the database and reflects when any field in the asset was last modified.
+	UpdatedAt  time.Time       `json:"updatedAt"`
+	Visibility AssetVisibility `json:"visibility"`
 }
 
 // GetChecksum returns the value of Checksum.
 func (s *AssetResponseDto) GetChecksum() string {
 	return s.Checksum
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *AssetResponseDto) GetCreatedAt() time.Time {
+	return s.CreatedAt
 }
 
 // GetDeviceAssetId returns the value of DeviceAssetId.
@@ -2379,6 +2671,11 @@ func (s *AssetResponseDto) GetVisibility() AssetVisibility {
 // SetChecksum sets the value of Checksum.
 func (s *AssetResponseDto) SetChecksum(val string) {
 	s.Checksum = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *AssetResponseDto) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
 }
 
 // SetDeviceAssetId sets the value of DeviceAssetId.
@@ -2872,6 +3169,62 @@ func (s *Bearer) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// Ref: #/components/schemas/BulkIdErrorReason
+type BulkIdErrorReason string
+
+const (
+	BulkIdErrorReasonDuplicate    BulkIdErrorReason = "duplicate"
+	BulkIdErrorReasonNoPermission BulkIdErrorReason = "no_permission"
+	BulkIdErrorReasonNotFound     BulkIdErrorReason = "not_found"
+	BulkIdErrorReasonUnknown      BulkIdErrorReason = "unknown"
+)
+
+// AllValues returns all BulkIdErrorReason values.
+func (BulkIdErrorReason) AllValues() []BulkIdErrorReason {
+	return []BulkIdErrorReason{
+		BulkIdErrorReasonDuplicate,
+		BulkIdErrorReasonNoPermission,
+		BulkIdErrorReasonNotFound,
+		BulkIdErrorReasonUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BulkIdErrorReason) MarshalText() ([]byte, error) {
+	switch s {
+	case BulkIdErrorReasonDuplicate:
+		return []byte(s), nil
+	case BulkIdErrorReasonNoPermission:
+		return []byte(s), nil
+	case BulkIdErrorReasonNotFound:
+		return []byte(s), nil
+	case BulkIdErrorReasonUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BulkIdErrorReason) UnmarshalText(data []byte) error {
+	switch BulkIdErrorReason(data) {
+	case BulkIdErrorReasonDuplicate:
+		*s = BulkIdErrorReasonDuplicate
+		return nil
+	case BulkIdErrorReasonNoPermission:
+		*s = BulkIdErrorReasonNoPermission
+		return nil
+	case BulkIdErrorReasonNotFound:
+		*s = BulkIdErrorReasonNotFound
+		return nil
+	case BulkIdErrorReasonUnknown:
+		*s = BulkIdErrorReasonUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BulkIdResponseDto
 type BulkIdResponseDto struct {
 	Error   OptBulkIdResponseDtoError `json:"error"`
@@ -3110,8 +3463,8 @@ func (s *ChangePasswordDto) SetPassword(val string) {
 	s.Password = val
 }
 
-// ChangePinCodeOK is response for ChangePinCode operation.
-type ChangePinCodeOK struct{}
+// ChangePinCodeNoContent is response for ChangePinCode operation.
+type ChangePinCodeNoContent struct{}
 
 // Ref: #/components/schemas/CheckExistingAssetsDto
 type CheckExistingAssetsDto struct {
@@ -3196,6 +3549,32 @@ func (s *Colorspace) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ContributorCountResponseDto
+type ContributorCountResponseDto struct {
+	AssetCount int    `json:"assetCount"`
+	UserId     string `json:"userId"`
+}
+
+// GetAssetCount returns the value of AssetCount.
+func (s *ContributorCountResponseDto) GetAssetCount() int {
+	return s.AssetCount
+}
+
+// GetUserId returns the value of UserId.
+func (s *ContributorCountResponseDto) GetUserId() string {
+	return s.UserId
+}
+
+// SetAssetCount sets the value of AssetCount.
+func (s *ContributorCountResponseDto) SetAssetCount(val int) {
+	s.AssetCount = val
+}
+
+// SetUserId sets the value of UserId.
+func (s *ContributorCountResponseDto) SetUserId(val string) {
+	s.UserId = val
+}
+
 type Cookie struct {
 	APIKey string
 	Roles  []string
@@ -3272,8 +3651,8 @@ func (s *CreateAlbumDto) SetDescription(val OptString) {
 // CreateFaceCreated is response for CreateFace operation.
 type CreateFaceCreated struct{}
 
-// CreateJobCreated is response for CreateJob operation.
-type CreateJobCreated struct{}
+// CreateJobNoContent is response for CreateJob operation.
+type CreateJobNoContent struct{}
 
 // Ref: #/components/schemas/CreateLibraryDto
 type CreateLibraryDto struct {
@@ -3415,8 +3794,8 @@ func (s *DatabaseBackupConfig) SetKeepLastAmount(val float64) {
 // DeleteActivityNoContent is response for DeleteActivity operation.
 type DeleteActivityNoContent struct{}
 
-// DeleteAlbumOK is response for DeleteAlbum operation.
-type DeleteAlbumOK struct{}
+// DeleteAlbumNoContent is response for DeleteAlbum operation.
+type DeleteAlbumNoContent struct{}
 
 // DeleteAllSessionsNoContent is response for DeleteAllSessions operation.
 type DeleteAllSessionsNoContent struct{}
@@ -3424,11 +3803,20 @@ type DeleteAllSessionsNoContent struct{}
 // DeleteApiKeyNoContent is response for DeleteApiKey operation.
 type DeleteApiKeyNoContent struct{}
 
+// DeleteAssetMetadataNoContent is response for DeleteAssetMetadata operation.
+type DeleteAssetMetadataNoContent struct{}
+
 // DeleteAssetsNoContent is response for DeleteAssets operation.
 type DeleteAssetsNoContent struct{}
 
-// DeleteFaceOK is response for DeleteFace operation.
-type DeleteFaceOK struct{}
+// DeleteDuplicateNoContent is response for DeleteDuplicate operation.
+type DeleteDuplicateNoContent struct{}
+
+// DeleteDuplicatesNoContent is response for DeleteDuplicates operation.
+type DeleteDuplicatesNoContent struct{}
+
+// DeleteFaceNoContent is response for DeleteFace operation.
+type DeleteFaceNoContent struct{}
 
 // DeleteLibraryNoContent is response for DeleteLibrary operation.
 type DeleteLibraryNoContent struct{}
@@ -3436,17 +3824,23 @@ type DeleteLibraryNoContent struct{}
 // DeleteMemoryNoContent is response for DeleteMemory operation.
 type DeleteMemoryNoContent struct{}
 
-// DeleteNotificationOK is response for DeleteNotification operation.
-type DeleteNotificationOK struct{}
+// DeleteNotificationNoContent is response for DeleteNotification operation.
+type DeleteNotificationNoContent struct{}
 
-// DeleteNotificationsOK is response for DeleteNotifications operation.
-type DeleteNotificationsOK struct{}
+// DeleteNotificationsNoContent is response for DeleteNotifications operation.
+type DeleteNotificationsNoContent struct{}
+
+// DeletePeopleNoContent is response for DeletePeople operation.
+type DeletePeopleNoContent struct{}
+
+// DeletePersonNoContent is response for DeletePerson operation.
+type DeletePersonNoContent struct{}
 
 // DeleteProfileImageNoContent is response for DeleteProfileImage operation.
 type DeleteProfileImageNoContent struct{}
 
-// DeleteServerLicenseOK is response for DeleteServerLicense operation.
-type DeleteServerLicenseOK struct{}
+// DeleteServerLicenseNoContent is response for DeleteServerLicense operation.
+type DeleteServerLicenseNoContent struct{}
 
 // DeleteSessionNoContent is response for DeleteSession operation.
 type DeleteSessionNoContent struct{}
@@ -3463,11 +3857,11 @@ type DeleteSyncAckNoContent struct{}
 // DeleteTagNoContent is response for DeleteTag operation.
 type DeleteTagNoContent struct{}
 
-// DeleteUserLicenseOK is response for DeleteUserLicense operation.
-type DeleteUserLicenseOK struct{}
+// DeleteUserLicenseNoContent is response for DeleteUserLicense operation.
+type DeleteUserLicenseNoContent struct{}
 
-// DeleteUserOnboardingOK is response for DeleteUserOnboarding operation.
-type DeleteUserOnboardingOK struct{}
+// DeleteUserOnboardingNoContent is response for DeleteUserOnboarding operation.
+type DeleteUserOnboardingNoContent struct{}
 
 // Ref: #/components/schemas/DownloadArchiveInfo
 type DownloadArchiveInfo struct {
@@ -4789,8 +5183,8 @@ func (s *LicenseResponseDto) SetLicenseKey(val string) {
 
 func (*LicenseResponseDto) getServerLicenseRes() {}
 
-// LockAuthSessionOK is response for LockAuthSession operation.
-type LockAuthSessionOK struct{}
+// LockAuthSessionNoContent is response for LockAuthSession operation.
+type LockAuthSessionNoContent struct{}
 
 // LockSessionNoContent is response for LockSession operation.
 type LockSessionNoContent struct{}
@@ -5007,6 +5401,43 @@ func (s *LogoutResponseDto) SetRedirectUri(val string) {
 // SetSuccessful sets the value of Successful.
 func (s *LogoutResponseDto) SetSuccessful(val bool) {
 	s.Successful = val
+}
+
+// Ref: #/components/schemas/MachineLearningAvailabilityChecksDto
+type MachineLearningAvailabilityChecksDto struct {
+	Enabled  bool    `json:"enabled"`
+	Interval float64 `json:"interval"`
+	Timeout  float64 `json:"timeout"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *MachineLearningAvailabilityChecksDto) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetInterval returns the value of Interval.
+func (s *MachineLearningAvailabilityChecksDto) GetInterval() float64 {
+	return s.Interval
+}
+
+// GetTimeout returns the value of Timeout.
+func (s *MachineLearningAvailabilityChecksDto) GetTimeout() float64 {
+	return s.Timeout
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *MachineLearningAvailabilityChecksDto) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetInterval sets the value of Interval.
+func (s *MachineLearningAvailabilityChecksDto) SetInterval(val float64) {
+	s.Interval = val
+}
+
+// SetTimeout sets the value of Timeout.
+func (s *MachineLearningAvailabilityChecksDto) SetTimeout(val float64) {
+	s.Timeout = val
 }
 
 // Ref: #/components/schemas/ManualJobName
@@ -5433,6 +5864,21 @@ func (s *MemoryResponseDto) SetUpdatedAt(val time.Time) {
 	s.UpdatedAt = val
 }
 
+// Ref: #/components/schemas/MemoryStatisticsResponseDto
+type MemoryStatisticsResponseDto struct {
+	Total int `json:"total"`
+}
+
+// GetTotal returns the value of Total.
+func (s *MemoryStatisticsResponseDto) GetTotal() int {
+	return s.Total
+}
+
+// SetTotal sets the value of Total.
+func (s *MemoryStatisticsResponseDto) SetTotal(val int) {
+	s.Total = val
+}
+
 // Ref: #/components/schemas/MemoryType
 type MemoryType string
 
@@ -5522,6 +5968,7 @@ func (s *MergePersonDto) SetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/MetadataSearchDto
 type MetadataSearchDto struct {
+	AlbumIds         []uuid.UUID        `json:"albumIds"`
 	Checksum         OptString          `json:"checksum"`
 	City             OptNilString       `json:"city"`
 	Country          OptNilString       `json:"country"`
@@ -5550,7 +5997,7 @@ type MetadataSearchDto struct {
 	Rating           OptFloat64         `json:"rating"`
 	Size             OptFloat64         `json:"size"`
 	State            OptNilString       `json:"state"`
-	TagIds           []uuid.UUID        `json:"tagIds"`
+	TagIds           OptNilUUIDArray    `json:"tagIds"`
 	TakenAfter       OptDateTime        `json:"takenAfter"`
 	TakenBefore      OptDateTime        `json:"takenBefore"`
 	ThumbnailPath    OptString          `json:"thumbnailPath"`
@@ -5564,6 +6011,11 @@ type MetadataSearchDto struct {
 	WithExif         OptBool            `json:"withExif"`
 	WithPeople       OptBool            `json:"withPeople"`
 	WithStacked      OptBool            `json:"withStacked"`
+}
+
+// GetAlbumIds returns the value of AlbumIds.
+func (s *MetadataSearchDto) GetAlbumIds() []uuid.UUID {
+	return s.AlbumIds
 }
 
 // GetChecksum returns the value of Checksum.
@@ -5707,7 +6159,7 @@ func (s *MetadataSearchDto) GetState() OptNilString {
 }
 
 // GetTagIds returns the value of TagIds.
-func (s *MetadataSearchDto) GetTagIds() []uuid.UUID {
+func (s *MetadataSearchDto) GetTagIds() OptNilUUIDArray {
 	return s.TagIds
 }
 
@@ -5774,6 +6226,11 @@ func (s *MetadataSearchDto) GetWithPeople() OptBool {
 // GetWithStacked returns the value of WithStacked.
 func (s *MetadataSearchDto) GetWithStacked() OptBool {
 	return s.WithStacked
+}
+
+// SetAlbumIds sets the value of AlbumIds.
+func (s *MetadataSearchDto) SetAlbumIds(val []uuid.UUID) {
+	s.AlbumIds = val
 }
 
 // SetChecksum sets the value of Checksum.
@@ -5917,7 +6374,7 @@ func (s *MetadataSearchDto) SetState(val OptNilString) {
 }
 
 // SetTagIds sets the value of TagIds.
-func (s *MetadataSearchDto) SetTagIds(val []uuid.UUID) {
+func (s *MetadataSearchDto) SetTagIds(val OptNilUUIDArray) {
 	s.TagIds = val
 }
 
@@ -6070,6 +6527,51 @@ func (o NilDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFloat64 returns new NilFloat64 with value set to v.
+func NewNilFloat64(v float64) NilFloat64 {
+	return NilFloat64{
+		Value: v,
+	}
+}
+
+// NilFloat64 is nullable float64.
+type NilFloat64 struct {
+	Value float64
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFloat64) SetTo(v float64) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFloat64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFloat64) SetToNull() {
+	o.Null = true
+	var v float64
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFloat64) Get() (v float64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFloat64) Or(d float64) float64 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -6511,6 +7013,8 @@ const (
 	NotificationTypeJobFailed     NotificationType = "JobFailed"
 	NotificationTypeBackupFailed  NotificationType = "BackupFailed"
 	NotificationTypeSystemMessage NotificationType = "SystemMessage"
+	NotificationTypeAlbumInvite   NotificationType = "AlbumInvite"
+	NotificationTypeAlbumUpdate   NotificationType = "AlbumUpdate"
 	NotificationTypeCustom        NotificationType = "Custom"
 )
 
@@ -6520,6 +7024,8 @@ func (NotificationType) AllValues() []NotificationType {
 		NotificationTypeJobFailed,
 		NotificationTypeBackupFailed,
 		NotificationTypeSystemMessage,
+		NotificationTypeAlbumInvite,
+		NotificationTypeAlbumUpdate,
 		NotificationTypeCustom,
 	}
 }
@@ -6532,6 +7038,10 @@ func (s NotificationType) MarshalText() ([]byte, error) {
 	case NotificationTypeBackupFailed:
 		return []byte(s), nil
 	case NotificationTypeSystemMessage:
+		return []byte(s), nil
+	case NotificationTypeAlbumInvite:
+		return []byte(s), nil
+	case NotificationTypeAlbumUpdate:
 		return []byte(s), nil
 	case NotificationTypeCustom:
 		return []byte(s), nil
@@ -6551,6 +7061,12 @@ func (s *NotificationType) UnmarshalText(data []byte) error {
 		return nil
 	case NotificationTypeSystemMessage:
 		*s = NotificationTypeSystemMessage
+		return nil
+	case NotificationTypeAlbumInvite:
+		*s = NotificationTypeAlbumInvite
+		return nil
+	case NotificationTypeAlbumUpdate:
+		*s = NotificationTypeAlbumUpdate
 		return nil
 	case NotificationTypeCustom:
 		*s = NotificationTypeCustom
@@ -6863,6 +7379,52 @@ func (o OptAlbumUserRole) Get() (v AlbumUserRole, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptAlbumUserRole) Or(d AlbumUserRole) AlbumUserRole {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAlbumsUpdate returns new OptAlbumsUpdate with value set to v.
+func NewOptAlbumsUpdate(v AlbumsUpdate) OptAlbumsUpdate {
+	return OptAlbumsUpdate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAlbumsUpdate is optional AlbumsUpdate.
+type OptAlbumsUpdate struct {
+	Value AlbumsUpdate
+	Set   bool
+}
+
+// IsSet returns true if OptAlbumsUpdate was set.
+func (o OptAlbumsUpdate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAlbumsUpdate) Reset() {
+	var v AlbumsUpdate
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAlbumsUpdate) SetTo(v AlbumsUpdate) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAlbumsUpdate) Get() (v AlbumsUpdate, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAlbumsUpdate) Or(d AlbumsUpdate) AlbumsUpdate {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7231,6 +7793,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBulkIdErrorReason returns new OptBulkIdErrorReason with value set to v.
+func NewOptBulkIdErrorReason(v BulkIdErrorReason) OptBulkIdErrorReason {
+	return OptBulkIdErrorReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBulkIdErrorReason is optional BulkIdErrorReason.
+type OptBulkIdErrorReason struct {
+	Value BulkIdErrorReason
+	Set   bool
+}
+
+// IsSet returns true if OptBulkIdErrorReason was set.
+func (o OptBulkIdErrorReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBulkIdErrorReason) Reset() {
+	var v BulkIdErrorReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBulkIdErrorReason) SetTo(v BulkIdErrorReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBulkIdErrorReason) Get() (v BulkIdErrorReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBulkIdErrorReason) Or(d BulkIdErrorReason) BulkIdErrorReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8230,6 +8838,69 @@ func (o OptNilUUID) Or(d uuid.UUID) uuid.UUID {
 	return d
 }
 
+// NewOptNilUUIDArray returns new OptNilUUIDArray with value set to v.
+func NewOptNilUUIDArray(v []uuid.UUID) OptNilUUIDArray {
+	return OptNilUUIDArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilUUIDArray is optional nullable []uuid.UUID.
+type OptNilUUIDArray struct {
+	Value []uuid.UUID
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilUUIDArray was set.
+func (o OptNilUUIDArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilUUIDArray) Reset() {
+	var v []uuid.UUID
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilUUIDArray) SetTo(v []uuid.UUID) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilUUIDArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilUUIDArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []uuid.UUID
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilUUIDArray) Get() (v []uuid.UUID, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilUUIDArray) Or(d []uuid.UUID) []uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilUserAvatarColor returns new OptNilUserAvatarColor with value set to v.
 func NewOptNilUserAvatarColor(v UserAvatarColor) OptNilUserAvatarColor {
 	return OptNilUserAvatarColor{
@@ -8937,6 +9608,21 @@ func (o OptUserResponseDto) Or(d UserResponseDto) UserResponseDto {
 	return d
 }
 
+// Ref: #/components/schemas/PartnerCreateDto
+type PartnerCreateDto struct {
+	SharedWithId uuid.UUID `json:"sharedWithId"`
+}
+
+// GetSharedWithId returns the value of SharedWithId.
+func (s *PartnerCreateDto) GetSharedWithId() uuid.UUID {
+	return s.SharedWithId
+}
+
+// SetSharedWithId sets the value of SharedWithId.
+func (s *PartnerCreateDto) SetSharedWithId(val uuid.UUID) {
+	s.SharedWithId = val
+}
+
 // Ref: #/components/schemas/PartnerDirection
 type PartnerDirection string
 
@@ -9058,6 +9744,21 @@ func (s *PartnerResponseDto) SetProfileChangedAt(val time.Time) {
 // SetProfileImagePath sets the value of ProfileImagePath.
 func (s *PartnerResponseDto) SetProfileImagePath(val string) {
 	s.ProfileImagePath = val
+}
+
+// Ref: #/components/schemas/PartnerUpdateDto
+type PartnerUpdateDto struct {
+	InTimeline bool `json:"inTimeline"`
+}
+
+// GetInTimeline returns the value of InTimeline.
+func (s *PartnerUpdateDto) GetInTimeline() bool {
+	return s.InTimeline
+}
+
+// SetInTimeline sets the value of InTimeline.
+func (s *PartnerUpdateDto) SetInTimeline(val bool) {
+	s.InTimeline = val
 }
 
 // Ref: #/components/schemas/PeopleResponse
@@ -9267,90 +9968,134 @@ func (s *PeopleUpdateItem) SetName(val OptString) {
 type Permission string
 
 const (
-	PermissionAll                  Permission = "all"
-	PermissionActivityCreate       Permission = "activity.create"
-	PermissionActivityRead         Permission = "activity.read"
-	PermissionActivityUpdate       Permission = "activity.update"
-	PermissionActivityDelete       Permission = "activity.delete"
-	PermissionActivityStatistics   Permission = "activity.statistics"
-	PermissionApiKeyCreate         Permission = "apiKey.create"
-	PermissionApiKeyRead           Permission = "apiKey.read"
-	PermissionApiKeyUpdate         Permission = "apiKey.update"
-	PermissionApiKeyDelete         Permission = "apiKey.delete"
-	PermissionAssetRead            Permission = "asset.read"
-	PermissionAssetUpdate          Permission = "asset.update"
-	PermissionAssetDelete          Permission = "asset.delete"
-	PermissionAssetShare           Permission = "asset.share"
-	PermissionAssetView            Permission = "asset.view"
-	PermissionAssetDownload        Permission = "asset.download"
-	PermissionAssetUpload          Permission = "asset.upload"
-	PermissionAlbumCreate          Permission = "album.create"
-	PermissionAlbumRead            Permission = "album.read"
-	PermissionAlbumUpdate          Permission = "album.update"
-	PermissionAlbumDelete          Permission = "album.delete"
-	PermissionAlbumStatistics      Permission = "album.statistics"
-	PermissionAlbumAddAsset        Permission = "album.addAsset"
-	PermissionAlbumRemoveAsset     Permission = "album.removeAsset"
-	PermissionAlbumShare           Permission = "album.share"
-	PermissionAlbumDownload        Permission = "album.download"
-	PermissionAuthDeviceDelete     Permission = "authDevice.delete"
-	PermissionArchiveRead          Permission = "archive.read"
-	PermissionFaceCreate           Permission = "face.create"
-	PermissionFaceRead             Permission = "face.read"
-	PermissionFaceUpdate           Permission = "face.update"
-	PermissionFaceDelete           Permission = "face.delete"
-	PermissionLibraryCreate        Permission = "library.create"
-	PermissionLibraryRead          Permission = "library.read"
-	PermissionLibraryUpdate        Permission = "library.update"
-	PermissionLibraryDelete        Permission = "library.delete"
-	PermissionLibraryStatistics    Permission = "library.statistics"
-	PermissionTimelineRead         Permission = "timeline.read"
-	PermissionTimelineDownload     Permission = "timeline.download"
-	PermissionMemoryCreate         Permission = "memory.create"
-	PermissionMemoryRead           Permission = "memory.read"
-	PermissionMemoryUpdate         Permission = "memory.update"
-	PermissionMemoryDelete         Permission = "memory.delete"
-	PermissionNotificationCreate   Permission = "notification.create"
-	PermissionNotificationRead     Permission = "notification.read"
-	PermissionNotificationUpdate   Permission = "notification.update"
-	PermissionNotificationDelete   Permission = "notification.delete"
-	PermissionPartnerCreate        Permission = "partner.create"
-	PermissionPartnerRead          Permission = "partner.read"
-	PermissionPartnerUpdate        Permission = "partner.update"
-	PermissionPartnerDelete        Permission = "partner.delete"
-	PermissionPersonCreate         Permission = "person.create"
-	PermissionPersonRead           Permission = "person.read"
-	PermissionPersonUpdate         Permission = "person.update"
-	PermissionPersonDelete         Permission = "person.delete"
-	PermissionPersonStatistics     Permission = "person.statistics"
-	PermissionPersonMerge          Permission = "person.merge"
-	PermissionPersonReassign       Permission = "person.reassign"
-	PermissionSessionCreate        Permission = "session.create"
-	PermissionSessionRead          Permission = "session.read"
-	PermissionSessionUpdate        Permission = "session.update"
-	PermissionSessionDelete        Permission = "session.delete"
-	PermissionSessionLock          Permission = "session.lock"
-	PermissionSharedLinkCreate     Permission = "sharedLink.create"
-	PermissionSharedLinkRead       Permission = "sharedLink.read"
-	PermissionSharedLinkUpdate     Permission = "sharedLink.update"
-	PermissionSharedLinkDelete     Permission = "sharedLink.delete"
-	PermissionStackCreate          Permission = "stack.create"
-	PermissionStackRead            Permission = "stack.read"
-	PermissionStackUpdate          Permission = "stack.update"
-	PermissionStackDelete          Permission = "stack.delete"
-	PermissionSystemConfigRead     Permission = "systemConfig.read"
-	PermissionSystemConfigUpdate   Permission = "systemConfig.update"
-	PermissionSystemMetadataRead   Permission = "systemMetadata.read"
-	PermissionSystemMetadataUpdate Permission = "systemMetadata.update"
-	PermissionTagCreate            Permission = "tag.create"
-	PermissionTagRead              Permission = "tag.read"
-	PermissionTagUpdate            Permission = "tag.update"
-	PermissionTagDelete            Permission = "tag.delete"
-	PermissionTagAsset             Permission = "tag.asset"
-	PermissionAdminUserCreate      Permission = "admin.user.create"
-	PermissionAdminUserRead        Permission = "admin.user.read"
-	PermissionAdminUserUpdate      Permission = "admin.user.update"
-	PermissionAdminUserDelete      Permission = "admin.user.delete"
+	PermissionAll                    Permission = "all"
+	PermissionActivityCreate         Permission = "activity.create"
+	PermissionActivityRead           Permission = "activity.read"
+	PermissionActivityUpdate         Permission = "activity.update"
+	PermissionActivityDelete         Permission = "activity.delete"
+	PermissionActivityStatistics     Permission = "activity.statistics"
+	PermissionApiKeyCreate           Permission = "apiKey.create"
+	PermissionApiKeyRead             Permission = "apiKey.read"
+	PermissionApiKeyUpdate           Permission = "apiKey.update"
+	PermissionApiKeyDelete           Permission = "apiKey.delete"
+	PermissionAssetRead              Permission = "asset.read"
+	PermissionAssetUpdate            Permission = "asset.update"
+	PermissionAssetDelete            Permission = "asset.delete"
+	PermissionAssetStatistics        Permission = "asset.statistics"
+	PermissionAssetShare             Permission = "asset.share"
+	PermissionAssetView              Permission = "asset.view"
+	PermissionAssetDownload          Permission = "asset.download"
+	PermissionAssetUpload            Permission = "asset.upload"
+	PermissionAssetReplace           Permission = "asset.replace"
+	PermissionAlbumCreate            Permission = "album.create"
+	PermissionAlbumRead              Permission = "album.read"
+	PermissionAlbumUpdate            Permission = "album.update"
+	PermissionAlbumDelete            Permission = "album.delete"
+	PermissionAlbumStatistics        Permission = "album.statistics"
+	PermissionAlbumShare             Permission = "album.share"
+	PermissionAlbumDownload          Permission = "album.download"
+	PermissionAlbumAssetCreate       Permission = "albumAsset.create"
+	PermissionAlbumAssetDelete       Permission = "albumAsset.delete"
+	PermissionAlbumUserCreate        Permission = "albumUser.create"
+	PermissionAlbumUserUpdate        Permission = "albumUser.update"
+	PermissionAlbumUserDelete        Permission = "albumUser.delete"
+	PermissionAuthChangePassword     Permission = "auth.changePassword"
+	PermissionAuthDeviceDelete       Permission = "authDevice.delete"
+	PermissionArchiveRead            Permission = "archive.read"
+	PermissionDuplicateRead          Permission = "duplicate.read"
+	PermissionDuplicateDelete        Permission = "duplicate.delete"
+	PermissionFaceCreate             Permission = "face.create"
+	PermissionFaceRead               Permission = "face.read"
+	PermissionFaceUpdate             Permission = "face.update"
+	PermissionFaceDelete             Permission = "face.delete"
+	PermissionJobCreate              Permission = "job.create"
+	PermissionJobRead                Permission = "job.read"
+	PermissionLibraryCreate          Permission = "library.create"
+	PermissionLibraryRead            Permission = "library.read"
+	PermissionLibraryUpdate          Permission = "library.update"
+	PermissionLibraryDelete          Permission = "library.delete"
+	PermissionLibraryStatistics      Permission = "library.statistics"
+	PermissionTimelineRead           Permission = "timeline.read"
+	PermissionTimelineDownload       Permission = "timeline.download"
+	PermissionMemoryCreate           Permission = "memory.create"
+	PermissionMemoryRead             Permission = "memory.read"
+	PermissionMemoryUpdate           Permission = "memory.update"
+	PermissionMemoryDelete           Permission = "memory.delete"
+	PermissionMemoryStatistics       Permission = "memory.statistics"
+	PermissionMemoryAssetCreate      Permission = "memoryAsset.create"
+	PermissionMemoryAssetDelete      Permission = "memoryAsset.delete"
+	PermissionNotificationCreate     Permission = "notification.create"
+	PermissionNotificationRead       Permission = "notification.read"
+	PermissionNotificationUpdate     Permission = "notification.update"
+	PermissionNotificationDelete     Permission = "notification.delete"
+	PermissionPartnerCreate          Permission = "partner.create"
+	PermissionPartnerRead            Permission = "partner.read"
+	PermissionPartnerUpdate          Permission = "partner.update"
+	PermissionPartnerDelete          Permission = "partner.delete"
+	PermissionPersonCreate           Permission = "person.create"
+	PermissionPersonRead             Permission = "person.read"
+	PermissionPersonUpdate           Permission = "person.update"
+	PermissionPersonDelete           Permission = "person.delete"
+	PermissionPersonStatistics       Permission = "person.statistics"
+	PermissionPersonMerge            Permission = "person.merge"
+	PermissionPersonReassign         Permission = "person.reassign"
+	PermissionPinCodeCreate          Permission = "pinCode.create"
+	PermissionPinCodeUpdate          Permission = "pinCode.update"
+	PermissionPinCodeDelete          Permission = "pinCode.delete"
+	PermissionServerAbout            Permission = "server.about"
+	PermissionServerApkLinks         Permission = "server.apkLinks"
+	PermissionServerStorage          Permission = "server.storage"
+	PermissionServerStatistics       Permission = "server.statistics"
+	PermissionServerVersionCheck     Permission = "server.versionCheck"
+	PermissionServerLicenseRead      Permission = "serverLicense.read"
+	PermissionServerLicenseUpdate    Permission = "serverLicense.update"
+	PermissionServerLicenseDelete    Permission = "serverLicense.delete"
+	PermissionSessionCreate          Permission = "session.create"
+	PermissionSessionRead            Permission = "session.read"
+	PermissionSessionUpdate          Permission = "session.update"
+	PermissionSessionDelete          Permission = "session.delete"
+	PermissionSessionLock            Permission = "session.lock"
+	PermissionSharedLinkCreate       Permission = "sharedLink.create"
+	PermissionSharedLinkRead         Permission = "sharedLink.read"
+	PermissionSharedLinkUpdate       Permission = "sharedLink.update"
+	PermissionSharedLinkDelete       Permission = "sharedLink.delete"
+	PermissionStackCreate            Permission = "stack.create"
+	PermissionStackRead              Permission = "stack.read"
+	PermissionStackUpdate            Permission = "stack.update"
+	PermissionStackDelete            Permission = "stack.delete"
+	PermissionSyncStream             Permission = "sync.stream"
+	PermissionSyncCheckpointRead     Permission = "syncCheckpoint.read"
+	PermissionSyncCheckpointUpdate   Permission = "syncCheckpoint.update"
+	PermissionSyncCheckpointDelete   Permission = "syncCheckpoint.delete"
+	PermissionSystemConfigRead       Permission = "systemConfig.read"
+	PermissionSystemConfigUpdate     Permission = "systemConfig.update"
+	PermissionSystemMetadataRead     Permission = "systemMetadata.read"
+	PermissionSystemMetadataUpdate   Permission = "systemMetadata.update"
+	PermissionTagCreate              Permission = "tag.create"
+	PermissionTagRead                Permission = "tag.read"
+	PermissionTagUpdate              Permission = "tag.update"
+	PermissionTagDelete              Permission = "tag.delete"
+	PermissionTagAsset               Permission = "tag.asset"
+	PermissionUserRead               Permission = "user.read"
+	PermissionUserUpdate             Permission = "user.update"
+	PermissionUserLicenseCreate      Permission = "userLicense.create"
+	PermissionUserLicenseRead        Permission = "userLicense.read"
+	PermissionUserLicenseUpdate      Permission = "userLicense.update"
+	PermissionUserLicenseDelete      Permission = "userLicense.delete"
+	PermissionUserOnboardingRead     Permission = "userOnboarding.read"
+	PermissionUserOnboardingUpdate   Permission = "userOnboarding.update"
+	PermissionUserOnboardingDelete   Permission = "userOnboarding.delete"
+	PermissionUserPreferenceRead     Permission = "userPreference.read"
+	PermissionUserPreferenceUpdate   Permission = "userPreference.update"
+	PermissionUserProfileImageCreate Permission = "userProfileImage.create"
+	PermissionUserProfileImageRead   Permission = "userProfileImage.read"
+	PermissionUserProfileImageUpdate Permission = "userProfileImage.update"
+	PermissionUserProfileImageDelete Permission = "userProfileImage.delete"
+	PermissionAdminUserCreate        Permission = "adminUser.create"
+	PermissionAdminUserRead          Permission = "adminUser.read"
+	PermissionAdminUserUpdate        Permission = "adminUser.update"
+	PermissionAdminUserDelete        Permission = "adminUser.delete"
+	PermissionAdminAuthUnlinkAll     Permission = "adminAuth.unlinkAll"
 )
 
 // AllValues returns all Permission values.
@@ -9369,25 +10114,35 @@ func (Permission) AllValues() []Permission {
 		PermissionAssetRead,
 		PermissionAssetUpdate,
 		PermissionAssetDelete,
+		PermissionAssetStatistics,
 		PermissionAssetShare,
 		PermissionAssetView,
 		PermissionAssetDownload,
 		PermissionAssetUpload,
+		PermissionAssetReplace,
 		PermissionAlbumCreate,
 		PermissionAlbumRead,
 		PermissionAlbumUpdate,
 		PermissionAlbumDelete,
 		PermissionAlbumStatistics,
-		PermissionAlbumAddAsset,
-		PermissionAlbumRemoveAsset,
 		PermissionAlbumShare,
 		PermissionAlbumDownload,
+		PermissionAlbumAssetCreate,
+		PermissionAlbumAssetDelete,
+		PermissionAlbumUserCreate,
+		PermissionAlbumUserUpdate,
+		PermissionAlbumUserDelete,
+		PermissionAuthChangePassword,
 		PermissionAuthDeviceDelete,
 		PermissionArchiveRead,
+		PermissionDuplicateRead,
+		PermissionDuplicateDelete,
 		PermissionFaceCreate,
 		PermissionFaceRead,
 		PermissionFaceUpdate,
 		PermissionFaceDelete,
+		PermissionJobCreate,
+		PermissionJobRead,
 		PermissionLibraryCreate,
 		PermissionLibraryRead,
 		PermissionLibraryUpdate,
@@ -9399,6 +10154,9 @@ func (Permission) AllValues() []Permission {
 		PermissionMemoryRead,
 		PermissionMemoryUpdate,
 		PermissionMemoryDelete,
+		PermissionMemoryStatistics,
+		PermissionMemoryAssetCreate,
+		PermissionMemoryAssetDelete,
 		PermissionNotificationCreate,
 		PermissionNotificationRead,
 		PermissionNotificationUpdate,
@@ -9414,6 +10172,17 @@ func (Permission) AllValues() []Permission {
 		PermissionPersonStatistics,
 		PermissionPersonMerge,
 		PermissionPersonReassign,
+		PermissionPinCodeCreate,
+		PermissionPinCodeUpdate,
+		PermissionPinCodeDelete,
+		PermissionServerAbout,
+		PermissionServerApkLinks,
+		PermissionServerStorage,
+		PermissionServerStatistics,
+		PermissionServerVersionCheck,
+		PermissionServerLicenseRead,
+		PermissionServerLicenseUpdate,
+		PermissionServerLicenseDelete,
 		PermissionSessionCreate,
 		PermissionSessionRead,
 		PermissionSessionUpdate,
@@ -9427,6 +10196,10 @@ func (Permission) AllValues() []Permission {
 		PermissionStackRead,
 		PermissionStackUpdate,
 		PermissionStackDelete,
+		PermissionSyncStream,
+		PermissionSyncCheckpointRead,
+		PermissionSyncCheckpointUpdate,
+		PermissionSyncCheckpointDelete,
 		PermissionSystemConfigRead,
 		PermissionSystemConfigUpdate,
 		PermissionSystemMetadataRead,
@@ -9436,10 +10209,26 @@ func (Permission) AllValues() []Permission {
 		PermissionTagUpdate,
 		PermissionTagDelete,
 		PermissionTagAsset,
+		PermissionUserRead,
+		PermissionUserUpdate,
+		PermissionUserLicenseCreate,
+		PermissionUserLicenseRead,
+		PermissionUserLicenseUpdate,
+		PermissionUserLicenseDelete,
+		PermissionUserOnboardingRead,
+		PermissionUserOnboardingUpdate,
+		PermissionUserOnboardingDelete,
+		PermissionUserPreferenceRead,
+		PermissionUserPreferenceUpdate,
+		PermissionUserProfileImageCreate,
+		PermissionUserProfileImageRead,
+		PermissionUserProfileImageUpdate,
+		PermissionUserProfileImageDelete,
 		PermissionAdminUserCreate,
 		PermissionAdminUserRead,
 		PermissionAdminUserUpdate,
 		PermissionAdminUserDelete,
+		PermissionAdminAuthUnlinkAll,
 	}
 }
 
@@ -9472,6 +10261,8 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionAssetDelete:
 		return []byte(s), nil
+	case PermissionAssetStatistics:
+		return []byte(s), nil
 	case PermissionAssetShare:
 		return []byte(s), nil
 	case PermissionAssetView:
@@ -9479,6 +10270,8 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionAssetDownload:
 		return []byte(s), nil
 	case PermissionAssetUpload:
+		return []byte(s), nil
+	case PermissionAssetReplace:
 		return []byte(s), nil
 	case PermissionAlbumCreate:
 		return []byte(s), nil
@@ -9490,17 +10283,29 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionAlbumStatistics:
 		return []byte(s), nil
-	case PermissionAlbumAddAsset:
-		return []byte(s), nil
-	case PermissionAlbumRemoveAsset:
-		return []byte(s), nil
 	case PermissionAlbumShare:
 		return []byte(s), nil
 	case PermissionAlbumDownload:
 		return []byte(s), nil
+	case PermissionAlbumAssetCreate:
+		return []byte(s), nil
+	case PermissionAlbumAssetDelete:
+		return []byte(s), nil
+	case PermissionAlbumUserCreate:
+		return []byte(s), nil
+	case PermissionAlbumUserUpdate:
+		return []byte(s), nil
+	case PermissionAlbumUserDelete:
+		return []byte(s), nil
+	case PermissionAuthChangePassword:
+		return []byte(s), nil
 	case PermissionAuthDeviceDelete:
 		return []byte(s), nil
 	case PermissionArchiveRead:
+		return []byte(s), nil
+	case PermissionDuplicateRead:
+		return []byte(s), nil
+	case PermissionDuplicateDelete:
 		return []byte(s), nil
 	case PermissionFaceCreate:
 		return []byte(s), nil
@@ -9509,6 +10314,10 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionFaceUpdate:
 		return []byte(s), nil
 	case PermissionFaceDelete:
+		return []byte(s), nil
+	case PermissionJobCreate:
+		return []byte(s), nil
+	case PermissionJobRead:
 		return []byte(s), nil
 	case PermissionLibraryCreate:
 		return []byte(s), nil
@@ -9531,6 +10340,12 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionMemoryUpdate:
 		return []byte(s), nil
 	case PermissionMemoryDelete:
+		return []byte(s), nil
+	case PermissionMemoryStatistics:
+		return []byte(s), nil
+	case PermissionMemoryAssetCreate:
+		return []byte(s), nil
+	case PermissionMemoryAssetDelete:
 		return []byte(s), nil
 	case PermissionNotificationCreate:
 		return []byte(s), nil
@@ -9562,6 +10377,28 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionPersonReassign:
 		return []byte(s), nil
+	case PermissionPinCodeCreate:
+		return []byte(s), nil
+	case PermissionPinCodeUpdate:
+		return []byte(s), nil
+	case PermissionPinCodeDelete:
+		return []byte(s), nil
+	case PermissionServerAbout:
+		return []byte(s), nil
+	case PermissionServerApkLinks:
+		return []byte(s), nil
+	case PermissionServerStorage:
+		return []byte(s), nil
+	case PermissionServerStatistics:
+		return []byte(s), nil
+	case PermissionServerVersionCheck:
+		return []byte(s), nil
+	case PermissionServerLicenseRead:
+		return []byte(s), nil
+	case PermissionServerLicenseUpdate:
+		return []byte(s), nil
+	case PermissionServerLicenseDelete:
+		return []byte(s), nil
 	case PermissionSessionCreate:
 		return []byte(s), nil
 	case PermissionSessionRead:
@@ -9588,6 +10425,14 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionStackDelete:
 		return []byte(s), nil
+	case PermissionSyncStream:
+		return []byte(s), nil
+	case PermissionSyncCheckpointRead:
+		return []byte(s), nil
+	case PermissionSyncCheckpointUpdate:
+		return []byte(s), nil
+	case PermissionSyncCheckpointDelete:
+		return []byte(s), nil
 	case PermissionSystemConfigRead:
 		return []byte(s), nil
 	case PermissionSystemConfigUpdate:
@@ -9606,6 +10451,36 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionTagAsset:
 		return []byte(s), nil
+	case PermissionUserRead:
+		return []byte(s), nil
+	case PermissionUserUpdate:
+		return []byte(s), nil
+	case PermissionUserLicenseCreate:
+		return []byte(s), nil
+	case PermissionUserLicenseRead:
+		return []byte(s), nil
+	case PermissionUserLicenseUpdate:
+		return []byte(s), nil
+	case PermissionUserLicenseDelete:
+		return []byte(s), nil
+	case PermissionUserOnboardingRead:
+		return []byte(s), nil
+	case PermissionUserOnboardingUpdate:
+		return []byte(s), nil
+	case PermissionUserOnboardingDelete:
+		return []byte(s), nil
+	case PermissionUserPreferenceRead:
+		return []byte(s), nil
+	case PermissionUserPreferenceUpdate:
+		return []byte(s), nil
+	case PermissionUserProfileImageCreate:
+		return []byte(s), nil
+	case PermissionUserProfileImageRead:
+		return []byte(s), nil
+	case PermissionUserProfileImageUpdate:
+		return []byte(s), nil
+	case PermissionUserProfileImageDelete:
+		return []byte(s), nil
 	case PermissionAdminUserCreate:
 		return []byte(s), nil
 	case PermissionAdminUserRead:
@@ -9613,6 +10488,8 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionAdminUserUpdate:
 		return []byte(s), nil
 	case PermissionAdminUserDelete:
+		return []byte(s), nil
+	case PermissionAdminAuthUnlinkAll:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -9661,6 +10538,9 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionAssetDelete:
 		*s = PermissionAssetDelete
 		return nil
+	case PermissionAssetStatistics:
+		*s = PermissionAssetStatistics
+		return nil
 	case PermissionAssetShare:
 		*s = PermissionAssetShare
 		return nil
@@ -9672,6 +10552,9 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionAssetUpload:
 		*s = PermissionAssetUpload
+		return nil
+	case PermissionAssetReplace:
+		*s = PermissionAssetReplace
 		return nil
 	case PermissionAlbumCreate:
 		*s = PermissionAlbumCreate
@@ -9688,23 +10571,41 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionAlbumStatistics:
 		*s = PermissionAlbumStatistics
 		return nil
-	case PermissionAlbumAddAsset:
-		*s = PermissionAlbumAddAsset
-		return nil
-	case PermissionAlbumRemoveAsset:
-		*s = PermissionAlbumRemoveAsset
-		return nil
 	case PermissionAlbumShare:
 		*s = PermissionAlbumShare
 		return nil
 	case PermissionAlbumDownload:
 		*s = PermissionAlbumDownload
 		return nil
+	case PermissionAlbumAssetCreate:
+		*s = PermissionAlbumAssetCreate
+		return nil
+	case PermissionAlbumAssetDelete:
+		*s = PermissionAlbumAssetDelete
+		return nil
+	case PermissionAlbumUserCreate:
+		*s = PermissionAlbumUserCreate
+		return nil
+	case PermissionAlbumUserUpdate:
+		*s = PermissionAlbumUserUpdate
+		return nil
+	case PermissionAlbumUserDelete:
+		*s = PermissionAlbumUserDelete
+		return nil
+	case PermissionAuthChangePassword:
+		*s = PermissionAuthChangePassword
+		return nil
 	case PermissionAuthDeviceDelete:
 		*s = PermissionAuthDeviceDelete
 		return nil
 	case PermissionArchiveRead:
 		*s = PermissionArchiveRead
+		return nil
+	case PermissionDuplicateRead:
+		*s = PermissionDuplicateRead
+		return nil
+	case PermissionDuplicateDelete:
+		*s = PermissionDuplicateDelete
 		return nil
 	case PermissionFaceCreate:
 		*s = PermissionFaceCreate
@@ -9717,6 +10618,12 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionFaceDelete:
 		*s = PermissionFaceDelete
+		return nil
+	case PermissionJobCreate:
+		*s = PermissionJobCreate
+		return nil
+	case PermissionJobRead:
+		*s = PermissionJobRead
 		return nil
 	case PermissionLibraryCreate:
 		*s = PermissionLibraryCreate
@@ -9750,6 +10657,15 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionMemoryDelete:
 		*s = PermissionMemoryDelete
+		return nil
+	case PermissionMemoryStatistics:
+		*s = PermissionMemoryStatistics
+		return nil
+	case PermissionMemoryAssetCreate:
+		*s = PermissionMemoryAssetCreate
+		return nil
+	case PermissionMemoryAssetDelete:
+		*s = PermissionMemoryAssetDelete
 		return nil
 	case PermissionNotificationCreate:
 		*s = PermissionNotificationCreate
@@ -9796,6 +10712,39 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionPersonReassign:
 		*s = PermissionPersonReassign
 		return nil
+	case PermissionPinCodeCreate:
+		*s = PermissionPinCodeCreate
+		return nil
+	case PermissionPinCodeUpdate:
+		*s = PermissionPinCodeUpdate
+		return nil
+	case PermissionPinCodeDelete:
+		*s = PermissionPinCodeDelete
+		return nil
+	case PermissionServerAbout:
+		*s = PermissionServerAbout
+		return nil
+	case PermissionServerApkLinks:
+		*s = PermissionServerApkLinks
+		return nil
+	case PermissionServerStorage:
+		*s = PermissionServerStorage
+		return nil
+	case PermissionServerStatistics:
+		*s = PermissionServerStatistics
+		return nil
+	case PermissionServerVersionCheck:
+		*s = PermissionServerVersionCheck
+		return nil
+	case PermissionServerLicenseRead:
+		*s = PermissionServerLicenseRead
+		return nil
+	case PermissionServerLicenseUpdate:
+		*s = PermissionServerLicenseUpdate
+		return nil
+	case PermissionServerLicenseDelete:
+		*s = PermissionServerLicenseDelete
+		return nil
 	case PermissionSessionCreate:
 		*s = PermissionSessionCreate
 		return nil
@@ -9835,6 +10784,18 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionStackDelete:
 		*s = PermissionStackDelete
 		return nil
+	case PermissionSyncStream:
+		*s = PermissionSyncStream
+		return nil
+	case PermissionSyncCheckpointRead:
+		*s = PermissionSyncCheckpointRead
+		return nil
+	case PermissionSyncCheckpointUpdate:
+		*s = PermissionSyncCheckpointUpdate
+		return nil
+	case PermissionSyncCheckpointDelete:
+		*s = PermissionSyncCheckpointDelete
+		return nil
 	case PermissionSystemConfigRead:
 		*s = PermissionSystemConfigRead
 		return nil
@@ -9862,6 +10823,51 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionTagAsset:
 		*s = PermissionTagAsset
 		return nil
+	case PermissionUserRead:
+		*s = PermissionUserRead
+		return nil
+	case PermissionUserUpdate:
+		*s = PermissionUserUpdate
+		return nil
+	case PermissionUserLicenseCreate:
+		*s = PermissionUserLicenseCreate
+		return nil
+	case PermissionUserLicenseRead:
+		*s = PermissionUserLicenseRead
+		return nil
+	case PermissionUserLicenseUpdate:
+		*s = PermissionUserLicenseUpdate
+		return nil
+	case PermissionUserLicenseDelete:
+		*s = PermissionUserLicenseDelete
+		return nil
+	case PermissionUserOnboardingRead:
+		*s = PermissionUserOnboardingRead
+		return nil
+	case PermissionUserOnboardingUpdate:
+		*s = PermissionUserOnboardingUpdate
+		return nil
+	case PermissionUserOnboardingDelete:
+		*s = PermissionUserOnboardingDelete
+		return nil
+	case PermissionUserPreferenceRead:
+		*s = PermissionUserPreferenceRead
+		return nil
+	case PermissionUserPreferenceUpdate:
+		*s = PermissionUserPreferenceUpdate
+		return nil
+	case PermissionUserProfileImageCreate:
+		*s = PermissionUserProfileImageCreate
+		return nil
+	case PermissionUserProfileImageRead:
+		*s = PermissionUserProfileImageRead
+		return nil
+	case PermissionUserProfileImageUpdate:
+		*s = PermissionUserProfileImageUpdate
+		return nil
+	case PermissionUserProfileImageDelete:
+		*s = PermissionUserProfileImageDelete
+		return nil
 	case PermissionAdminUserCreate:
 		*s = PermissionAdminUserCreate
 		return nil
@@ -9873,6 +10879,9 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionAdminUserDelete:
 		*s = PermissionAdminUserDelete
+		return nil
+	case PermissionAdminAuthUnlinkAll:
+		*s = PermissionAdminAuthUnlinkAll
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -10464,6 +11473,7 @@ func (s *QueueStatusDto) SetIsPaused(val bool) {
 
 // Ref: #/components/schemas/RandomSearchDto
 type RandomSearchDto struct {
+	AlbumIds      []uuid.UUID        `json:"albumIds"`
 	City          OptNilString       `json:"city"`
 	Country       OptNilString       `json:"country"`
 	CreatedAfter  OptDateTime        `json:"createdAfter"`
@@ -10482,7 +11492,7 @@ type RandomSearchDto struct {
 	Rating        OptFloat64         `json:"rating"`
 	Size          OptFloat64         `json:"size"`
 	State         OptNilString       `json:"state"`
-	TagIds        []uuid.UUID        `json:"tagIds"`
+	TagIds        OptNilUUIDArray    `json:"tagIds"`
 	TakenAfter    OptDateTime        `json:"takenAfter"`
 	TakenBefore   OptDateTime        `json:"takenBefore"`
 	TrashedAfter  OptDateTime        `json:"trashedAfter"`
@@ -10495,6 +11505,11 @@ type RandomSearchDto struct {
 	WithExif      OptBool            `json:"withExif"`
 	WithPeople    OptBool            `json:"withPeople"`
 	WithStacked   OptBool            `json:"withStacked"`
+}
+
+// GetAlbumIds returns the value of AlbumIds.
+func (s *RandomSearchDto) GetAlbumIds() []uuid.UUID {
+	return s.AlbumIds
 }
 
 // GetCity returns the value of City.
@@ -10588,7 +11603,7 @@ func (s *RandomSearchDto) GetState() OptNilString {
 }
 
 // GetTagIds returns the value of TagIds.
-func (s *RandomSearchDto) GetTagIds() []uuid.UUID {
+func (s *RandomSearchDto) GetTagIds() OptNilUUIDArray {
 	return s.TagIds
 }
 
@@ -10650,6 +11665,11 @@ func (s *RandomSearchDto) GetWithPeople() OptBool {
 // GetWithStacked returns the value of WithStacked.
 func (s *RandomSearchDto) GetWithStacked() OptBool {
 	return s.WithStacked
+}
+
+// SetAlbumIds sets the value of AlbumIds.
+func (s *RandomSearchDto) SetAlbumIds(val []uuid.UUID) {
+	s.AlbumIds = val
 }
 
 // SetCity sets the value of City.
@@ -10743,7 +11763,7 @@ func (s *RandomSearchDto) SetState(val OptNilString) {
 }
 
 // SetTagIds sets the value of TagIds.
-func (s *RandomSearchDto) SetTagIds(val []uuid.UUID) {
+func (s *RandomSearchDto) SetTagIds(val OptNilUUIDArray) {
 	s.TagIds = val
 }
 
@@ -10924,17 +11944,20 @@ func (s *ReactionType) UnmarshalText(data []byte) error {
 // RedirectOAuthToMobileOK is response for RedirectOAuthToMobile operation.
 type RedirectOAuthToMobileOK struct{}
 
-// RemovePartnerOK is response for RemovePartner operation.
-type RemovePartnerOK struct{}
+// RemoveAssetFromStackNoContent is response for RemoveAssetFromStack operation.
+type RemoveAssetFromStackNoContent struct{}
 
-// RemoveSharedLinkOK is response for RemoveSharedLink operation.
-type RemoveSharedLinkOK struct{}
+// RemovePartnerNoContent is response for RemovePartner operation.
+type RemovePartnerNoContent struct{}
 
-// RemoveUserFromAlbumOK is response for RemoveUserFromAlbum operation.
-type RemoveUserFromAlbumOK struct{}
+// RemoveSharedLinkNoContent is response for RemoveSharedLink operation.
+type RemoveSharedLinkNoContent struct{}
 
-// ResetPinCodeOK is response for ResetPinCode operation.
-type ResetPinCodeOK struct{}
+// RemoveUserFromAlbumNoContent is response for RemoveUserFromAlbum operation.
+type RemoveUserFromAlbumNoContent struct{}
+
+// ResetPinCodeNoContent is response for ResetPinCode operation.
+type ResetPinCodeNoContent struct{}
 
 // Ref: #/components/schemas/ReverseGeocodingStateResponseDto
 type ReverseGeocodingStateResponseDto struct {
@@ -11203,6 +12226,21 @@ func (s *SearchResponseDto) SetAlbums(val SearchAlbumResponseDto) {
 // SetAssets sets the value of Assets.
 func (s *SearchResponseDto) SetAssets(val SearchAssetResponseDto) {
 	s.Assets = val
+}
+
+// Ref: #/components/schemas/SearchStatisticsResponseDto
+type SearchStatisticsResponseDto struct {
+	Total int `json:"total"`
+}
+
+// GetTotal returns the value of Total.
+func (s *SearchStatisticsResponseDto) GetTotal() int {
+	return s.Total
+}
+
+// SetTotal sets the value of Total.
+func (s *SearchStatisticsResponseDto) SetTotal(val int) {
+	s.Total = val
 }
 
 // Ref: #/components/schemas/SearchSuggestionType
@@ -12158,14 +13196,15 @@ func (s *SessionCreateDto) SetDuration(val OptFloat64) {
 
 // Ref: #/components/schemas/SessionCreateResponseDto
 type SessionCreateResponseDto struct {
-	CreatedAt  string    `json:"createdAt"`
-	Current    bool      `json:"current"`
-	DeviceOS   string    `json:"deviceOS"`
-	DeviceType string    `json:"deviceType"`
-	ExpiresAt  OptString `json:"expiresAt"`
-	ID         string    `json:"id"`
-	Token      string    `json:"token"`
-	UpdatedAt  string    `json:"updatedAt"`
+	CreatedAt          string    `json:"createdAt"`
+	Current            bool      `json:"current"`
+	DeviceOS           string    `json:"deviceOS"`
+	DeviceType         string    `json:"deviceType"`
+	ExpiresAt          OptString `json:"expiresAt"`
+	ID                 string    `json:"id"`
+	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
+	Token              string    `json:"token"`
+	UpdatedAt          string    `json:"updatedAt"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -12196,6 +13235,11 @@ func (s *SessionCreateResponseDto) GetExpiresAt() OptString {
 // GetID returns the value of ID.
 func (s *SessionCreateResponseDto) GetID() string {
 	return s.ID
+}
+
+// GetIsPendingSyncReset returns the value of IsPendingSyncReset.
+func (s *SessionCreateResponseDto) GetIsPendingSyncReset() bool {
+	return s.IsPendingSyncReset
 }
 
 // GetToken returns the value of Token.
@@ -12238,6 +13282,11 @@ func (s *SessionCreateResponseDto) SetID(val string) {
 	s.ID = val
 }
 
+// SetIsPendingSyncReset sets the value of IsPendingSyncReset.
+func (s *SessionCreateResponseDto) SetIsPendingSyncReset(val bool) {
+	s.IsPendingSyncReset = val
+}
+
 // SetToken sets the value of Token.
 func (s *SessionCreateResponseDto) SetToken(val string) {
 	s.Token = val
@@ -12250,13 +13299,14 @@ func (s *SessionCreateResponseDto) SetUpdatedAt(val string) {
 
 // Ref: #/components/schemas/SessionResponseDto
 type SessionResponseDto struct {
-	CreatedAt  string    `json:"createdAt"`
-	Current    bool      `json:"current"`
-	DeviceOS   string    `json:"deviceOS"`
-	DeviceType string    `json:"deviceType"`
-	ExpiresAt  OptString `json:"expiresAt"`
-	ID         string    `json:"id"`
-	UpdatedAt  string    `json:"updatedAt"`
+	CreatedAt          string    `json:"createdAt"`
+	Current            bool      `json:"current"`
+	DeviceOS           string    `json:"deviceOS"`
+	DeviceType         string    `json:"deviceType"`
+	ExpiresAt          OptString `json:"expiresAt"`
+	ID                 string    `json:"id"`
+	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
+	UpdatedAt          string    `json:"updatedAt"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -12287,6 +13337,11 @@ func (s *SessionResponseDto) GetExpiresAt() OptString {
 // GetID returns the value of ID.
 func (s *SessionResponseDto) GetID() string {
 	return s.ID
+}
+
+// GetIsPendingSyncReset returns the value of IsPendingSyncReset.
+func (s *SessionResponseDto) GetIsPendingSyncReset() bool {
+	return s.IsPendingSyncReset
 }
 
 // GetUpdatedAt returns the value of UpdatedAt.
@@ -12324,6 +13379,11 @@ func (s *SessionResponseDto) SetID(val string) {
 	s.ID = val
 }
 
+// SetIsPendingSyncReset sets the value of IsPendingSyncReset.
+func (s *SessionResponseDto) SetIsPendingSyncReset(val bool) {
+	s.IsPendingSyncReset = val
+}
+
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *SessionResponseDto) SetUpdatedAt(val string) {
 	s.UpdatedAt = val
@@ -12355,8 +13415,23 @@ func (s *SessionUnlockDto) SetPinCode(val OptString) {
 	s.PinCode = val
 }
 
-// SetupPinCodeCreated is response for SetupPinCode operation.
-type SetupPinCodeCreated struct{}
+// Ref: #/components/schemas/SessionUpdateDto
+type SessionUpdateDto struct {
+	IsPendingSyncReset OptBool `json:"isPendingSyncReset"`
+}
+
+// GetIsPendingSyncReset returns the value of IsPendingSyncReset.
+func (s *SessionUpdateDto) GetIsPendingSyncReset() OptBool {
+	return s.IsPendingSyncReset
+}
+
+// SetIsPendingSyncReset sets the value of IsPendingSyncReset.
+func (s *SessionUpdateDto) SetIsPendingSyncReset(val OptBool) {
+	s.IsPendingSyncReset = val
+}
+
+// SetupPinCodeNoContent is response for SetupPinCode operation.
+type SetupPinCodeNoContent struct{}
 
 // Ref: #/components/schemas/SharedLinkCreateDto
 type SharedLinkCreateDto struct {
@@ -12364,10 +13439,11 @@ type SharedLinkCreateDto struct {
 	AllowDownload OptBool        `json:"allowDownload"`
 	AllowUpload   OptBool        `json:"allowUpload"`
 	AssetIds      []uuid.UUID    `json:"assetIds"`
-	Description   OptString      `json:"description"`
+	Description   OptNilString   `json:"description"`
 	ExpiresAt     OptNilDateTime `json:"expiresAt"`
-	Password      OptString      `json:"password"`
+	Password      OptNilString   `json:"password"`
 	ShowMetadata  OptBool        `json:"showMetadata"`
+	Slug          OptNilString   `json:"slug"`
 	Type          SharedLinkType `json:"type"`
 }
 
@@ -12392,7 +13468,7 @@ func (s *SharedLinkCreateDto) GetAssetIds() []uuid.UUID {
 }
 
 // GetDescription returns the value of Description.
-func (s *SharedLinkCreateDto) GetDescription() OptString {
+func (s *SharedLinkCreateDto) GetDescription() OptNilString {
 	return s.Description
 }
 
@@ -12402,13 +13478,18 @@ func (s *SharedLinkCreateDto) GetExpiresAt() OptNilDateTime {
 }
 
 // GetPassword returns the value of Password.
-func (s *SharedLinkCreateDto) GetPassword() OptString {
+func (s *SharedLinkCreateDto) GetPassword() OptNilString {
 	return s.Password
 }
 
 // GetShowMetadata returns the value of ShowMetadata.
 func (s *SharedLinkCreateDto) GetShowMetadata() OptBool {
 	return s.ShowMetadata
+}
+
+// GetSlug returns the value of Slug.
+func (s *SharedLinkCreateDto) GetSlug() OptNilString {
+	return s.Slug
 }
 
 // GetType returns the value of Type.
@@ -12437,7 +13518,7 @@ func (s *SharedLinkCreateDto) SetAssetIds(val []uuid.UUID) {
 }
 
 // SetDescription sets the value of Description.
-func (s *SharedLinkCreateDto) SetDescription(val OptString) {
+func (s *SharedLinkCreateDto) SetDescription(val OptNilString) {
 	s.Description = val
 }
 
@@ -12447,13 +13528,18 @@ func (s *SharedLinkCreateDto) SetExpiresAt(val OptNilDateTime) {
 }
 
 // SetPassword sets the value of Password.
-func (s *SharedLinkCreateDto) SetPassword(val OptString) {
+func (s *SharedLinkCreateDto) SetPassword(val OptNilString) {
 	s.Password = val
 }
 
 // SetShowMetadata sets the value of ShowMetadata.
 func (s *SharedLinkCreateDto) SetShowMetadata(val OptBool) {
 	s.ShowMetadata = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *SharedLinkCreateDto) SetSlug(val OptNilString) {
+	s.Slug = val
 }
 
 // SetType sets the value of Type.
@@ -12469,10 +13555,11 @@ type SharedLinkEditDto struct {
 	// Setting this flag and not sending expiryAt is considered as null instead.
 	// Clients that can send null values can ignore this.
 	ChangeExpiryTime OptBool        `json:"changeExpiryTime"`
-	Description      OptString      `json:"description"`
+	Description      OptNilString   `json:"description"`
 	ExpiresAt        OptNilDateTime `json:"expiresAt"`
-	Password         OptString      `json:"password"`
+	Password         OptNilString   `json:"password"`
 	ShowMetadata     OptBool        `json:"showMetadata"`
+	Slug             OptNilString   `json:"slug"`
 }
 
 // GetAllowDownload returns the value of AllowDownload.
@@ -12491,7 +13578,7 @@ func (s *SharedLinkEditDto) GetChangeExpiryTime() OptBool {
 }
 
 // GetDescription returns the value of Description.
-func (s *SharedLinkEditDto) GetDescription() OptString {
+func (s *SharedLinkEditDto) GetDescription() OptNilString {
 	return s.Description
 }
 
@@ -12501,13 +13588,18 @@ func (s *SharedLinkEditDto) GetExpiresAt() OptNilDateTime {
 }
 
 // GetPassword returns the value of Password.
-func (s *SharedLinkEditDto) GetPassword() OptString {
+func (s *SharedLinkEditDto) GetPassword() OptNilString {
 	return s.Password
 }
 
 // GetShowMetadata returns the value of ShowMetadata.
 func (s *SharedLinkEditDto) GetShowMetadata() OptBool {
 	return s.ShowMetadata
+}
+
+// GetSlug returns the value of Slug.
+func (s *SharedLinkEditDto) GetSlug() OptNilString {
+	return s.Slug
 }
 
 // SetAllowDownload sets the value of AllowDownload.
@@ -12526,7 +13618,7 @@ func (s *SharedLinkEditDto) SetChangeExpiryTime(val OptBool) {
 }
 
 // SetDescription sets the value of Description.
-func (s *SharedLinkEditDto) SetDescription(val OptString) {
+func (s *SharedLinkEditDto) SetDescription(val OptNilString) {
 	s.Description = val
 }
 
@@ -12536,13 +13628,18 @@ func (s *SharedLinkEditDto) SetExpiresAt(val OptNilDateTime) {
 }
 
 // SetPassword sets the value of Password.
-func (s *SharedLinkEditDto) SetPassword(val OptString) {
+func (s *SharedLinkEditDto) SetPassword(val OptNilString) {
 	s.Password = val
 }
 
 // SetShowMetadata sets the value of ShowMetadata.
 func (s *SharedLinkEditDto) SetShowMetadata(val OptBool) {
 	s.ShowMetadata = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *SharedLinkEditDto) SetSlug(val OptNilString) {
+	s.Slug = val
 }
 
 // Ref: #/components/schemas/SharedLinkResponseDto
@@ -12558,6 +13655,7 @@ type SharedLinkResponseDto struct {
 	Key           string              `json:"key"`
 	Password      NilString           `json:"password"`
 	ShowMetadata  bool                `json:"showMetadata"`
+	Slug          NilString           `json:"slug"`
 	Token         OptNilString        `json:"token"`
 	Type          SharedLinkType      `json:"type"`
 	UserId        string              `json:"userId"`
@@ -12616,6 +13714,11 @@ func (s *SharedLinkResponseDto) GetPassword() NilString {
 // GetShowMetadata returns the value of ShowMetadata.
 func (s *SharedLinkResponseDto) GetShowMetadata() bool {
 	return s.ShowMetadata
+}
+
+// GetSlug returns the value of Slug.
+func (s *SharedLinkResponseDto) GetSlug() NilString {
+	return s.Slug
 }
 
 // GetToken returns the value of Token.
@@ -12686,6 +13789,11 @@ func (s *SharedLinkResponseDto) SetPassword(val NilString) {
 // SetShowMetadata sets the value of ShowMetadata.
 func (s *SharedLinkResponseDto) SetShowMetadata(val bool) {
 	s.ShowMetadata = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *SharedLinkResponseDto) SetSlug(val NilString) {
+	s.Slug = val
 }
 
 // SetToken sets the value of Token.
@@ -12836,6 +13944,7 @@ func (s *SignUpDto) SetPassword(val string) {
 
 // Ref: #/components/schemas/SmartSearchDto
 type SmartSearchDto struct {
+	AlbumIds      []uuid.UUID        `json:"albumIds"`
 	City          OptNilString       `json:"city"`
 	Country       OptNilString       `json:"country"`
 	CreatedAfter  OptDateTime        `json:"createdAfter"`
@@ -12853,11 +13962,12 @@ type SmartSearchDto struct {
 	Model         OptNilString       `json:"model"`
 	Page          OptFloat64         `json:"page"`
 	PersonIds     []uuid.UUID        `json:"personIds"`
-	Query         string             `json:"query"`
+	Query         OptString          `json:"query"`
+	QueryAssetId  OptUUID            `json:"queryAssetId"`
 	Rating        OptFloat64         `json:"rating"`
 	Size          OptFloat64         `json:"size"`
 	State         OptNilString       `json:"state"`
-	TagIds        []uuid.UUID        `json:"tagIds"`
+	TagIds        OptNilUUIDArray    `json:"tagIds"`
 	TakenAfter    OptDateTime        `json:"takenAfter"`
 	TakenBefore   OptDateTime        `json:"takenBefore"`
 	TrashedAfter  OptDateTime        `json:"trashedAfter"`
@@ -12868,6 +13978,11 @@ type SmartSearchDto struct {
 	Visibility    OptAssetVisibility `json:"visibility"`
 	WithDeleted   OptBool            `json:"withDeleted"`
 	WithExif      OptBool            `json:"withExif"`
+}
+
+// GetAlbumIds returns the value of AlbumIds.
+func (s *SmartSearchDto) GetAlbumIds() []uuid.UUID {
+	return s.AlbumIds
 }
 
 // GetCity returns the value of City.
@@ -12956,8 +14071,13 @@ func (s *SmartSearchDto) GetPersonIds() []uuid.UUID {
 }
 
 // GetQuery returns the value of Query.
-func (s *SmartSearchDto) GetQuery() string {
+func (s *SmartSearchDto) GetQuery() OptString {
 	return s.Query
+}
+
+// GetQueryAssetId returns the value of QueryAssetId.
+func (s *SmartSearchDto) GetQueryAssetId() OptUUID {
+	return s.QueryAssetId
 }
 
 // GetRating returns the value of Rating.
@@ -12976,7 +14096,7 @@ func (s *SmartSearchDto) GetState() OptNilString {
 }
 
 // GetTagIds returns the value of TagIds.
-func (s *SmartSearchDto) GetTagIds() []uuid.UUID {
+func (s *SmartSearchDto) GetTagIds() OptNilUUIDArray {
 	return s.TagIds
 }
 
@@ -13028,6 +14148,11 @@ func (s *SmartSearchDto) GetWithDeleted() OptBool {
 // GetWithExif returns the value of WithExif.
 func (s *SmartSearchDto) GetWithExif() OptBool {
 	return s.WithExif
+}
+
+// SetAlbumIds sets the value of AlbumIds.
+func (s *SmartSearchDto) SetAlbumIds(val []uuid.UUID) {
+	s.AlbumIds = val
 }
 
 // SetCity sets the value of City.
@@ -13116,8 +14241,13 @@ func (s *SmartSearchDto) SetPersonIds(val []uuid.UUID) {
 }
 
 // SetQuery sets the value of Query.
-func (s *SmartSearchDto) SetQuery(val string) {
+func (s *SmartSearchDto) SetQuery(val OptString) {
 	s.Query = val
+}
+
+// SetQueryAssetId sets the value of QueryAssetId.
+func (s *SmartSearchDto) SetQueryAssetId(val OptUUID) {
+	s.QueryAssetId = val
 }
 
 // SetRating sets the value of Rating.
@@ -13136,7 +14266,7 @@ func (s *SmartSearchDto) SetState(val OptNilString) {
 }
 
 // SetTagIds sets the value of TagIds.
-func (s *SmartSearchDto) SetTagIds(val []uuid.UUID) {
+func (s *SmartSearchDto) SetTagIds(val OptNilUUIDArray) {
 	s.TagIds = val
 }
 
@@ -13307,6 +14437,318 @@ func (s *StackUpdateDto) SetPrimaryAssetId(val OptUUID) {
 	s.PrimaryAssetId = val
 }
 
+// Ref: #/components/schemas/StatisticsSearchDto
+type StatisticsSearchDto struct {
+	AlbumIds      []uuid.UUID        `json:"albumIds"`
+	City          OptNilString       `json:"city"`
+	Country       OptNilString       `json:"country"`
+	CreatedAfter  OptDateTime        `json:"createdAfter"`
+	CreatedBefore OptDateTime        `json:"createdBefore"`
+	Description   OptString          `json:"description"`
+	DeviceId      OptString          `json:"deviceId"`
+	IsEncoded     OptBool            `json:"isEncoded"`
+	IsFavorite    OptBool            `json:"isFavorite"`
+	IsMotion      OptBool            `json:"isMotion"`
+	IsNotInAlbum  OptBool            `json:"isNotInAlbum"`
+	IsOffline     OptBool            `json:"isOffline"`
+	LensModel     OptNilString       `json:"lensModel"`
+	LibraryId     OptNilUUID         `json:"libraryId"`
+	Make          OptString          `json:"make"`
+	Model         OptNilString       `json:"model"`
+	PersonIds     []uuid.UUID        `json:"personIds"`
+	Rating        OptFloat64         `json:"rating"`
+	State         OptNilString       `json:"state"`
+	TagIds        OptNilUUIDArray    `json:"tagIds"`
+	TakenAfter    OptDateTime        `json:"takenAfter"`
+	TakenBefore   OptDateTime        `json:"takenBefore"`
+	TrashedAfter  OptDateTime        `json:"trashedAfter"`
+	TrashedBefore OptDateTime        `json:"trashedBefore"`
+	Type          OptAssetTypeEnum   `json:"type"`
+	UpdatedAfter  OptDateTime        `json:"updatedAfter"`
+	UpdatedBefore OptDateTime        `json:"updatedBefore"`
+	Visibility    OptAssetVisibility `json:"visibility"`
+}
+
+// GetAlbumIds returns the value of AlbumIds.
+func (s *StatisticsSearchDto) GetAlbumIds() []uuid.UUID {
+	return s.AlbumIds
+}
+
+// GetCity returns the value of City.
+func (s *StatisticsSearchDto) GetCity() OptNilString {
+	return s.City
+}
+
+// GetCountry returns the value of Country.
+func (s *StatisticsSearchDto) GetCountry() OptNilString {
+	return s.Country
+}
+
+// GetCreatedAfter returns the value of CreatedAfter.
+func (s *StatisticsSearchDto) GetCreatedAfter() OptDateTime {
+	return s.CreatedAfter
+}
+
+// GetCreatedBefore returns the value of CreatedBefore.
+func (s *StatisticsSearchDto) GetCreatedBefore() OptDateTime {
+	return s.CreatedBefore
+}
+
+// GetDescription returns the value of Description.
+func (s *StatisticsSearchDto) GetDescription() OptString {
+	return s.Description
+}
+
+// GetDeviceId returns the value of DeviceId.
+func (s *StatisticsSearchDto) GetDeviceId() OptString {
+	return s.DeviceId
+}
+
+// GetIsEncoded returns the value of IsEncoded.
+func (s *StatisticsSearchDto) GetIsEncoded() OptBool {
+	return s.IsEncoded
+}
+
+// GetIsFavorite returns the value of IsFavorite.
+func (s *StatisticsSearchDto) GetIsFavorite() OptBool {
+	return s.IsFavorite
+}
+
+// GetIsMotion returns the value of IsMotion.
+func (s *StatisticsSearchDto) GetIsMotion() OptBool {
+	return s.IsMotion
+}
+
+// GetIsNotInAlbum returns the value of IsNotInAlbum.
+func (s *StatisticsSearchDto) GetIsNotInAlbum() OptBool {
+	return s.IsNotInAlbum
+}
+
+// GetIsOffline returns the value of IsOffline.
+func (s *StatisticsSearchDto) GetIsOffline() OptBool {
+	return s.IsOffline
+}
+
+// GetLensModel returns the value of LensModel.
+func (s *StatisticsSearchDto) GetLensModel() OptNilString {
+	return s.LensModel
+}
+
+// GetLibraryId returns the value of LibraryId.
+func (s *StatisticsSearchDto) GetLibraryId() OptNilUUID {
+	return s.LibraryId
+}
+
+// GetMake returns the value of Make.
+func (s *StatisticsSearchDto) GetMake() OptString {
+	return s.Make
+}
+
+// GetModel returns the value of Model.
+func (s *StatisticsSearchDto) GetModel() OptNilString {
+	return s.Model
+}
+
+// GetPersonIds returns the value of PersonIds.
+func (s *StatisticsSearchDto) GetPersonIds() []uuid.UUID {
+	return s.PersonIds
+}
+
+// GetRating returns the value of Rating.
+func (s *StatisticsSearchDto) GetRating() OptFloat64 {
+	return s.Rating
+}
+
+// GetState returns the value of State.
+func (s *StatisticsSearchDto) GetState() OptNilString {
+	return s.State
+}
+
+// GetTagIds returns the value of TagIds.
+func (s *StatisticsSearchDto) GetTagIds() OptNilUUIDArray {
+	return s.TagIds
+}
+
+// GetTakenAfter returns the value of TakenAfter.
+func (s *StatisticsSearchDto) GetTakenAfter() OptDateTime {
+	return s.TakenAfter
+}
+
+// GetTakenBefore returns the value of TakenBefore.
+func (s *StatisticsSearchDto) GetTakenBefore() OptDateTime {
+	return s.TakenBefore
+}
+
+// GetTrashedAfter returns the value of TrashedAfter.
+func (s *StatisticsSearchDto) GetTrashedAfter() OptDateTime {
+	return s.TrashedAfter
+}
+
+// GetTrashedBefore returns the value of TrashedBefore.
+func (s *StatisticsSearchDto) GetTrashedBefore() OptDateTime {
+	return s.TrashedBefore
+}
+
+// GetType returns the value of Type.
+func (s *StatisticsSearchDto) GetType() OptAssetTypeEnum {
+	return s.Type
+}
+
+// GetUpdatedAfter returns the value of UpdatedAfter.
+func (s *StatisticsSearchDto) GetUpdatedAfter() OptDateTime {
+	return s.UpdatedAfter
+}
+
+// GetUpdatedBefore returns the value of UpdatedBefore.
+func (s *StatisticsSearchDto) GetUpdatedBefore() OptDateTime {
+	return s.UpdatedBefore
+}
+
+// GetVisibility returns the value of Visibility.
+func (s *StatisticsSearchDto) GetVisibility() OptAssetVisibility {
+	return s.Visibility
+}
+
+// SetAlbumIds sets the value of AlbumIds.
+func (s *StatisticsSearchDto) SetAlbumIds(val []uuid.UUID) {
+	s.AlbumIds = val
+}
+
+// SetCity sets the value of City.
+func (s *StatisticsSearchDto) SetCity(val OptNilString) {
+	s.City = val
+}
+
+// SetCountry sets the value of Country.
+func (s *StatisticsSearchDto) SetCountry(val OptNilString) {
+	s.Country = val
+}
+
+// SetCreatedAfter sets the value of CreatedAfter.
+func (s *StatisticsSearchDto) SetCreatedAfter(val OptDateTime) {
+	s.CreatedAfter = val
+}
+
+// SetCreatedBefore sets the value of CreatedBefore.
+func (s *StatisticsSearchDto) SetCreatedBefore(val OptDateTime) {
+	s.CreatedBefore = val
+}
+
+// SetDescription sets the value of Description.
+func (s *StatisticsSearchDto) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetDeviceId sets the value of DeviceId.
+func (s *StatisticsSearchDto) SetDeviceId(val OptString) {
+	s.DeviceId = val
+}
+
+// SetIsEncoded sets the value of IsEncoded.
+func (s *StatisticsSearchDto) SetIsEncoded(val OptBool) {
+	s.IsEncoded = val
+}
+
+// SetIsFavorite sets the value of IsFavorite.
+func (s *StatisticsSearchDto) SetIsFavorite(val OptBool) {
+	s.IsFavorite = val
+}
+
+// SetIsMotion sets the value of IsMotion.
+func (s *StatisticsSearchDto) SetIsMotion(val OptBool) {
+	s.IsMotion = val
+}
+
+// SetIsNotInAlbum sets the value of IsNotInAlbum.
+func (s *StatisticsSearchDto) SetIsNotInAlbum(val OptBool) {
+	s.IsNotInAlbum = val
+}
+
+// SetIsOffline sets the value of IsOffline.
+func (s *StatisticsSearchDto) SetIsOffline(val OptBool) {
+	s.IsOffline = val
+}
+
+// SetLensModel sets the value of LensModel.
+func (s *StatisticsSearchDto) SetLensModel(val OptNilString) {
+	s.LensModel = val
+}
+
+// SetLibraryId sets the value of LibraryId.
+func (s *StatisticsSearchDto) SetLibraryId(val OptNilUUID) {
+	s.LibraryId = val
+}
+
+// SetMake sets the value of Make.
+func (s *StatisticsSearchDto) SetMake(val OptString) {
+	s.Make = val
+}
+
+// SetModel sets the value of Model.
+func (s *StatisticsSearchDto) SetModel(val OptNilString) {
+	s.Model = val
+}
+
+// SetPersonIds sets the value of PersonIds.
+func (s *StatisticsSearchDto) SetPersonIds(val []uuid.UUID) {
+	s.PersonIds = val
+}
+
+// SetRating sets the value of Rating.
+func (s *StatisticsSearchDto) SetRating(val OptFloat64) {
+	s.Rating = val
+}
+
+// SetState sets the value of State.
+func (s *StatisticsSearchDto) SetState(val OptNilString) {
+	s.State = val
+}
+
+// SetTagIds sets the value of TagIds.
+func (s *StatisticsSearchDto) SetTagIds(val OptNilUUIDArray) {
+	s.TagIds = val
+}
+
+// SetTakenAfter sets the value of TakenAfter.
+func (s *StatisticsSearchDto) SetTakenAfter(val OptDateTime) {
+	s.TakenAfter = val
+}
+
+// SetTakenBefore sets the value of TakenBefore.
+func (s *StatisticsSearchDto) SetTakenBefore(val OptDateTime) {
+	s.TakenBefore = val
+}
+
+// SetTrashedAfter sets the value of TrashedAfter.
+func (s *StatisticsSearchDto) SetTrashedAfter(val OptDateTime) {
+	s.TrashedAfter = val
+}
+
+// SetTrashedBefore sets the value of TrashedBefore.
+func (s *StatisticsSearchDto) SetTrashedBefore(val OptDateTime) {
+	s.TrashedBefore = val
+}
+
+// SetType sets the value of Type.
+func (s *StatisticsSearchDto) SetType(val OptAssetTypeEnum) {
+	s.Type = val
+}
+
+// SetUpdatedAfter sets the value of UpdatedAfter.
+func (s *StatisticsSearchDto) SetUpdatedAfter(val OptDateTime) {
+	s.UpdatedAfter = val
+}
+
+// SetUpdatedBefore sets the value of UpdatedBefore.
+func (s *StatisticsSearchDto) SetUpdatedBefore(val OptDateTime) {
+	s.UpdatedBefore = val
+}
+
+// SetVisibility sets the value of Visibility.
+func (s *StatisticsSearchDto) SetVisibility(val OptAssetVisibility) {
+	s.Visibility = val
+}
+
 // Ref: #/components/schemas/SyncAckDeleteDto
 type SyncAckDeleteDto struct {
 	Types []SyncEntityType `json:"types"`
@@ -13367,52 +14809,116 @@ func (s *SyncAckSetDto) SetAcks(val []string) {
 type SyncEntityType string
 
 const (
-	SyncEntityTypeUserV1               SyncEntityType = "UserV1"
-	SyncEntityTypeUserDeleteV1         SyncEntityType = "UserDeleteV1"
-	SyncEntityTypePartnerV1            SyncEntityType = "PartnerV1"
-	SyncEntityTypePartnerDeleteV1      SyncEntityType = "PartnerDeleteV1"
-	SyncEntityTypeAssetV1              SyncEntityType = "AssetV1"
-	SyncEntityTypeAssetDeleteV1        SyncEntityType = "AssetDeleteV1"
-	SyncEntityTypeAssetExifV1          SyncEntityType = "AssetExifV1"
-	SyncEntityTypePartnerAssetV1       SyncEntityType = "PartnerAssetV1"
-	SyncEntityTypePartnerAssetDeleteV1 SyncEntityType = "PartnerAssetDeleteV1"
-	SyncEntityTypePartnerAssetExifV1   SyncEntityType = "PartnerAssetExifV1"
-	SyncEntityTypeAlbumV1              SyncEntityType = "AlbumV1"
-	SyncEntityTypeAlbumDeleteV1        SyncEntityType = "AlbumDeleteV1"
-	SyncEntityTypeAlbumUserV1          SyncEntityType = "AlbumUserV1"
-	SyncEntityTypeAlbumUserDeleteV1    SyncEntityType = "AlbumUserDeleteV1"
+	SyncEntityTypeAuthUserV1                 SyncEntityType = "AuthUserV1"
+	SyncEntityTypeUserV1                     SyncEntityType = "UserV1"
+	SyncEntityTypeUserDeleteV1               SyncEntityType = "UserDeleteV1"
+	SyncEntityTypeAssetV1                    SyncEntityType = "AssetV1"
+	SyncEntityTypeAssetDeleteV1              SyncEntityType = "AssetDeleteV1"
+	SyncEntityTypeAssetExifV1                SyncEntityType = "AssetExifV1"
+	SyncEntityTypeAssetMetadataV1            SyncEntityType = "AssetMetadataV1"
+	SyncEntityTypeAssetMetadataDeleteV1      SyncEntityType = "AssetMetadataDeleteV1"
+	SyncEntityTypePartnerV1                  SyncEntityType = "PartnerV1"
+	SyncEntityTypePartnerDeleteV1            SyncEntityType = "PartnerDeleteV1"
+	SyncEntityTypePartnerAssetV1             SyncEntityType = "PartnerAssetV1"
+	SyncEntityTypePartnerAssetBackfillV1     SyncEntityType = "PartnerAssetBackfillV1"
+	SyncEntityTypePartnerAssetDeleteV1       SyncEntityType = "PartnerAssetDeleteV1"
+	SyncEntityTypePartnerAssetExifV1         SyncEntityType = "PartnerAssetExifV1"
+	SyncEntityTypePartnerAssetExifBackfillV1 SyncEntityType = "PartnerAssetExifBackfillV1"
+	SyncEntityTypePartnerStackBackfillV1     SyncEntityType = "PartnerStackBackfillV1"
+	SyncEntityTypePartnerStackDeleteV1       SyncEntityType = "PartnerStackDeleteV1"
+	SyncEntityTypePartnerStackV1             SyncEntityType = "PartnerStackV1"
+	SyncEntityTypeAlbumV1                    SyncEntityType = "AlbumV1"
+	SyncEntityTypeAlbumDeleteV1              SyncEntityType = "AlbumDeleteV1"
+	SyncEntityTypeAlbumUserV1                SyncEntityType = "AlbumUserV1"
+	SyncEntityTypeAlbumUserBackfillV1        SyncEntityType = "AlbumUserBackfillV1"
+	SyncEntityTypeAlbumUserDeleteV1          SyncEntityType = "AlbumUserDeleteV1"
+	SyncEntityTypeAlbumAssetCreateV1         SyncEntityType = "AlbumAssetCreateV1"
+	SyncEntityTypeAlbumAssetUpdateV1         SyncEntityType = "AlbumAssetUpdateV1"
+	SyncEntityTypeAlbumAssetBackfillV1       SyncEntityType = "AlbumAssetBackfillV1"
+	SyncEntityTypeAlbumAssetExifCreateV1     SyncEntityType = "AlbumAssetExifCreateV1"
+	SyncEntityTypeAlbumAssetExifUpdateV1     SyncEntityType = "AlbumAssetExifUpdateV1"
+	SyncEntityTypeAlbumAssetExifBackfillV1   SyncEntityType = "AlbumAssetExifBackfillV1"
+	SyncEntityTypeAlbumToAssetV1             SyncEntityType = "AlbumToAssetV1"
+	SyncEntityTypeAlbumToAssetDeleteV1       SyncEntityType = "AlbumToAssetDeleteV1"
+	SyncEntityTypeAlbumToAssetBackfillV1     SyncEntityType = "AlbumToAssetBackfillV1"
+	SyncEntityTypeMemoryV1                   SyncEntityType = "MemoryV1"
+	SyncEntityTypeMemoryDeleteV1             SyncEntityType = "MemoryDeleteV1"
+	SyncEntityTypeMemoryToAssetV1            SyncEntityType = "MemoryToAssetV1"
+	SyncEntityTypeMemoryToAssetDeleteV1      SyncEntityType = "MemoryToAssetDeleteV1"
+	SyncEntityTypeStackV1                    SyncEntityType = "StackV1"
+	SyncEntityTypeStackDeleteV1              SyncEntityType = "StackDeleteV1"
+	SyncEntityTypePersonV1                   SyncEntityType = "PersonV1"
+	SyncEntityTypePersonDeleteV1             SyncEntityType = "PersonDeleteV1"
+	SyncEntityTypeAssetFaceV1                SyncEntityType = "AssetFaceV1"
+	SyncEntityTypeAssetFaceDeleteV1          SyncEntityType = "AssetFaceDeleteV1"
+	SyncEntityTypeUserMetadataV1             SyncEntityType = "UserMetadataV1"
+	SyncEntityTypeUserMetadataDeleteV1       SyncEntityType = "UserMetadataDeleteV1"
+	SyncEntityTypeSyncAckV1                  SyncEntityType = "SyncAckV1"
+	SyncEntityTypeSyncResetV1                SyncEntityType = "SyncResetV1"
+	SyncEntityTypeSyncCompleteV1             SyncEntityType = "SyncCompleteV1"
 )
 
 // AllValues returns all SyncEntityType values.
 func (SyncEntityType) AllValues() []SyncEntityType {
 	return []SyncEntityType{
+		SyncEntityTypeAuthUserV1,
 		SyncEntityTypeUserV1,
 		SyncEntityTypeUserDeleteV1,
-		SyncEntityTypePartnerV1,
-		SyncEntityTypePartnerDeleteV1,
 		SyncEntityTypeAssetV1,
 		SyncEntityTypeAssetDeleteV1,
 		SyncEntityTypeAssetExifV1,
+		SyncEntityTypeAssetMetadataV1,
+		SyncEntityTypeAssetMetadataDeleteV1,
+		SyncEntityTypePartnerV1,
+		SyncEntityTypePartnerDeleteV1,
 		SyncEntityTypePartnerAssetV1,
+		SyncEntityTypePartnerAssetBackfillV1,
 		SyncEntityTypePartnerAssetDeleteV1,
 		SyncEntityTypePartnerAssetExifV1,
+		SyncEntityTypePartnerAssetExifBackfillV1,
+		SyncEntityTypePartnerStackBackfillV1,
+		SyncEntityTypePartnerStackDeleteV1,
+		SyncEntityTypePartnerStackV1,
 		SyncEntityTypeAlbumV1,
 		SyncEntityTypeAlbumDeleteV1,
 		SyncEntityTypeAlbumUserV1,
+		SyncEntityTypeAlbumUserBackfillV1,
 		SyncEntityTypeAlbumUserDeleteV1,
+		SyncEntityTypeAlbumAssetCreateV1,
+		SyncEntityTypeAlbumAssetUpdateV1,
+		SyncEntityTypeAlbumAssetBackfillV1,
+		SyncEntityTypeAlbumAssetExifCreateV1,
+		SyncEntityTypeAlbumAssetExifUpdateV1,
+		SyncEntityTypeAlbumAssetExifBackfillV1,
+		SyncEntityTypeAlbumToAssetV1,
+		SyncEntityTypeAlbumToAssetDeleteV1,
+		SyncEntityTypeAlbumToAssetBackfillV1,
+		SyncEntityTypeMemoryV1,
+		SyncEntityTypeMemoryDeleteV1,
+		SyncEntityTypeMemoryToAssetV1,
+		SyncEntityTypeMemoryToAssetDeleteV1,
+		SyncEntityTypeStackV1,
+		SyncEntityTypeStackDeleteV1,
+		SyncEntityTypePersonV1,
+		SyncEntityTypePersonDeleteV1,
+		SyncEntityTypeAssetFaceV1,
+		SyncEntityTypeAssetFaceDeleteV1,
+		SyncEntityTypeUserMetadataV1,
+		SyncEntityTypeUserMetadataDeleteV1,
+		SyncEntityTypeSyncAckV1,
+		SyncEntityTypeSyncResetV1,
+		SyncEntityTypeSyncCompleteV1,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s SyncEntityType) MarshalText() ([]byte, error) {
 	switch s {
+	case SyncEntityTypeAuthUserV1:
+		return []byte(s), nil
 	case SyncEntityTypeUserV1:
 		return []byte(s), nil
 	case SyncEntityTypeUserDeleteV1:
-		return []byte(s), nil
-	case SyncEntityTypePartnerV1:
-		return []byte(s), nil
-	case SyncEntityTypePartnerDeleteV1:
 		return []byte(s), nil
 	case SyncEntityTypeAssetV1:
 		return []byte(s), nil
@@ -13420,11 +14926,29 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case SyncEntityTypeAssetExifV1:
 		return []byte(s), nil
+	case SyncEntityTypeAssetMetadataV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetMetadataDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerDeleteV1:
+		return []byte(s), nil
 	case SyncEntityTypePartnerAssetV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerAssetBackfillV1:
 		return []byte(s), nil
 	case SyncEntityTypePartnerAssetDeleteV1:
 		return []byte(s), nil
 	case SyncEntityTypePartnerAssetExifV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerAssetExifBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerStackBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerStackDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerStackV1:
 		return []byte(s), nil
 	case SyncEntityTypeAlbumV1:
 		return []byte(s), nil
@@ -13432,7 +14956,57 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case SyncEntityTypeAlbumUserV1:
 		return []byte(s), nil
+	case SyncEntityTypeAlbumUserBackfillV1:
+		return []byte(s), nil
 	case SyncEntityTypeAlbumUserDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetCreateV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetUpdateV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetExifCreateV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetExifUpdateV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetExifBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumToAssetV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumToAssetDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumToAssetBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypeMemoryV1:
+		return []byte(s), nil
+	case SyncEntityTypeMemoryDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeMemoryToAssetV1:
+		return []byte(s), nil
+	case SyncEntityTypeMemoryToAssetDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeStackV1:
+		return []byte(s), nil
+	case SyncEntityTypeStackDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypePersonV1:
+		return []byte(s), nil
+	case SyncEntityTypePersonDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetFaceV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetFaceDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeUserMetadataV1:
+		return []byte(s), nil
+	case SyncEntityTypeUserMetadataDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeSyncAckV1:
+		return []byte(s), nil
+	case SyncEntityTypeSyncResetV1:
+		return []byte(s), nil
+	case SyncEntityTypeSyncCompleteV1:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -13442,17 +15016,14 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	switch SyncEntityType(data) {
+	case SyncEntityTypeAuthUserV1:
+		*s = SyncEntityTypeAuthUserV1
+		return nil
 	case SyncEntityTypeUserV1:
 		*s = SyncEntityTypeUserV1
 		return nil
 	case SyncEntityTypeUserDeleteV1:
 		*s = SyncEntityTypeUserDeleteV1
-		return nil
-	case SyncEntityTypePartnerV1:
-		*s = SyncEntityTypePartnerV1
-		return nil
-	case SyncEntityTypePartnerDeleteV1:
-		*s = SyncEntityTypePartnerDeleteV1
 		return nil
 	case SyncEntityTypeAssetV1:
 		*s = SyncEntityTypeAssetV1
@@ -13463,14 +15034,41 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypeAssetExifV1:
 		*s = SyncEntityTypeAssetExifV1
 		return nil
+	case SyncEntityTypeAssetMetadataV1:
+		*s = SyncEntityTypeAssetMetadataV1
+		return nil
+	case SyncEntityTypeAssetMetadataDeleteV1:
+		*s = SyncEntityTypeAssetMetadataDeleteV1
+		return nil
+	case SyncEntityTypePartnerV1:
+		*s = SyncEntityTypePartnerV1
+		return nil
+	case SyncEntityTypePartnerDeleteV1:
+		*s = SyncEntityTypePartnerDeleteV1
+		return nil
 	case SyncEntityTypePartnerAssetV1:
 		*s = SyncEntityTypePartnerAssetV1
+		return nil
+	case SyncEntityTypePartnerAssetBackfillV1:
+		*s = SyncEntityTypePartnerAssetBackfillV1
 		return nil
 	case SyncEntityTypePartnerAssetDeleteV1:
 		*s = SyncEntityTypePartnerAssetDeleteV1
 		return nil
 	case SyncEntityTypePartnerAssetExifV1:
 		*s = SyncEntityTypePartnerAssetExifV1
+		return nil
+	case SyncEntityTypePartnerAssetExifBackfillV1:
+		*s = SyncEntityTypePartnerAssetExifBackfillV1
+		return nil
+	case SyncEntityTypePartnerStackBackfillV1:
+		*s = SyncEntityTypePartnerStackBackfillV1
+		return nil
+	case SyncEntityTypePartnerStackDeleteV1:
+		*s = SyncEntityTypePartnerStackDeleteV1
+		return nil
+	case SyncEntityTypePartnerStackV1:
+		*s = SyncEntityTypePartnerStackV1
 		return nil
 	case SyncEntityTypeAlbumV1:
 		*s = SyncEntityTypeAlbumV1
@@ -13481,8 +15079,83 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypeAlbumUserV1:
 		*s = SyncEntityTypeAlbumUserV1
 		return nil
+	case SyncEntityTypeAlbumUserBackfillV1:
+		*s = SyncEntityTypeAlbumUserBackfillV1
+		return nil
 	case SyncEntityTypeAlbumUserDeleteV1:
 		*s = SyncEntityTypeAlbumUserDeleteV1
+		return nil
+	case SyncEntityTypeAlbumAssetCreateV1:
+		*s = SyncEntityTypeAlbumAssetCreateV1
+		return nil
+	case SyncEntityTypeAlbumAssetUpdateV1:
+		*s = SyncEntityTypeAlbumAssetUpdateV1
+		return nil
+	case SyncEntityTypeAlbumAssetBackfillV1:
+		*s = SyncEntityTypeAlbumAssetBackfillV1
+		return nil
+	case SyncEntityTypeAlbumAssetExifCreateV1:
+		*s = SyncEntityTypeAlbumAssetExifCreateV1
+		return nil
+	case SyncEntityTypeAlbumAssetExifUpdateV1:
+		*s = SyncEntityTypeAlbumAssetExifUpdateV1
+		return nil
+	case SyncEntityTypeAlbumAssetExifBackfillV1:
+		*s = SyncEntityTypeAlbumAssetExifBackfillV1
+		return nil
+	case SyncEntityTypeAlbumToAssetV1:
+		*s = SyncEntityTypeAlbumToAssetV1
+		return nil
+	case SyncEntityTypeAlbumToAssetDeleteV1:
+		*s = SyncEntityTypeAlbumToAssetDeleteV1
+		return nil
+	case SyncEntityTypeAlbumToAssetBackfillV1:
+		*s = SyncEntityTypeAlbumToAssetBackfillV1
+		return nil
+	case SyncEntityTypeMemoryV1:
+		*s = SyncEntityTypeMemoryV1
+		return nil
+	case SyncEntityTypeMemoryDeleteV1:
+		*s = SyncEntityTypeMemoryDeleteV1
+		return nil
+	case SyncEntityTypeMemoryToAssetV1:
+		*s = SyncEntityTypeMemoryToAssetV1
+		return nil
+	case SyncEntityTypeMemoryToAssetDeleteV1:
+		*s = SyncEntityTypeMemoryToAssetDeleteV1
+		return nil
+	case SyncEntityTypeStackV1:
+		*s = SyncEntityTypeStackV1
+		return nil
+	case SyncEntityTypeStackDeleteV1:
+		*s = SyncEntityTypeStackDeleteV1
+		return nil
+	case SyncEntityTypePersonV1:
+		*s = SyncEntityTypePersonV1
+		return nil
+	case SyncEntityTypePersonDeleteV1:
+		*s = SyncEntityTypePersonDeleteV1
+		return nil
+	case SyncEntityTypeAssetFaceV1:
+		*s = SyncEntityTypeAssetFaceV1
+		return nil
+	case SyncEntityTypeAssetFaceDeleteV1:
+		*s = SyncEntityTypeAssetFaceDeleteV1
+		return nil
+	case SyncEntityTypeUserMetadataV1:
+		*s = SyncEntityTypeUserMetadataV1
+		return nil
+	case SyncEntityTypeUserMetadataDeleteV1:
+		*s = SyncEntityTypeUserMetadataDeleteV1
+		return nil
+	case SyncEntityTypeSyncAckV1:
+		*s = SyncEntityTypeSyncAckV1
+		return nil
+	case SyncEntityTypeSyncResetV1:
+		*s = SyncEntityTypeSyncResetV1
+		return nil
+	case SyncEntityTypeSyncCompleteV1:
+		*s = SyncEntityTypeSyncCompleteV1
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -13493,48 +15166,96 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 type SyncRequestType string
 
 const (
-	SyncRequestTypeUsersV1             SyncRequestType = "UsersV1"
-	SyncRequestTypePartnersV1          SyncRequestType = "PartnersV1"
-	SyncRequestTypeAssetsV1            SyncRequestType = "AssetsV1"
-	SyncRequestTypeAssetExifsV1        SyncRequestType = "AssetExifsV1"
-	SyncRequestTypePartnerAssetsV1     SyncRequestType = "PartnerAssetsV1"
-	SyncRequestTypePartnerAssetExifsV1 SyncRequestType = "PartnerAssetExifsV1"
 	SyncRequestTypeAlbumsV1            SyncRequestType = "AlbumsV1"
 	SyncRequestTypeAlbumUsersV1        SyncRequestType = "AlbumUsersV1"
+	SyncRequestTypeAlbumToAssetsV1     SyncRequestType = "AlbumToAssetsV1"
+	SyncRequestTypeAlbumAssetsV1       SyncRequestType = "AlbumAssetsV1"
+	SyncRequestTypeAlbumAssetExifsV1   SyncRequestType = "AlbumAssetExifsV1"
+	SyncRequestTypeAssetsV1            SyncRequestType = "AssetsV1"
+	SyncRequestTypeAssetExifsV1        SyncRequestType = "AssetExifsV1"
+	SyncRequestTypeAssetMetadataV1     SyncRequestType = "AssetMetadataV1"
+	SyncRequestTypeAuthUsersV1         SyncRequestType = "AuthUsersV1"
+	SyncRequestTypeMemoriesV1          SyncRequestType = "MemoriesV1"
+	SyncRequestTypeMemoryToAssetsV1    SyncRequestType = "MemoryToAssetsV1"
+	SyncRequestTypePartnersV1          SyncRequestType = "PartnersV1"
+	SyncRequestTypePartnerAssetsV1     SyncRequestType = "PartnerAssetsV1"
+	SyncRequestTypePartnerAssetExifsV1 SyncRequestType = "PartnerAssetExifsV1"
+	SyncRequestTypePartnerStacksV1     SyncRequestType = "PartnerStacksV1"
+	SyncRequestTypeStacksV1            SyncRequestType = "StacksV1"
+	SyncRequestTypeUsersV1             SyncRequestType = "UsersV1"
+	SyncRequestTypePeopleV1            SyncRequestType = "PeopleV1"
+	SyncRequestTypeAssetFacesV1        SyncRequestType = "AssetFacesV1"
+	SyncRequestTypeUserMetadataV1      SyncRequestType = "UserMetadataV1"
 )
 
 // AllValues returns all SyncRequestType values.
 func (SyncRequestType) AllValues() []SyncRequestType {
 	return []SyncRequestType{
-		SyncRequestTypeUsersV1,
-		SyncRequestTypePartnersV1,
-		SyncRequestTypeAssetsV1,
-		SyncRequestTypeAssetExifsV1,
-		SyncRequestTypePartnerAssetsV1,
-		SyncRequestTypePartnerAssetExifsV1,
 		SyncRequestTypeAlbumsV1,
 		SyncRequestTypeAlbumUsersV1,
+		SyncRequestTypeAlbumToAssetsV1,
+		SyncRequestTypeAlbumAssetsV1,
+		SyncRequestTypeAlbumAssetExifsV1,
+		SyncRequestTypeAssetsV1,
+		SyncRequestTypeAssetExifsV1,
+		SyncRequestTypeAssetMetadataV1,
+		SyncRequestTypeAuthUsersV1,
+		SyncRequestTypeMemoriesV1,
+		SyncRequestTypeMemoryToAssetsV1,
+		SyncRequestTypePartnersV1,
+		SyncRequestTypePartnerAssetsV1,
+		SyncRequestTypePartnerAssetExifsV1,
+		SyncRequestTypePartnerStacksV1,
+		SyncRequestTypeStacksV1,
+		SyncRequestTypeUsersV1,
+		SyncRequestTypePeopleV1,
+		SyncRequestTypeAssetFacesV1,
+		SyncRequestTypeUserMetadataV1,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s SyncRequestType) MarshalText() ([]byte, error) {
 	switch s {
-	case SyncRequestTypeUsersV1:
+	case SyncRequestTypeAlbumsV1:
 		return []byte(s), nil
-	case SyncRequestTypePartnersV1:
+	case SyncRequestTypeAlbumUsersV1:
+		return []byte(s), nil
+	case SyncRequestTypeAlbumToAssetsV1:
+		return []byte(s), nil
+	case SyncRequestTypeAlbumAssetsV1:
+		return []byte(s), nil
+	case SyncRequestTypeAlbumAssetExifsV1:
 		return []byte(s), nil
 	case SyncRequestTypeAssetsV1:
 		return []byte(s), nil
 	case SyncRequestTypeAssetExifsV1:
 		return []byte(s), nil
+	case SyncRequestTypeAssetMetadataV1:
+		return []byte(s), nil
+	case SyncRequestTypeAuthUsersV1:
+		return []byte(s), nil
+	case SyncRequestTypeMemoriesV1:
+		return []byte(s), nil
+	case SyncRequestTypeMemoryToAssetsV1:
+		return []byte(s), nil
+	case SyncRequestTypePartnersV1:
+		return []byte(s), nil
 	case SyncRequestTypePartnerAssetsV1:
 		return []byte(s), nil
 	case SyncRequestTypePartnerAssetExifsV1:
 		return []byte(s), nil
-	case SyncRequestTypeAlbumsV1:
+	case SyncRequestTypePartnerStacksV1:
 		return []byte(s), nil
-	case SyncRequestTypeAlbumUsersV1:
+	case SyncRequestTypeStacksV1:
+		return []byte(s), nil
+	case SyncRequestTypeUsersV1:
+		return []byte(s), nil
+	case SyncRequestTypePeopleV1:
+		return []byte(s), nil
+	case SyncRequestTypeAssetFacesV1:
+		return []byte(s), nil
+	case SyncRequestTypeUserMetadataV1:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -13544,11 +15265,20 @@ func (s SyncRequestType) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *SyncRequestType) UnmarshalText(data []byte) error {
 	switch SyncRequestType(data) {
-	case SyncRequestTypeUsersV1:
-		*s = SyncRequestTypeUsersV1
+	case SyncRequestTypeAlbumsV1:
+		*s = SyncRequestTypeAlbumsV1
 		return nil
-	case SyncRequestTypePartnersV1:
-		*s = SyncRequestTypePartnersV1
+	case SyncRequestTypeAlbumUsersV1:
+		*s = SyncRequestTypeAlbumUsersV1
+		return nil
+	case SyncRequestTypeAlbumToAssetsV1:
+		*s = SyncRequestTypeAlbumToAssetsV1
+		return nil
+	case SyncRequestTypeAlbumAssetsV1:
+		*s = SyncRequestTypeAlbumAssetsV1
+		return nil
+	case SyncRequestTypeAlbumAssetExifsV1:
+		*s = SyncRequestTypeAlbumAssetExifsV1
 		return nil
 	case SyncRequestTypeAssetsV1:
 		*s = SyncRequestTypeAssetsV1
@@ -13556,17 +15286,44 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 	case SyncRequestTypeAssetExifsV1:
 		*s = SyncRequestTypeAssetExifsV1
 		return nil
+	case SyncRequestTypeAssetMetadataV1:
+		*s = SyncRequestTypeAssetMetadataV1
+		return nil
+	case SyncRequestTypeAuthUsersV1:
+		*s = SyncRequestTypeAuthUsersV1
+		return nil
+	case SyncRequestTypeMemoriesV1:
+		*s = SyncRequestTypeMemoriesV1
+		return nil
+	case SyncRequestTypeMemoryToAssetsV1:
+		*s = SyncRequestTypeMemoryToAssetsV1
+		return nil
+	case SyncRequestTypePartnersV1:
+		*s = SyncRequestTypePartnersV1
+		return nil
 	case SyncRequestTypePartnerAssetsV1:
 		*s = SyncRequestTypePartnerAssetsV1
 		return nil
 	case SyncRequestTypePartnerAssetExifsV1:
 		*s = SyncRequestTypePartnerAssetExifsV1
 		return nil
-	case SyncRequestTypeAlbumsV1:
-		*s = SyncRequestTypeAlbumsV1
+	case SyncRequestTypePartnerStacksV1:
+		*s = SyncRequestTypePartnerStacksV1
 		return nil
-	case SyncRequestTypeAlbumUsersV1:
-		*s = SyncRequestTypeAlbumUsersV1
+	case SyncRequestTypeStacksV1:
+		*s = SyncRequestTypeStacksV1
+		return nil
+	case SyncRequestTypeUsersV1:
+		*s = SyncRequestTypeUsersV1
+		return nil
+	case SyncRequestTypePeopleV1:
+		*s = SyncRequestTypePeopleV1
+		return nil
+	case SyncRequestTypeAssetFacesV1:
+		*s = SyncRequestTypeAssetFacesV1
+		return nil
+	case SyncRequestTypeUserMetadataV1:
+		*s = SyncRequestTypeUserMetadataV1
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -13575,12 +15332,23 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/SyncStreamDto
 type SyncStreamDto struct {
+	Reset OptBool           `json:"reset"`
 	Types []SyncRequestType `json:"types"`
+}
+
+// GetReset returns the value of Reset.
+func (s *SyncStreamDto) GetReset() OptBool {
+	return s.Reset
 }
 
 // GetTypes returns the value of Types.
 func (s *SyncStreamDto) GetTypes() []SyncRequestType {
 	return s.Types
+}
+
+// SetReset sets the value of Reset.
+func (s *SyncStreamDto) SetReset(val OptBool) {
+	s.Reset = val
 }
 
 // SetTypes sets the value of Types.
@@ -13615,6 +15383,7 @@ type SystemConfigDto struct {
 	Map              SystemConfigMapDto              `json:"map"`
 	Metadata         SystemConfigMetadataDto         `json:"metadata"`
 	NewVersionCheck  SystemConfigNewVersionCheckDto  `json:"newVersionCheck"`
+	NightlyTasks     SystemConfigNightlyTasksDto     `json:"nightlyTasks"`
 	Notifications    SystemConfigNotificationsDto    `json:"notifications"`
 	OAuth            SystemConfigOAuthDto            `json:"oauth"`
 	PasswordLogin    SystemConfigPasswordLoginDto    `json:"passwordLogin"`
@@ -13675,6 +15444,11 @@ func (s *SystemConfigDto) GetMetadata() SystemConfigMetadataDto {
 // GetNewVersionCheck returns the value of NewVersionCheck.
 func (s *SystemConfigDto) GetNewVersionCheck() SystemConfigNewVersionCheckDto {
 	return s.NewVersionCheck
+}
+
+// GetNightlyTasks returns the value of NightlyTasks.
+func (s *SystemConfigDto) GetNightlyTasks() SystemConfigNightlyTasksDto {
+	return s.NightlyTasks
 }
 
 // GetNotifications returns the value of Notifications.
@@ -13775,6 +15549,11 @@ func (s *SystemConfigDto) SetMetadata(val SystemConfigMetadataDto) {
 // SetNewVersionCheck sets the value of NewVersionCheck.
 func (s *SystemConfigDto) SetNewVersionCheck(val SystemConfigNewVersionCheckDto) {
 	s.NewVersionCheck = val
+}
+
+// SetNightlyTasks sets the value of NightlyTasks.
+func (s *SystemConfigDto) SetNightlyTasks(val SystemConfigNightlyTasksDto) {
+	s.NightlyTasks = val
 }
 
 // SetNotifications sets the value of Notifications.
@@ -14430,15 +16209,17 @@ func (s *SystemConfigLoggingDto) SetLevel(val LogLevel) {
 
 // Ref: #/components/schemas/SystemConfigMachineLearningDto
 type SystemConfigMachineLearningDto struct {
-	Clip               CLIPConfig               `json:"clip"`
-	DuplicateDetection DuplicateDetectionConfig `json:"duplicateDetection"`
-	Enabled            bool                     `json:"enabled"`
-	FacialRecognition  FacialRecognitionConfig  `json:"facialRecognition"`
-	// This property was deprecated in v1.122.0.
-	//
-	// Deprecated: schema marks this property as deprecated.
-	URL  OptString `json:"url"`
-	Urls []url.URL `json:"urls"`
+	AvailabilityChecks MachineLearningAvailabilityChecksDto `json:"availabilityChecks"`
+	Clip               CLIPConfig                           `json:"clip"`
+	DuplicateDetection DuplicateDetectionConfig             `json:"duplicateDetection"`
+	Enabled            bool                                 `json:"enabled"`
+	FacialRecognition  FacialRecognitionConfig              `json:"facialRecognition"`
+	Urls               []url.URL                            `json:"urls"`
+}
+
+// GetAvailabilityChecks returns the value of AvailabilityChecks.
+func (s *SystemConfigMachineLearningDto) GetAvailabilityChecks() MachineLearningAvailabilityChecksDto {
+	return s.AvailabilityChecks
 }
 
 // GetClip returns the value of Clip.
@@ -14461,14 +16242,14 @@ func (s *SystemConfigMachineLearningDto) GetFacialRecognition() FacialRecognitio
 	return s.FacialRecognition
 }
 
-// GetURL returns the value of URL.
-func (s *SystemConfigMachineLearningDto) GetURL() OptString {
-	return s.URL
-}
-
 // GetUrls returns the value of Urls.
 func (s *SystemConfigMachineLearningDto) GetUrls() []url.URL {
 	return s.Urls
+}
+
+// SetAvailabilityChecks sets the value of AvailabilityChecks.
+func (s *SystemConfigMachineLearningDto) SetAvailabilityChecks(val MachineLearningAvailabilityChecksDto) {
+	s.AvailabilityChecks = val
 }
 
 // SetClip sets the value of Clip.
@@ -14489,11 +16270,6 @@ func (s *SystemConfigMachineLearningDto) SetEnabled(val bool) {
 // SetFacialRecognition sets the value of FacialRecognition.
 func (s *SystemConfigMachineLearningDto) SetFacialRecognition(val FacialRecognitionConfig) {
 	s.FacialRecognition = val
-}
-
-// SetURL sets the value of URL.
-func (s *SystemConfigMachineLearningDto) SetURL(val OptString) {
-	s.URL = val
 }
 
 // SetUrls sets the value of Urls.
@@ -14568,6 +16344,76 @@ func (s *SystemConfigNewVersionCheckDto) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// Ref: #/components/schemas/SystemConfigNightlyTasksDto
+type SystemConfigNightlyTasksDto struct {
+	ClusterNewFaces   bool   `json:"clusterNewFaces"`
+	DatabaseCleanup   bool   `json:"databaseCleanup"`
+	GenerateMemories  bool   `json:"generateMemories"`
+	MissingThumbnails bool   `json:"missingThumbnails"`
+	StartTime         string `json:"startTime"`
+	SyncQuotaUsage    bool   `json:"syncQuotaUsage"`
+}
+
+// GetClusterNewFaces returns the value of ClusterNewFaces.
+func (s *SystemConfigNightlyTasksDto) GetClusterNewFaces() bool {
+	return s.ClusterNewFaces
+}
+
+// GetDatabaseCleanup returns the value of DatabaseCleanup.
+func (s *SystemConfigNightlyTasksDto) GetDatabaseCleanup() bool {
+	return s.DatabaseCleanup
+}
+
+// GetGenerateMemories returns the value of GenerateMemories.
+func (s *SystemConfigNightlyTasksDto) GetGenerateMemories() bool {
+	return s.GenerateMemories
+}
+
+// GetMissingThumbnails returns the value of MissingThumbnails.
+func (s *SystemConfigNightlyTasksDto) GetMissingThumbnails() bool {
+	return s.MissingThumbnails
+}
+
+// GetStartTime returns the value of StartTime.
+func (s *SystemConfigNightlyTasksDto) GetStartTime() string {
+	return s.StartTime
+}
+
+// GetSyncQuotaUsage returns the value of SyncQuotaUsage.
+func (s *SystemConfigNightlyTasksDto) GetSyncQuotaUsage() bool {
+	return s.SyncQuotaUsage
+}
+
+// SetClusterNewFaces sets the value of ClusterNewFaces.
+func (s *SystemConfigNightlyTasksDto) SetClusterNewFaces(val bool) {
+	s.ClusterNewFaces = val
+}
+
+// SetDatabaseCleanup sets the value of DatabaseCleanup.
+func (s *SystemConfigNightlyTasksDto) SetDatabaseCleanup(val bool) {
+	s.DatabaseCleanup = val
+}
+
+// SetGenerateMemories sets the value of GenerateMemories.
+func (s *SystemConfigNightlyTasksDto) SetGenerateMemories(val bool) {
+	s.GenerateMemories = val
+}
+
+// SetMissingThumbnails sets the value of MissingThumbnails.
+func (s *SystemConfigNightlyTasksDto) SetMissingThumbnails(val bool) {
+	s.MissingThumbnails = val
+}
+
+// SetStartTime sets the value of StartTime.
+func (s *SystemConfigNightlyTasksDto) SetStartTime(val string) {
+	s.StartTime = val
+}
+
+// SetSyncQuotaUsage sets the value of SyncQuotaUsage.
+func (s *SystemConfigNightlyTasksDto) SetSyncQuotaUsage(val bool) {
+	s.SyncQuotaUsage = val
+}
+
 // Ref: #/components/schemas/SystemConfigNotificationsDto
 type SystemConfigNotificationsDto struct {
 	SMTP SystemConfigSmtpDto `json:"smtp"`
@@ -14590,12 +16436,13 @@ type SystemConfigOAuthDto struct {
 	ButtonText              string                       `json:"buttonText"`
 	ClientId                string                       `json:"clientId"`
 	ClientSecret            string                       `json:"clientSecret"`
-	DefaultStorageQuota     float64                      `json:"defaultStorageQuota"`
+	DefaultStorageQuota     NilInt64                     `json:"defaultStorageQuota"`
 	Enabled                 bool                         `json:"enabled"`
 	IssuerUrl               string                       `json:"issuerUrl"`
 	MobileOverrideEnabled   bool                         `json:"mobileOverrideEnabled"`
 	MobileRedirectUri       url.URL                      `json:"mobileRedirectUri"`
 	ProfileSigningAlgorithm string                       `json:"profileSigningAlgorithm"`
+	RoleClaim               string                       `json:"roleClaim"`
 	Scope                   string                       `json:"scope"`
 	SigningAlgorithm        string                       `json:"signingAlgorithm"`
 	StorageLabelClaim       string                       `json:"storageLabelClaim"`
@@ -14630,7 +16477,7 @@ func (s *SystemConfigOAuthDto) GetClientSecret() string {
 }
 
 // GetDefaultStorageQuota returns the value of DefaultStorageQuota.
-func (s *SystemConfigOAuthDto) GetDefaultStorageQuota() float64 {
+func (s *SystemConfigOAuthDto) GetDefaultStorageQuota() NilInt64 {
 	return s.DefaultStorageQuota
 }
 
@@ -14657,6 +16504,11 @@ func (s *SystemConfigOAuthDto) GetMobileRedirectUri() url.URL {
 // GetProfileSigningAlgorithm returns the value of ProfileSigningAlgorithm.
 func (s *SystemConfigOAuthDto) GetProfileSigningAlgorithm() string {
 	return s.ProfileSigningAlgorithm
+}
+
+// GetRoleClaim returns the value of RoleClaim.
+func (s *SystemConfigOAuthDto) GetRoleClaim() string {
+	return s.RoleClaim
 }
 
 // GetScope returns the value of Scope.
@@ -14715,7 +16567,7 @@ func (s *SystemConfigOAuthDto) SetClientSecret(val string) {
 }
 
 // SetDefaultStorageQuota sets the value of DefaultStorageQuota.
-func (s *SystemConfigOAuthDto) SetDefaultStorageQuota(val float64) {
+func (s *SystemConfigOAuthDto) SetDefaultStorageQuota(val NilInt64) {
 	s.DefaultStorageQuota = val
 }
 
@@ -14742,6 +16594,11 @@ func (s *SystemConfigOAuthDto) SetMobileRedirectUri(val url.URL) {
 // SetProfileSigningAlgorithm sets the value of ProfileSigningAlgorithm.
 func (s *SystemConfigOAuthDto) SetProfileSigningAlgorithm(val string) {
 	s.ProfileSigningAlgorithm = val
+}
+
+// SetRoleClaim sets the value of RoleClaim.
+func (s *SystemConfigOAuthDto) SetRoleClaim(val string) {
+	s.RoleClaim = val
 }
 
 // SetScope sets the value of Scope.
@@ -15484,21 +17341,44 @@ func (s *TestEmailResponseDto) SetMessageId(val string) {
 
 // Ref: #/components/schemas/TimeBucketAssetResponseDto
 type TimeBucketAssetResponseDto struct {
-	City             []NilString `json:"city"`
-	Country          []NilString `json:"country"`
-	Duration         []NilString `json:"duration"`
-	ID               []string    `json:"id"`
-	IsFavorite       []bool      `json:"isFavorite"`
-	IsImage          []bool      `json:"isImage"`
-	IsTrashed        []bool      `json:"isTrashed"`
+	// Array of city names extracted from EXIF GPS data.
+	City []NilString `json:"city"`
+	// Array of country names extracted from EXIF GPS data.
+	Country []NilString `json:"country"`
+	// Array of video durations in HH:MM:SS format (null for images).
+	Duration []NilString `json:"duration"`
+	// Array of file creation timestamps in UTC (ISO 8601 format, without timezone).
+	FileCreatedAt []string `json:"fileCreatedAt"`
+	// Array of asset IDs in the time bucket.
+	ID []string `json:"id"`
+	// Array indicating whether each asset is favorited.
+	IsFavorite []bool `json:"isFavorite"`
+	// Array indicating whether each asset is an image (false for videos).
+	IsImage []bool `json:"isImage"`
+	// Array indicating whether each asset is in the trash.
+	IsTrashed []bool `json:"isTrashed"`
+	// Array of latitude coordinates extracted from EXIF GPS data.
+	Latitude []NilFloat64 `json:"latitude"`
+	// Array of live photo video asset IDs (null for non-live photos).
 	LivePhotoVideoId []NilString `json:"livePhotoVideoId"`
-	LocalDateTime    []string    `json:"localDateTime"`
-	OwnerId          []string    `json:"ownerId"`
-	ProjectionType   []NilString `json:"projectionType"`
-	Ratio            []float64   `json:"ratio"`
-	// (stack ID, stack asset count) tuple.
-	Stack      [][]string        `json:"stack"`
-	Thumbhash  []NilString       `json:"thumbhash"`
+	// Array of UTC offset hours at the time each photo was taken. Positive values are east of UTC,
+	// negative values are west of UTC. Values may be fractional (e.g., 5.5 for +05:30, -9.75 for -09:45).
+	//  Applying this offset to 'fileCreatedAt' will give you the time the photo was taken from the
+	// photographer's perspective.
+	LocalOffsetHours []float64 `json:"localOffsetHours"`
+	// Array of longitude coordinates extracted from EXIF GPS data.
+	Longitude []NilFloat64 `json:"longitude"`
+	// Array of owner IDs for each asset.
+	OwnerId []string `json:"ownerId"`
+	// Array of projection types for 360° content (e.g., "EQUIRECTANGULAR", "CUBEFACE", "CYLINDRICAL").
+	ProjectionType []NilString `json:"projectionType"`
+	// Array of aspect ratios (width/height) for each asset.
+	Ratio []float64 `json:"ratio"`
+	// Array of stack information as [stackId, assetCount] tuples (null for non-stacked assets).
+	Stack [][]string `json:"stack"`
+	// Array of BlurHash strings for generating asset previews (base64 encoded).
+	Thumbhash []NilString `json:"thumbhash"`
+	// Array of visibility statuses for each asset (e.g., ARCHIVE, TIMELINE, HIDDEN, LOCKED).
 	Visibility []AssetVisibility `json:"visibility"`
 }
 
@@ -15515,6 +17395,11 @@ func (s *TimeBucketAssetResponseDto) GetCountry() []NilString {
 // GetDuration returns the value of Duration.
 func (s *TimeBucketAssetResponseDto) GetDuration() []NilString {
 	return s.Duration
+}
+
+// GetFileCreatedAt returns the value of FileCreatedAt.
+func (s *TimeBucketAssetResponseDto) GetFileCreatedAt() []string {
+	return s.FileCreatedAt
 }
 
 // GetID returns the value of ID.
@@ -15537,14 +17422,24 @@ func (s *TimeBucketAssetResponseDto) GetIsTrashed() []bool {
 	return s.IsTrashed
 }
 
+// GetLatitude returns the value of Latitude.
+func (s *TimeBucketAssetResponseDto) GetLatitude() []NilFloat64 {
+	return s.Latitude
+}
+
 // GetLivePhotoVideoId returns the value of LivePhotoVideoId.
 func (s *TimeBucketAssetResponseDto) GetLivePhotoVideoId() []NilString {
 	return s.LivePhotoVideoId
 }
 
-// GetLocalDateTime returns the value of LocalDateTime.
-func (s *TimeBucketAssetResponseDto) GetLocalDateTime() []string {
-	return s.LocalDateTime
+// GetLocalOffsetHours returns the value of LocalOffsetHours.
+func (s *TimeBucketAssetResponseDto) GetLocalOffsetHours() []float64 {
+	return s.LocalOffsetHours
+}
+
+// GetLongitude returns the value of Longitude.
+func (s *TimeBucketAssetResponseDto) GetLongitude() []NilFloat64 {
+	return s.Longitude
 }
 
 // GetOwnerId returns the value of OwnerId.
@@ -15592,6 +17487,11 @@ func (s *TimeBucketAssetResponseDto) SetDuration(val []NilString) {
 	s.Duration = val
 }
 
+// SetFileCreatedAt sets the value of FileCreatedAt.
+func (s *TimeBucketAssetResponseDto) SetFileCreatedAt(val []string) {
+	s.FileCreatedAt = val
+}
+
 // SetID sets the value of ID.
 func (s *TimeBucketAssetResponseDto) SetID(val []string) {
 	s.ID = val
@@ -15612,14 +17512,24 @@ func (s *TimeBucketAssetResponseDto) SetIsTrashed(val []bool) {
 	s.IsTrashed = val
 }
 
+// SetLatitude sets the value of Latitude.
+func (s *TimeBucketAssetResponseDto) SetLatitude(val []NilFloat64) {
+	s.Latitude = val
+}
+
 // SetLivePhotoVideoId sets the value of LivePhotoVideoId.
 func (s *TimeBucketAssetResponseDto) SetLivePhotoVideoId(val []NilString) {
 	s.LivePhotoVideoId = val
 }
 
-// SetLocalDateTime sets the value of LocalDateTime.
-func (s *TimeBucketAssetResponseDto) SetLocalDateTime(val []string) {
-	s.LocalDateTime = val
+// SetLocalOffsetHours sets the value of LocalOffsetHours.
+func (s *TimeBucketAssetResponseDto) SetLocalOffsetHours(val []float64) {
+	s.LocalOffsetHours = val
+}
+
+// SetLongitude sets the value of Longitude.
+func (s *TimeBucketAssetResponseDto) SetLongitude(val []NilFloat64) {
+	s.Longitude = val
 }
 
 // SetOwnerId sets the value of OwnerId.
@@ -15654,7 +17564,9 @@ func (s *TimeBucketAssetResponseDto) SetVisibility(val []AssetVisibility) {
 
 // Ref: #/components/schemas/TimeBucketsResponseDto
 type TimeBucketsResponseDto struct {
-	Count      int    `json:"count"`
+	// Number of assets in this time bucket.
+	Count int `json:"count"`
+	// Time bucket identifier in YYYY-MM-DD format representing the start of the time period.
 	TimeBucket string `json:"timeBucket"`
 }
 
@@ -15875,8 +17787,11 @@ func (s *TrashResponseDto) SetCount(val int) {
 	s.Count = val
 }
 
-// UnlockAuthSessionOK is response for UnlockAuthSession operation.
-type UnlockAuthSessionOK struct{}
+// UnlinkAllOAuthAccountsAdminNoContent is response for UnlinkAllOAuthAccountsAdmin operation.
+type UnlinkAllOAuthAccountsAdminNoContent struct{}
+
+// UnlockAuthSessionNoContent is response for UnlockAuthSession operation.
+type UnlockAuthSessionNoContent struct{}
 
 // UpdateAdminOnboardingNoContent is response for UpdateAdminOnboarding operation.
 type UpdateAdminOnboardingNoContent struct{}
@@ -15955,8 +17870,8 @@ func (s *UpdateAlbumUserDto) SetRole(val AlbumUserRole) {
 	s.Role = val
 }
 
-// UpdateAlbumUserOK is response for UpdateAlbumUser operation.
-type UpdateAlbumUserOK struct{}
+// UpdateAlbumUserNoContent is response for UpdateAlbumUser operation.
+type UpdateAlbumUserNoContent struct{}
 
 // Ref: #/components/schemas/UpdateAssetDto
 type UpdateAssetDto struct {
@@ -16090,31 +18005,8 @@ func (s *UpdateLibraryDto) SetName(val OptString) {
 	s.Name = val
 }
 
-// UpdateNotificationsOK is response for UpdateNotifications operation.
-type UpdateNotificationsOK struct{}
-
-// Ref: #/components/schemas/UpdatePartnerDto
-type UpdatePartnerDto struct {
-	InTimeline bool `json:"inTimeline"`
-}
-
-// GetInTimeline returns the value of InTimeline.
-func (s *UpdatePartnerDto) GetInTimeline() bool {
-	return s.InTimeline
-}
-
-// SetInTimeline sets the value of InTimeline.
-func (s *UpdatePartnerDto) SetInTimeline(val bool) {
-	s.InTimeline = val
-}
-
-type UploadAssetCreated AssetMediaResponseDto
-
-func (*UploadAssetCreated) uploadAssetRes() {}
-
-type UploadAssetOK AssetMediaResponseDto
-
-func (*UploadAssetOK) uploadAssetRes() {}
+// UpdateNotificationsNoContent is response for UpdateNotifications operation.
+type UpdateNotificationsNoContent struct{}
 
 // Ref: #/components/schemas/UsageByUserDto
 type UsageByUserDto struct {
@@ -16212,6 +18104,7 @@ func (s *UsageByUserDto) SetVideos(val int) {
 type UserAdminCreateDto struct {
 	AvatarColor          OptNilUserAvatarColor `json:"avatarColor"`
 	Email                string                `json:"email"`
+	IsAdmin              OptBool               `json:"isAdmin"`
 	Name                 string                `json:"name"`
 	Notify               OptBool               `json:"notify"`
 	Password             string                `json:"password"`
@@ -16228,6 +18121,11 @@ func (s *UserAdminCreateDto) GetAvatarColor() OptNilUserAvatarColor {
 // GetEmail returns the value of Email.
 func (s *UserAdminCreateDto) GetEmail() string {
 	return s.Email
+}
+
+// GetIsAdmin returns the value of IsAdmin.
+func (s *UserAdminCreateDto) GetIsAdmin() OptBool {
+	return s.IsAdmin
 }
 
 // GetName returns the value of Name.
@@ -16268,6 +18166,11 @@ func (s *UserAdminCreateDto) SetAvatarColor(val OptNilUserAvatarColor) {
 // SetEmail sets the value of Email.
 func (s *UserAdminCreateDto) SetEmail(val string) {
 	s.Email = val
+}
+
+// SetIsAdmin sets the value of IsAdmin.
+func (s *UserAdminCreateDto) SetIsAdmin(val OptBool) {
+	s.IsAdmin = val
 }
 
 // SetName sets the value of Name.
@@ -16510,6 +18413,7 @@ func (s *UserAdminResponseDto) SetUpdatedAt(val time.Time) {
 type UserAdminUpdateDto struct {
 	AvatarColor          OptNilUserAvatarColor `json:"avatarColor"`
 	Email                OptString             `json:"email"`
+	IsAdmin              OptBool               `json:"isAdmin"`
 	Name                 OptString             `json:"name"`
 	Password             OptString             `json:"password"`
 	PinCode              OptNilString          `json:"pinCode"`
@@ -16526,6 +18430,11 @@ func (s *UserAdminUpdateDto) GetAvatarColor() OptNilUserAvatarColor {
 // GetEmail returns the value of Email.
 func (s *UserAdminUpdateDto) GetEmail() OptString {
 	return s.Email
+}
+
+// GetIsAdmin returns the value of IsAdmin.
+func (s *UserAdminUpdateDto) GetIsAdmin() OptBool {
+	return s.IsAdmin
 }
 
 // GetName returns the value of Name.
@@ -16566,6 +18475,11 @@ func (s *UserAdminUpdateDto) SetAvatarColor(val OptNilUserAvatarColor) {
 // SetEmail sets the value of Email.
 func (s *UserAdminUpdateDto) SetEmail(val OptString) {
 	s.Email = val
+}
+
+// SetIsAdmin sets the value of IsAdmin.
+func (s *UserAdminUpdateDto) SetIsAdmin(val OptBool) {
+	s.IsAdmin = val
 }
 
 // SetName sets the value of Name.
@@ -16735,6 +18649,7 @@ func (s *UserLicense) SetLicenseKey(val string) {
 
 // Ref: #/components/schemas/UserPreferencesResponseDto
 type UserPreferencesResponseDto struct {
+	Albums             AlbumsResponse             `json:"albums"`
 	Cast               CastResponse               `json:"cast"`
 	Download           DownloadResponse           `json:"download"`
 	EmailNotifications EmailNotificationsResponse `json:"emailNotifications"`
@@ -16745,6 +18660,11 @@ type UserPreferencesResponseDto struct {
 	Ratings            RatingsResponse            `json:"ratings"`
 	SharedLinks        SharedLinksResponse        `json:"sharedLinks"`
 	Tags               TagsResponse               `json:"tags"`
+}
+
+// GetAlbums returns the value of Albums.
+func (s *UserPreferencesResponseDto) GetAlbums() AlbumsResponse {
+	return s.Albums
 }
 
 // GetCast returns the value of Cast.
@@ -16795,6 +18715,11 @@ func (s *UserPreferencesResponseDto) GetSharedLinks() SharedLinksResponse {
 // GetTags returns the value of Tags.
 func (s *UserPreferencesResponseDto) GetTags() TagsResponse {
 	return s.Tags
+}
+
+// SetAlbums sets the value of Albums.
+func (s *UserPreferencesResponseDto) SetAlbums(val AlbumsResponse) {
+	s.Albums = val
 }
 
 // SetCast sets the value of Cast.
@@ -16849,6 +18774,7 @@ func (s *UserPreferencesResponseDto) SetTags(val TagsResponse) {
 
 // Ref: #/components/schemas/UserPreferencesUpdateDto
 type UserPreferencesUpdateDto struct {
+	Albums             OptAlbumsUpdate             `json:"albums"`
 	Avatar             OptAvatarUpdate             `json:"avatar"`
 	Cast               OptCastUpdate               `json:"cast"`
 	Download           OptDownloadUpdate           `json:"download"`
@@ -16860,6 +18786,11 @@ type UserPreferencesUpdateDto struct {
 	Ratings            OptRatingsUpdate            `json:"ratings"`
 	SharedLinks        OptSharedLinksUpdate        `json:"sharedLinks"`
 	Tags               OptTagsUpdate               `json:"tags"`
+}
+
+// GetAlbums returns the value of Albums.
+func (s *UserPreferencesUpdateDto) GetAlbums() OptAlbumsUpdate {
+	return s.Albums
 }
 
 // GetAvatar returns the value of Avatar.
@@ -16915,6 +18846,11 @@ func (s *UserPreferencesUpdateDto) GetSharedLinks() OptSharedLinksUpdate {
 // GetTags returns the value of Tags.
 func (s *UserPreferencesUpdateDto) GetTags() OptTagsUpdate {
 	return s.Tags
+}
+
+// SetAlbums sets the value of Albums.
+func (s *UserPreferencesUpdateDto) SetAlbums(val OptAlbumsUpdate) {
+	s.Albums = val
 }
 
 // SetAvatar sets the value of Avatar.

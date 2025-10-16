@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/go-faster/errors"
-
 	"github.com/ogen-go/ogen/validate"
 )
 
@@ -469,6 +468,123 @@ func (s AlbumUserRole) Validate() error {
 	}
 }
 
+func (s *AlbumsAddAssetsDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.AlbumIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "albumIds",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.AssetIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assetIds",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AlbumsAddAssetsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Error.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "error",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AlbumsResponse) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.DefaultAssetOrder.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "defaultAssetOrder",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AlbumsUpdate) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.DefaultAssetOrder.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "defaultAssetOrder",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *AssetBulkDeleteDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -498,6 +614,24 @@ func (s *AssetBulkUpdateDto) Validate() error {
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.DateTimeRelative.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "dateTimeRelative",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if s.Ids == nil {
 			return errors.New("nil is invalid value")
@@ -1033,6 +1167,34 @@ func (s *AssetMediaCreateDtoMultipart) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.Metadata == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Metadata {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "metadata",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Visibility.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -1103,6 +1265,101 @@ func (s AssetMediaStatus) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s AssetMetadataKey) Validate() error {
+	switch s {
+	case "mobile-app":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *AssetMetadataResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Key.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AssetMetadataUpsertDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AssetMetadataUpsertItemDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Key.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s AssetOrder) Validate() error {
@@ -1309,6 +1566,21 @@ func (s *AvatarUpdate) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s BulkIdErrorReason) Validate() error {
+	switch s {
+	case "duplicate":
+		return nil
+	case "no_permission":
+		return nil
+	case "not_found":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *BulkIdResponseDto) Validate() error {
@@ -2343,6 +2615,40 @@ func (s *LoginCredentialDto) Validate() error {
 	return nil
 }
 
+func (s *MachineLearningAvailabilityChecksDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Interval)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "interval",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Timeout)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "timeout",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s ManualJobName) Validate() error {
 	switch s {
 	case "person-cleanup":
@@ -2630,6 +2936,24 @@ func (s *MetadataSearchDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.TagIds.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "tagIds",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Type.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -2798,6 +3122,10 @@ func (s NotificationType) Validate() error {
 	case "BackupFailed":
 		return nil
 	case "SystemMessage":
+		return nil
+	case "AlbumInvite":
+		return nil
+	case "AlbumUpdate":
 		return nil
 	case "Custom":
 		return nil
@@ -2980,6 +3308,8 @@ func (s Permission) Validate() error {
 		return nil
 	case "asset.delete":
 		return nil
+	case "asset.statistics":
+		return nil
 	case "asset.share":
 		return nil
 	case "asset.view":
@@ -2987,6 +3317,8 @@ func (s Permission) Validate() error {
 	case "asset.download":
 		return nil
 	case "asset.upload":
+		return nil
+	case "asset.replace":
 		return nil
 	case "album.create":
 		return nil
@@ -2998,17 +3330,29 @@ func (s Permission) Validate() error {
 		return nil
 	case "album.statistics":
 		return nil
-	case "album.addAsset":
-		return nil
-	case "album.removeAsset":
-		return nil
 	case "album.share":
 		return nil
 	case "album.download":
 		return nil
+	case "albumAsset.create":
+		return nil
+	case "albumAsset.delete":
+		return nil
+	case "albumUser.create":
+		return nil
+	case "albumUser.update":
+		return nil
+	case "albumUser.delete":
+		return nil
+	case "auth.changePassword":
+		return nil
 	case "authDevice.delete":
 		return nil
 	case "archive.read":
+		return nil
+	case "duplicate.read":
+		return nil
+	case "duplicate.delete":
 		return nil
 	case "face.create":
 		return nil
@@ -3017,6 +3361,10 @@ func (s Permission) Validate() error {
 	case "face.update":
 		return nil
 	case "face.delete":
+		return nil
+	case "job.create":
+		return nil
+	case "job.read":
 		return nil
 	case "library.create":
 		return nil
@@ -3039,6 +3387,12 @@ func (s Permission) Validate() error {
 	case "memory.update":
 		return nil
 	case "memory.delete":
+		return nil
+	case "memory.statistics":
+		return nil
+	case "memoryAsset.create":
+		return nil
+	case "memoryAsset.delete":
 		return nil
 	case "notification.create":
 		return nil
@@ -3070,6 +3424,28 @@ func (s Permission) Validate() error {
 		return nil
 	case "person.reassign":
 		return nil
+	case "pinCode.create":
+		return nil
+	case "pinCode.update":
+		return nil
+	case "pinCode.delete":
+		return nil
+	case "server.about":
+		return nil
+	case "server.apkLinks":
+		return nil
+	case "server.storage":
+		return nil
+	case "server.statistics":
+		return nil
+	case "server.versionCheck":
+		return nil
+	case "serverLicense.read":
+		return nil
+	case "serverLicense.update":
+		return nil
+	case "serverLicense.delete":
+		return nil
 	case "session.create":
 		return nil
 	case "session.read":
@@ -3096,6 +3472,14 @@ func (s Permission) Validate() error {
 		return nil
 	case "stack.delete":
 		return nil
+	case "sync.stream":
+		return nil
+	case "syncCheckpoint.read":
+		return nil
+	case "syncCheckpoint.update":
+		return nil
+	case "syncCheckpoint.delete":
+		return nil
 	case "systemConfig.read":
 		return nil
 	case "systemConfig.update":
@@ -3114,13 +3498,45 @@ func (s Permission) Validate() error {
 		return nil
 	case "tag.asset":
 		return nil
-	case "admin.user.create":
+	case "user.read":
 		return nil
-	case "admin.user.read":
+	case "user.update":
 		return nil
-	case "admin.user.update":
+	case "userLicense.create":
 		return nil
-	case "admin.user.delete":
+	case "userLicense.read":
+		return nil
+	case "userLicense.update":
+		return nil
+	case "userLicense.delete":
+		return nil
+	case "userOnboarding.read":
+		return nil
+	case "userOnboarding.update":
+		return nil
+	case "userOnboarding.delete":
+		return nil
+	case "userPreference.read":
+		return nil
+	case "userPreference.update":
+		return nil
+	case "userProfileImage.create":
+		return nil
+	case "userProfileImage.read":
+		return nil
+	case "userProfileImage.update":
+		return nil
+	case "userProfileImage.delete":
+		return nil
+	case "adminUser.create":
+		return nil
+	case "adminUser.read":
+		return nil
+	case "adminUser.update":
+		return nil
+	case "adminUser.delete":
+		return nil
+	case "adminAuth.unlinkAll":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -3258,6 +3674,24 @@ func (s *RandomSearchDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "size",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.TagIds.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "tagIds",
 			Error: err,
 		})
 	}
@@ -3950,6 +4384,24 @@ func (s *SmartSearchDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.TagIds.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "tagIds",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Type.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -4075,6 +4527,99 @@ func (s *StackResponseDto) Validate() error {
 	return nil
 }
 
+func (s *StatisticsSearchDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Rating.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           -1,
+					MaxSet:        true,
+					Max:           5,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+				}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "rating",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.TagIds.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "tagIds",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Type.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "type",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Visibility.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "visibility",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *SyncAckDeleteDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -4145,6 +4690,14 @@ func (s *SyncAckSetDto) Validate() error {
 		if s.Acks == nil {
 			return errors.New("nil is invalid value")
 		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    1000,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Acks)); err != nil {
+			return errors.Wrap(err, "array")
+		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
@@ -4160,13 +4713,11 @@ func (s *SyncAckSetDto) Validate() error {
 
 func (s SyncEntityType) Validate() error {
 	switch s {
+	case "AuthUserV1":
+		return nil
 	case "UserV1":
 		return nil
 	case "UserDeleteV1":
-		return nil
-	case "PartnerV1":
-		return nil
-	case "PartnerDeleteV1":
 		return nil
 	case "AssetV1":
 		return nil
@@ -4174,11 +4725,29 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "AssetExifV1":
 		return nil
+	case "AssetMetadataV1":
+		return nil
+	case "AssetMetadataDeleteV1":
+		return nil
+	case "PartnerV1":
+		return nil
+	case "PartnerDeleteV1":
+		return nil
 	case "PartnerAssetV1":
+		return nil
+	case "PartnerAssetBackfillV1":
 		return nil
 	case "PartnerAssetDeleteV1":
 		return nil
 	case "PartnerAssetExifV1":
+		return nil
+	case "PartnerAssetExifBackfillV1":
+		return nil
+	case "PartnerStackBackfillV1":
+		return nil
+	case "PartnerStackDeleteV1":
+		return nil
+	case "PartnerStackV1":
 		return nil
 	case "AlbumV1":
 		return nil
@@ -4186,7 +4755,57 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "AlbumUserV1":
 		return nil
+	case "AlbumUserBackfillV1":
+		return nil
 	case "AlbumUserDeleteV1":
+		return nil
+	case "AlbumAssetCreateV1":
+		return nil
+	case "AlbumAssetUpdateV1":
+		return nil
+	case "AlbumAssetBackfillV1":
+		return nil
+	case "AlbumAssetExifCreateV1":
+		return nil
+	case "AlbumAssetExifUpdateV1":
+		return nil
+	case "AlbumAssetExifBackfillV1":
+		return nil
+	case "AlbumToAssetV1":
+		return nil
+	case "AlbumToAssetDeleteV1":
+		return nil
+	case "AlbumToAssetBackfillV1":
+		return nil
+	case "MemoryV1":
+		return nil
+	case "MemoryDeleteV1":
+		return nil
+	case "MemoryToAssetV1":
+		return nil
+	case "MemoryToAssetDeleteV1":
+		return nil
+	case "StackV1":
+		return nil
+	case "StackDeleteV1":
+		return nil
+	case "PersonV1":
+		return nil
+	case "PersonDeleteV1":
+		return nil
+	case "AssetFaceV1":
+		return nil
+	case "AssetFaceDeleteV1":
+		return nil
+	case "UserMetadataV1":
+		return nil
+	case "UserMetadataDeleteV1":
+		return nil
+	case "SyncAckV1":
+		return nil
+	case "SyncResetV1":
+		return nil
+	case "SyncCompleteV1":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -4195,21 +4814,45 @@ func (s SyncEntityType) Validate() error {
 
 func (s SyncRequestType) Validate() error {
 	switch s {
-	case "UsersV1":
+	case "AlbumsV1":
 		return nil
-	case "PartnersV1":
+	case "AlbumUsersV1":
+		return nil
+	case "AlbumToAssetsV1":
+		return nil
+	case "AlbumAssetsV1":
+		return nil
+	case "AlbumAssetExifsV1":
 		return nil
 	case "AssetsV1":
 		return nil
 	case "AssetExifsV1":
 		return nil
+	case "AssetMetadataV1":
+		return nil
+	case "AuthUsersV1":
+		return nil
+	case "MemoriesV1":
+		return nil
+	case "MemoryToAssetsV1":
+		return nil
+	case "PartnersV1":
+		return nil
 	case "PartnerAssetsV1":
 		return nil
 	case "PartnerAssetExifsV1":
 		return nil
-	case "AlbumsV1":
+	case "PartnerStacksV1":
 		return nil
-	case "AlbumUsersV1":
+	case "StacksV1":
+		return nil
+	case "UsersV1":
+		return nil
+	case "PeopleV1":
+		return nil
+	case "AssetFacesV1":
+		return nil
+	case "UserMetadataV1":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -4988,6 +5631,17 @@ func (s *SystemConfigMachineLearningDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.AvailabilityChecks.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "availabilityChecks",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.DuplicateDetection.Validate(); err != nil {
 			return err
 		}
@@ -5064,17 +5718,24 @@ func (s *SystemConfigOAuthDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Float{
-			MinSet:        true,
-			Min:           0,
-			MaxSet:        false,
-			Max:           0,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    nil,
-		}).Validate(float64(s.DefaultStorageQuota)); err != nil {
-			return errors.Wrap(err, "float")
+		if value, ok := s.DefaultStorageQuota.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        false,
+					Max:           0,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -5474,6 +6135,17 @@ func (s *TimeBucketAssetResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.FileCreatedAt == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fileCreatedAt",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.ID == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -5518,6 +6190,38 @@ func (s *TimeBucketAssetResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Latitude {
+			if err := func() error {
+				if value, ok := elem.Get(); ok {
+					if err := func() error {
+						if err := (validate.Float{}).Validate(float64(value)); err != nil {
+							return errors.Wrap(err, "float")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "latitude",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.LivePhotoVideoId == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -5529,13 +6233,62 @@ func (s *TimeBucketAssetResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.LocalDateTime == nil {
+		if s.LocalOffsetHours == nil {
 			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.LocalOffsetHours {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(elem)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "localDateTime",
+			Name:  "localOffsetHours",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Longitude {
+			if err := func() error {
+				if value, ok := elem.Get(); ok {
+					if err := func() error {
+						if err := (validate.Float{}).Validate(float64(value)); err != nil {
+							return errors.Wrap(err, "float")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "longitude",
 			Error: err,
 		})
 	}
@@ -5918,22 +6671,6 @@ func (s *UpdateLibraryDto) Validate() error {
 	return nil
 }
 
-func (s *UploadAssetCreated) Validate() error {
-	alias := (*AssetMediaResponseDto)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *UploadAssetOK) Validate() error {
-	alias := (*AssetMediaResponseDto)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *UserAdminCreateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -6154,12 +6891,53 @@ func (s UserAvatarColor) Validate() error {
 	}
 }
 
+func (s *UserPreferencesResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Albums.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "albums",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *UserPreferencesUpdateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Albums.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "albums",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if value, ok := s.Avatar.Get(); ok {
 			if err := func() error {
