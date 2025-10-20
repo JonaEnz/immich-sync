@@ -1544,7 +1544,10 @@ func encodeUploadAssetRequest(
 				}
 				e.ArrEnd()
 			}(&enc)
-			return e.EncodeValue(string(enc.Bytes()))
+			if len(request.Metadata) > 0 {
+				return e.EncodeValue(string(enc.Bytes()))
+			}
+			return nil
 		}); err != nil {
 			return errors.Wrap(err, "encode query")
 		}
@@ -1563,7 +1566,10 @@ func encodeUploadAssetRequest(
 					request.Visibility.Encode(e)
 				}
 			}(&enc)
-			return e.EncodeValue(string(enc.Bytes()))
+			if request.Visibility.Set {
+				return e.EncodeValue(string(enc.Bytes()))
+			}
+			return nil
 		}); err != nil {
 			return errors.Wrap(err, "encode query")
 		}
