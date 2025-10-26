@@ -7,7 +7,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/JonaEnz/immich-sync/immichserver"
 	"github.com/JonaEnz/immich-sync/socketrpc"
@@ -77,12 +76,15 @@ var daemonCmd = &cobra.Command{
 		rpcServer.RegisterCallback(socketrpc.CmdAddAlbum, addToAlbum)
 		rpcServer.RegisterCallback(socketrpc.CmdDownloadAlbum, downloadAlbum)
 		rpcServer.Start()
-		go func() {
-			for {
-				scanAll(server.ImageDirs)
-				time.Sleep(time.Minute * time.Duration(scanInterval))
+
+		for _, dir := range server.ImageDirs {
+			i, err := dir.Read()
+			if err != nil {
+				continue
 			}
-		}()
+			dir.StartScan(server)
+			fmt.Printf("Watching directory '%s' (currently %d files)", dir.Path(), i)
+		}
 		rpcServer.WaitForExit()
 	},
 }

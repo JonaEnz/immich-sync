@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/radovskyb/watcher"
 )
 
 type ImageDirectory struct {
@@ -45,6 +46,42 @@ func NewImageDirectory(path string, subdir bool) ImageDirectory {
 		contentCache: make(map[string]FileStat),
 		lastScan:     time.Time{},
 	}
+}
+
+func (i *ImageDirectory) StartScan(server *ImmichServer) {
+	w := watcher.New()
+	w.FilterOps(watcher.Create, watcher.Write)
+	if err := w.AddRecursive(i.path); err != nil {
+		fmt.Printf("Failed to start directory watcher for '%s': %s\n", i.path, err)
+		return
+	}
+	go func() {
+		for {
+			select {
+			case event := <-w.Event:
+				switch event.Op {
+				case watcher.Write:
+					fallthrough
+				case watcher.Create:
+					if event.IsDir() {
+						break
+					}
+					if ok, err := i.addOrUpdateCache(event.Path); !ok {
+						fmt.Printf("Handling file event for '%s' failed: %s\n", event.Path, err)
+						break
+					}
+					i.Upload(server, 1)
+				default:
+					log.Printf("Unknown watcher event: %d\n", event.Op)
+				}
+			case err := <-w.Error:
+				log.Println(fmt.Errorf("watcher error: %w", err))
+			case <-w.Closed:
+				log.Fatalln("Watcher closed")
+			}
+		}
+	}()
+	w.Start(1 * time.Second)
 }
 
 func (i *ImageDirectory) Path() string {
