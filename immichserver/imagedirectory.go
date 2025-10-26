@@ -31,6 +31,8 @@ type ImageDirectoryConfig struct {
 type FileStat struct {
 	info     os.FileInfo
 	hashSha1 []byte
+	uploaded bool
+	updated  bool
 	uuid     uuid.UUID
 }
 
@@ -48,11 +50,11 @@ func NewImageDirectory(path string, subdir bool) ImageDirectory {
 	}
 }
 
-func (i *ImageDirectory) StartScan(server *ImmichServer) {
+func (i *ImageDirectory) StartScan(server *ImmichServer, keepChangedFiles bool) {
 	w := watcher.New()
 	w.FilterOps(watcher.Create, watcher.Write)
 	if err := w.AddRecursive(i.path); err != nil {
-		fmt.Printf("Failed to start directory watcher for '%s': %s\n", i.path, err)
+		log.Printf("Failed to start directory watcher for '%s': %s\n", i.path, err)
 		return
 	}
 	go func() {
@@ -67,10 +69,10 @@ func (i *ImageDirectory) StartScan(server *ImmichServer) {
 						break
 					}
 					if ok, err := i.addOrUpdateCache(event.Path); !ok {
-						fmt.Printf("Handling file event for '%s' failed: %s\n", event.Path, err)
+						log.Printf("Handling file event for '%s' failed: %s\n", event.Path, err)
 						break
 					}
-					i.Upload(server, 1)
+					i.Upload(server, 1, keepChangedFiles)
 				default:
 					log.Printf("Unknown watcher event: %d\n", event.Op)
 				}
@@ -125,7 +127,7 @@ func (i *ImageDirectory) Read() (int, error) {
 }
 
 func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
-	cacheEntry, ok := i.contentCache[filePath]
+	cacheEntry, alreadyExists := i.contentCache[filePath]
 	f, err := os.Open(filePath)
 	if err != nil {
 		return false, err
@@ -136,7 +138,7 @@ func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 		return false, err
 	}
 
-	if ok && fileInfo.ModTime().Unix() <= cacheEntry.info.ModTime().Unix() {
+	if alreadyExists && fileInfo.ModTime().Unix() <= cacheEntry.info.ModTime().Unix() {
 		return false, nil // Cache still current
 	}
 
@@ -148,16 +150,22 @@ func (i *ImageDirectory) addOrUpdateCache(filePath string) (bool, error) {
 	i.contentCache[filePath] = FileStat{
 		info:     fileInfo,
 		hashSha1: h.Sum(nil),
+		uploaded: cacheEntry.uploaded,
+		uuid:     cacheEntry.uuid,
+		updated:  alreadyExists,
 	}
 	log.Printf("%s %x\n", fileInfo.Name(), i.contentCache[filePath].hashSha1)
 	return true, nil
 }
 
-func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
+func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int, keepChangedFiles bool) {
 	sem := make(chan int, concurrentUploads)
 	mu := sync.Mutex{}
 	copiedCache := i.contentCache
 	for imagePath, entry := range copiedCache {
+		if entry.uploaded && !entry.updated {
+			continue
+		}
 		h := entry.HashHexString()
 		sem <- 1
 		go func(imagePath, h string, mu *sync.Mutex) {
@@ -172,12 +180,20 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int) {
 				<-sem
 				return
 			}
+			if !keepChangedFiles && entry.uploaded && entry.updated {
+				innerErr := server.Delete(entry.uuid)
+				if innerErr != nil {
+					log.Printf("Error deleting old version of image: %s\n", innerErr)
+				}
+			}
 			entry.uuid = u
+			entry.uploaded = true
+			entry.updated = false
 			mu.Lock()
 			i.contentCache[imagePath] = entry
 			mu.Unlock()
 			if i.album != nil {
-				err = server.AddToAlbum([]uuid.UUID{u}, *i.album)
+				err = server.AddToAlbum([]uuid.UUID{entry.uuid}, *i.album)
 			}
 			if err != nil {
 				log.Printf("Uploaded image at '%s' to server, but could not add to album '%s': %s\n", imagePath, (*i.album).String(), err.Error())

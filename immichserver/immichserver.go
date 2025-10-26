@@ -210,6 +210,13 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 	return response.ID, nil
 }
 
+func (i *ImmichServer) Delete(assetUUID uuid.UUID) error {
+	return i.oapiClient.DeleteAssets(context.Background(), &oapi.AssetBulkDeleteDto{
+		Force: oapi.NewOptBool(false),
+		Ids:   []uuid.UUID{assetUUID},
+	})
+}
+
 func (i *ImmichServer) Download(filePath string, imageUUID uuid.UUID) error {
 	stat, err := os.Stat(filePath)
 	if err != nil {

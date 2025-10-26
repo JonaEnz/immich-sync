@@ -1,3 +1,4 @@
 immich-sync
 # Added by goreleaser init:
 dist/
+src/

@@ -10,12 +10,11 @@ import (
 
 var (
 	// Used for flags.
-	cfgFile      string
-	serverURL    string
-	apiKey       string
-	deviceID     string
-	watchDirs    []immichserver.ImageDirectoryConfig
-	scanInterval int
+	cfgFile   string
+	serverURL string
+	apiKey    string
+	deviceID  string
+	watchDirs []immichserver.ImageDirectoryConfig
 
 	rootCmd = &cobra.Command{
 		Use:   "immich-sync",
@@ -38,6 +37,7 @@ func init() {
 	viper.SetDefault("apikey", "")
 	viper.SetDefault("schedule", 15)
 	viper.SetDefault("concurrent-uploads", 5)
+	viper.SetDefault("keepchangedfiles", false)
 }
 
 func initConfig() {
@@ -54,7 +54,7 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err == nil {
-		// fmt.Println("Using config file:", viper.ConfigFileUsed())
+		log.Printf("Error reading config: %s\n", err)
 	}
 
 	if !viper.IsSet("server") || !viper.IsSet("apikey") {
@@ -67,6 +67,6 @@ func initConfig() {
 	deviceID = viper.GetString("deviceid")
 	serverURL = viper.GetString("server")
 	apiKey = viper.GetString("apikey")
-	scanInterval = viper.GetInt("schedule")
 	concurrentUploads = viper.GetInt("concurrent-uploads")
+	keepChangedFiles = viper.GetBool("keepchangedfiles")
 }

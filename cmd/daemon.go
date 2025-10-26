@@ -22,6 +22,7 @@ func init() {
 var (
 	server            *immichserver.ImmichServer
 	concurrentUploads int
+	keepChangedFiles  bool
 )
 
 func scanAll(imageDirs []*immichserver.ImageDirectory) {
@@ -34,7 +35,7 @@ func scanAll(imageDirs []*immichserver.ImageDirectory) {
 		} else {
 			log.Printf("Found %d new/updated files in %s.\n", read, dir.Path())
 		}
-		dir.Upload(server, concurrentUploads)
+		dir.Upload(server, concurrentUploads, keepChangedFiles)
 	}
 }
 
@@ -82,7 +83,7 @@ var daemonCmd = &cobra.Command{
 			if err != nil {
 				continue
 			}
-			dir.StartScan(server)
+			dir.StartScan(server, keepChangedFiles)
 			fmt.Printf("Watching directory '%s' (currently %d files)", dir.Path(), i)
 		}
 		rpcServer.WaitForExit()
