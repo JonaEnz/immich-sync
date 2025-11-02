@@ -1,8 +1,10 @@
 # Immich Sync
 
-*In development.*
+_In development._
 
-A service for uploading to your Immich server.
+🐶 In active use by developer
+
+A service for uploading to your Immich server, version 2.0 or later recommended.
 Linux only, could work on Windows with minor adjustments.
 
 ## Currently Working
@@ -10,22 +12,22 @@ Linux only, could work on Windows with minor adjustments.
 - [x] Upload images to Immich
 - [x] Scan local directories for new / updated images
 - [x] Add images to albums by directories
-- [x] Scan in the background in regular intervals
+- [x] Scan in the background for new / updated images
 - [x] Download albums from Immich
+- [x] Update changed images on Immich
 - [ ] Delete images from Immich
 
 ## Installation
 
 1. Install the systemd service from the `immich-sync.service` file.
-Compile the binary and place it at the specified path.
+   Compile the binary and place it at the specified path.
 
 2. Create the configuration file at `/etc/immich-sync/config.yaml`:
 
 ```yaml
-watch: [] # 
-schedule: 15 # Sync intervals in minutes
+watch: [] #
 server: "" # Server url with trailing /api
-apikey: "" # API key (<immich>/user-settings?isOpen=api-keys) 
+apikey: "" # API key (<immich>/user-settings?isOpen=api-keys)
 deviceid: "" # Device name
 ```
 
@@ -38,20 +40,20 @@ The user config is only used for those commands.
 A client for uploading images to Immich
 
 Usage:
-  immich-sync [command]
+immich-sync [command]
 
 Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  daemon      Daemon mode, opens a unix socket for communication
-  help        Help about any command
-  scan        Scans for new images, uses the daemon if it is running
-  status      Checks the status of the service daemon
-  upload      Uploads image(s) to Immich
-  watch       Adds or remove directories from scan
+completion Generate the autocompletion script for the specified shell
+daemon Daemon mode, opens a unix socket for communication
+help Help about any command
+scan Scans for new images, uses the daemon if it is running
+status Checks the status of the service daemon
+upload Uploads image(s) to Immich
+watch Adds or remove directories from scan
 
 Flags:
-      --config string   config file (default is $HOME/.config/immich-sync/config.yaml)
-  -h, --help            help for immich-sync
+--config string config file (default is $HOME/.config/immich-sync/config.yaml)
+-h, --help help for immich-sync
 
 Use "immich-sync [command] --help" for more information about a command.
 ```
