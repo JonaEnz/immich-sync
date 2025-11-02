@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -180,10 +181,20 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int, kee
 				<-sem
 				return
 			}
-			if !keepChangedFiles && entry.uploaded && entry.updated {
-				innerErr := server.Delete(entry.uuid)
-				if innerErr != nil {
-					log.Printf("Error deleting old version of image: %s\n", innerErr)
+			if entry.uploaded && entry.updated {
+				if err = server.CopyMetadata(entry.uuid, u); err != nil {
+					log.Printf("Failed to copy metadata to new asset: %v", err)
+					if !strings.Contains(err.Error(), "version error:") {
+						<-sem
+						return
+					}
+				}
+				if !keepChangedFiles {
+					err = server.Delete(entry.uuid)
+					if err != nil {
+						log.Printf("Error deleting old version of image: %s\n", err)
+					}
+
 				}
 			}
 			entry.uuid = u

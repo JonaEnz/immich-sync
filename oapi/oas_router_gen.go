@@ -390,26 +390,62 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										return
 									}
 
-								case 's': // Prefix: "statistics"
+								case 's': // Prefix: "s"
 
-									if l := len("statistics"); len(elem) >= l && elem[0:l] == "statistics" {
+									if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "GET":
-											s.handleGetUserStatisticsAdminRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "GET")
+										break
+									}
+									switch elem[0] {
+									case 'e': // Prefix: "essions"
+
+										if l := len("essions"); len(elem) >= l && elem[0:l] == "essions" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleGetUserSessionsAdminRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET")
+											}
+
+											return
+										}
+
+									case 't': // Prefix: "tatistics"
+
+										if l := len("tatistics"); len(elem) >= l && elem[0:l] == "tatistics" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleGetUserStatisticsAdminRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET")
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -787,6 +823,27 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							}
 
 							elem = origElem
+						case 'c': // Prefix: "copy"
+							origElem := elem
+							if l := len("copy"); len(elem) >= l && elem[0:l] == "copy" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "PUT":
+									s.handleCopyAssetRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "PUT")
+								}
+
+								return
+							}
+
+							elem = origElem
 						case 'd': // Prefix: "device/"
 							origElem := elem
 							if l := len("device/"); len(elem) >= l && elem[0:l] == "device/" {
@@ -1006,30 +1063,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 								}
 
-							case 'o': // Prefix: "original"
+							case 'o': // Prefix: "o"
 
-								if l := len("original"); len(elem) >= l && elem[0:l] == "original" {
+								if l := len("o"); len(elem) >= l && elem[0:l] == "o" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "GET":
-										s.handleDownloadAssetRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									case "PUT":
-										s.handleReplaceAssetRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "GET,PUT")
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "cr"
+
+									if l := len("cr"); len(elem) >= l && elem[0:l] == "cr" {
+										elem = elem[l:]
+									} else {
+										break
 									}
 
-									return
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleGetAssetOcrRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
+									}
+
+								case 'r': // Prefix: "riginal"
+
+									if l := len("riginal"); len(elem) >= l && elem[0:l] == "riginal" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleDownloadAssetRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										case "PUT":
+											s.handleReplaceAssetRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET,PUT")
+										}
+
+										return
+									}
+
 								}
 
 							case 't': // Prefix: "thumbnail"
@@ -4466,28 +4559,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										}
 									}
 
-								case 's': // Prefix: "statistics"
+								case 's': // Prefix: "s"
 
-									if l := len("statistics"); len(elem) >= l && elem[0:l] == "statistics" {
+									if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "GET":
-											r.name = GetUserStatisticsAdminOperation
-											r.summary = ""
-											r.operationID = "getUserStatisticsAdmin"
-											r.pathPattern = "/admin/users/{id}/statistics"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
+										break
+									}
+									switch elem[0] {
+									case 'e': // Prefix: "essions"
+
+										if l := len("essions"); len(elem) >= l && elem[0:l] == "essions" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = GetUserSessionsAdminOperation
+												r.summary = ""
+												r.operationID = "getUserSessionsAdmin"
+												r.pathPattern = "/admin/users/{id}/sessions"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 't': // Prefix: "tatistics"
+
+										if l := len("tatistics"); len(elem) >= l && elem[0:l] == "tatistics" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = GetUserStatisticsAdminOperation
+												r.summary = ""
+												r.operationID = "getUserStatisticsAdmin"
+												r.pathPattern = "/admin/users/{id}/statistics"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}
@@ -4949,6 +5080,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							}
 
 							elem = origElem
+						case 'c': // Prefix: "copy"
+							origElem := elem
+							if l := len("copy"); len(elem) >= l && elem[0:l] == "copy" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "PUT":
+									r.name = CopyAssetOperation
+									r.summary = ""
+									r.operationID = "copyAsset"
+									r.pathPattern = "/assets/copy"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+							elem = origElem
 						case 'd': // Prefix: "device/"
 							origElem := elem
 							if l := len("device/"); len(elem) >= l && elem[0:l] == "device/" {
@@ -5202,36 +5358,74 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 								}
 
-							case 'o': // Prefix: "original"
+							case 'o': // Prefix: "o"
 
-								if l := len("original"); len(elem) >= l && elem[0:l] == "original" {
+								if l := len("o"); len(elem) >= l && elem[0:l] == "o" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "GET":
-										r.name = DownloadAssetOperation
-										r.summary = ""
-										r.operationID = "downloadAsset"
-										r.pathPattern = "/assets/{id}/original"
-										r.args = args
-										r.count = 1
-										return r, true
-									case "PUT":
-										r.name = ReplaceAssetOperation
-										r.summary = "Replace the asset with new file, without changing its id"
-										r.operationID = "replaceAsset"
-										r.pathPattern = "/assets/{id}/original"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "cr"
+
+									if l := len("cr"); len(elem) >= l && elem[0:l] == "cr" {
+										elem = elem[l:]
+									} else {
+										break
 									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = GetAssetOcrOperation
+											r.summary = ""
+											r.operationID = "getAssetOcr"
+											r.pathPattern = "/assets/{id}/ocr"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'r': // Prefix: "riginal"
+
+									if l := len("riginal"); len(elem) >= l && elem[0:l] == "riginal" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = DownloadAssetOperation
+											r.summary = ""
+											r.operationID = "downloadAsset"
+											r.pathPattern = "/assets/{id}/original"
+											r.args = args
+											r.count = 1
+											return r, true
+										case "PUT":
+											r.name = ReplaceAssetOperation
+											r.summary = "Replace the asset with new file, without changing its id"
+											r.operationID = "replaceAsset"
+											r.pathPattern = "/assets/{id}/original"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							case 't': // Prefix: "thumbnail"

@@ -1362,6 +1362,128 @@ func (s *AssetMetadataUpsertItemDto) Validate() error {
 	return nil
 }
 
+func (s *AssetOcrResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.BoxScore)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "boxScore",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.TextScore)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "textScore",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.X1)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "x1",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.X2)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "x2",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.X3)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "x3",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.X4)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "x4",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Y1)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "y1",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Y2)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "y2",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Y3)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "y3",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Y4)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "y4",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s AssetOrder) Validate() error {
 	switch s {
 	case "asc":
@@ -2432,6 +2554,8 @@ func (s JobName) Validate() error {
 		return nil
 	case "backupDatabase":
 		return nil
+	case "ocr":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -3168,6 +3292,78 @@ func (s OAuthTokenEndpointAuthMethod) Validate() error {
 	}
 }
 
+func (s *OcrConfig) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+		}).Validate(int64(s.MaxResolution)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "maxResolution",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{
+			MinSet:        true,
+			Min:           0.1,
+			MaxSet:        true,
+			Max:           1,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    nil,
+		}).Validate(float64(s.MinDetectionScore)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "minDetectionScore",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{
+			MinSet:        true,
+			Min:           0.1,
+			MaxSet:        true,
+			Max:           1,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    nil,
+		}).Validate(float64(s.MinRecognitionScore)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "minRecognitionScore",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *OnThisDayDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -3319,6 +3515,8 @@ func (s Permission) Validate() error {
 	case "asset.upload":
 		return nil
 	case "asset.replace":
+		return nil
+	case "asset.copy":
 		return nil
 	case "album.create":
 		return nil
@@ -3535,6 +3733,8 @@ func (s Permission) Validate() error {
 	case "adminUser.update":
 		return nil
 	case "adminUser.delete":
+		return nil
+	case "adminSession.read":
 		return nil
 	case "adminAuth.unlinkAll":
 		return nil
@@ -4026,6 +4226,8 @@ func (s SearchSuggestionType) Validate() error {
 	case "camera-make":
 		return nil
 	case "camera-model":
+		return nil
+	case "camera-lens-model":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -5541,6 +5743,17 @@ func (s *SystemConfigJobDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.Ocr.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ocr",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Search.Validate(); err != nil {
 			return err
 		}
@@ -5660,6 +5873,17 @@ func (s *SystemConfigMachineLearningDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "facialRecognition",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Ocr.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ocr",
 			Error: err,
 		})
 	}
@@ -6667,6 +6891,22 @@ func (s *UpdateLibraryDto) Validate() error {
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *UploadAssetCreated) Validate() error {
+	alias := (*AssetMediaResponseDto)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *UploadAssetOK) Validate() error {
+	alias := (*AssetMediaResponseDto)(s)
+	if err := alias.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

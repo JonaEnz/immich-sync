@@ -66,6 +66,12 @@ type Handler interface {
 	//
 	// POST /assets/exist
 	CheckExistingAssets(ctx context.Context, req *CheckExistingAssetsDto) (*CheckExistingAssetsResponseDto, error)
+	// CopyAsset implements copyAsset operation.
+	//
+	// This endpoint requires the `asset.copy` permission.
+	//
+	// PUT /assets/copy
+	CopyAsset(ctx context.Context, req *AssetCopyDto) error
 	// CreateActivity implements createActivity operation.
 	//
 	// This endpoint requires the `activity.create` permission.
@@ -460,6 +466,12 @@ type Handler interface {
 	//
 	// GET /assets/{id}/metadata/{key}
 	GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error)
+	// GetAssetOcr implements getAssetOcr operation.
+	//
+	// This endpoint requires the `asset.read` permission.
+	//
+	// GET /assets/{id}/ocr
+	GetAssetOcr(ctx context.Context, params GetAssetOcrParams) ([]AssetOcrResponseDto, error)
 	// GetAssetStatistics implements getAssetStatistics operation.
 	//
 	// This endpoint requires the `asset.statistics` permission.
@@ -752,6 +764,12 @@ type Handler interface {
 	//
 	// GET /admin/users/{id}/preferences
 	GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
+	// GetUserSessionsAdmin implements getUserSessionsAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+	//
+	// GET /admin/users/{id}/sessions
+	GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) ([]SessionResponseDto, error)
 	// GetUserStatisticsAdmin implements getUserStatisticsAdmin operation.
 	//
 	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
@@ -1204,7 +1222,7 @@ type Handler interface {
 	// This endpoint requires the `asset.upload` permission.
 	//
 	// POST /assets
-	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error)
+	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
 	// UpsertTags implements upsertTags operation.
 	//
 	// This endpoint requires the `tag.create` permission.

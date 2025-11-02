@@ -101,6 +101,15 @@ func (UnimplementedHandler) CheckExistingAssets(ctx context.Context, req *CheckE
 	return r, ht.ErrNotImplemented
 }
 
+// CopyAsset implements copyAsset operation.
+//
+// This endpoint requires the `asset.copy` permission.
+//
+// PUT /assets/copy
+func (UnimplementedHandler) CopyAsset(ctx context.Context, req *AssetCopyDto) error {
+	return ht.ErrNotImplemented
+}
+
 // CreateActivity implements createActivity operation.
 //
 // This endpoint requires the `activity.create` permission.
@@ -693,6 +702,15 @@ func (UnimplementedHandler) GetAssetMetadataByKey(ctx context.Context, params Ge
 	return r, ht.ErrNotImplemented
 }
 
+// GetAssetOcr implements getAssetOcr operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/ocr
+func (UnimplementedHandler) GetAssetOcr(ctx context.Context, params GetAssetOcrParams) (r []AssetOcrResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetAssetStatistics implements getAssetStatistics operation.
 //
 // This endpoint requires the `asset.statistics` permission.
@@ -1141,6 +1159,15 @@ func (UnimplementedHandler) GetUserOnboarding(ctx context.Context) (r *Onboardin
 //
 // GET /admin/users/{id}/preferences
 func (UnimplementedHandler) GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (r *UserPreferencesResponseDto, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetUserSessionsAdmin implements getUserSessionsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+//
+// GET /admin/users/{id}/sessions
+func (UnimplementedHandler) GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) (r []SessionResponseDto, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1834,7 +1861,7 @@ func (UnimplementedHandler) UpdateUserPreferencesAdmin(ctx context.Context, req 
 // This endpoint requires the `asset.upload` permission.
 //
 // POST /assets
-func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r *AssetMediaResponseDto, _ error) {
+func (UnimplementedHandler) UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (r UploadAssetRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

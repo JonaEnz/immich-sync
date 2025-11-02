@@ -21,12 +21,19 @@ import (
 )
 
 type ImmichServer struct {
-	apiURL     string
-	apiKey     string
-	deviceID   string
-	oapiClient *oapi.Client
-	ImageDirs  []*ImageDirectory
-	albumCache ImmichAlbumCache
+	apiURL       string
+	apiKey       string
+	deviceID     string
+	oapiClient   *oapi.Client
+	ImageDirs    []*ImageDirectory
+	albumCache   ImmichAlbumCache
+	versionCache ImmichServerVersion
+}
+
+type ImmichServerVersion struct {
+	major int
+	minor int
+	patch int
 }
 
 func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
@@ -36,13 +43,45 @@ func NewImmichServer(apiKey, serverURL, deviceID string) *ImmichServer {
 		},
 	})
 
-	return &ImmichServer{
-		apiURL:     serverURL,
-		apiKey:     apiKey,
-		deviceID:   deviceID,
-		oapiClient: client,
-		albumCache: NewImmichAlbumCache(),
+	server := ImmichServer{
+		apiURL:       serverURL,
+		apiKey:       apiKey,
+		deviceID:     deviceID,
+		oapiClient:   client,
+		albumCache:   NewImmichAlbumCache(),
+		versionCache: ImmichServerVersion{},
 	}
+	return &server
+}
+
+func (i *ImmichServer) Version() (ImmichServerVersion, error) {
+	response, err := i.oapiClient.GetServerVersion(context.Background())
+	if err != nil {
+		return ImmichServerVersion{}, err
+	}
+	i.versionCache = ImmichServerVersion{response.Major, response.Minor, response.Patch}
+	return i.versionCache, nil
+}
+
+func (i *ImmichServer) MinVersionCheck(min ImmichServerVersion) error {
+	version, err := i.Version()
+	if err != nil {
+		return fmt.Errorf("version error: server version could not be determined: %w", err)
+	}
+	if !version.IsMinimumVersion(min) {
+		return fmt.Errorf("version error: server version for metadata copy required to be '%v', got '%v'", min, version)
+	}
+	return nil
+}
+
+func (v *ImmichServerVersion) IsMinimumVersion(min ImmichServerVersion) bool {
+	if v.major > min.major {
+		return true
+	}
+	if v.minor > min.minor {
+		return true
+	}
+	return v.minor == min.minor && v.patch >= min.patch
 }
 
 func (i *ImmichServer) GetAlbumByUUIDOrName(uuidOrName string) (uuid.UUID, error) {
@@ -207,13 +246,34 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return response.ID, nil
+	if r, ok := response.(*oapi.UploadAssetCreated); ok {
+		return r.ID, nil
+	}
+	if r, ok := response.(*oapi.UploadAssetOK); ok {
+		return r.ID, nil
+	}
+	return "", err
 }
 
 func (i *ImmichServer) Delete(assetUUID uuid.UUID) error {
 	return i.oapiClient.DeleteAssets(context.Background(), &oapi.AssetBulkDeleteDto{
 		Force: oapi.NewOptBool(false),
 		Ids:   []uuid.UUID{assetUUID},
+	})
+}
+
+func (i *ImmichServer) CopyMetadata(oldAsset uuid.UUID, newAsset uuid.UUID) error {
+	if err := i.MinVersionCheck(ImmichServerVersion{2, 2, 0}); err != nil {
+		return err
+	}
+	return i.oapiClient.CopyAsset(context.Background(), &oapi.AssetCopyDto{
+		Albums:      oapi.NewOptBool(true),
+		Favorite:    oapi.NewOptBool(true),
+		SharedLinks: oapi.NewOptBool(true),
+		Sidecar:     oapi.NewOptBool(true),
+		SourceId:    oldAsset,
+		Stack:       oapi.NewOptBool(true),
+		TargetId:    newAsset,
 	})
 }
 

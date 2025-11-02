@@ -811,6 +811,7 @@ type AllJobStatusResponseDto struct {
 	MetadataExtraction       JobStatusDto `json:"metadataExtraction"`
 	Migration                JobStatusDto `json:"migration"`
 	Notifications            JobStatusDto `json:"notifications"`
+	Ocr                      JobStatusDto `json:"ocr"`
 	Search                   JobStatusDto `json:"search"`
 	Sidecar                  JobStatusDto `json:"sidecar"`
 	SmartSearch              JobStatusDto `json:"smartSearch"`
@@ -862,6 +863,11 @@ func (s *AllJobStatusResponseDto) GetMigration() JobStatusDto {
 // GetNotifications returns the value of Notifications.
 func (s *AllJobStatusResponseDto) GetNotifications() JobStatusDto {
 	return s.Notifications
+}
+
+// GetOcr returns the value of Ocr.
+func (s *AllJobStatusResponseDto) GetOcr() JobStatusDto {
+	return s.Ocr
 }
 
 // GetSearch returns the value of Search.
@@ -937,6 +943,11 @@ func (s *AllJobStatusResponseDto) SetMigration(val JobStatusDto) {
 // SetNotifications sets the value of Notifications.
 func (s *AllJobStatusResponseDto) SetNotifications(val JobStatusDto) {
 	s.Notifications = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *AllJobStatusResponseDto) SetOcr(val JobStatusDto) {
+	s.Ocr = val
 }
 
 // SetSearch sets the value of Search.
@@ -1316,6 +1327,87 @@ func (s *AssetBulkUploadCheckResultReason) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/AssetCopyDto
+type AssetCopyDto struct {
+	Albums      OptBool   `json:"albums"`
+	Favorite    OptBool   `json:"favorite"`
+	SharedLinks OptBool   `json:"sharedLinks"`
+	Sidecar     OptBool   `json:"sidecar"`
+	SourceId    uuid.UUID `json:"sourceId"`
+	Stack       OptBool   `json:"stack"`
+	TargetId    uuid.UUID `json:"targetId"`
+}
+
+// GetAlbums returns the value of Albums.
+func (s *AssetCopyDto) GetAlbums() OptBool {
+	return s.Albums
+}
+
+// GetFavorite returns the value of Favorite.
+func (s *AssetCopyDto) GetFavorite() OptBool {
+	return s.Favorite
+}
+
+// GetSharedLinks returns the value of SharedLinks.
+func (s *AssetCopyDto) GetSharedLinks() OptBool {
+	return s.SharedLinks
+}
+
+// GetSidecar returns the value of Sidecar.
+func (s *AssetCopyDto) GetSidecar() OptBool {
+	return s.Sidecar
+}
+
+// GetSourceId returns the value of SourceId.
+func (s *AssetCopyDto) GetSourceId() uuid.UUID {
+	return s.SourceId
+}
+
+// GetStack returns the value of Stack.
+func (s *AssetCopyDto) GetStack() OptBool {
+	return s.Stack
+}
+
+// GetTargetId returns the value of TargetId.
+func (s *AssetCopyDto) GetTargetId() uuid.UUID {
+	return s.TargetId
+}
+
+// SetAlbums sets the value of Albums.
+func (s *AssetCopyDto) SetAlbums(val OptBool) {
+	s.Albums = val
+}
+
+// SetFavorite sets the value of Favorite.
+func (s *AssetCopyDto) SetFavorite(val OptBool) {
+	s.Favorite = val
+}
+
+// SetSharedLinks sets the value of SharedLinks.
+func (s *AssetCopyDto) SetSharedLinks(val OptBool) {
+	s.SharedLinks = val
+}
+
+// SetSidecar sets the value of Sidecar.
+func (s *AssetCopyDto) SetSidecar(val OptBool) {
+	s.Sidecar = val
+}
+
+// SetSourceId sets the value of SourceId.
+func (s *AssetCopyDto) SetSourceId(val uuid.UUID) {
+	s.SourceId = val
+}
+
+// SetStack sets the value of Stack.
+func (s *AssetCopyDto) SetStack(val OptBool) {
+	s.Stack = val
+}
+
+// SetTargetId sets the value of TargetId.
+func (s *AssetCopyDto) SetTargetId(val uuid.UUID) {
+	s.TargetId = val
 }
 
 // Ref: #/components/schemas/AssetDeltaSyncDto
@@ -2412,6 +2504,164 @@ func (s *AssetMetadataUpsertItemDto) SetValue(val AssetMetadataUpsertItemDtoValu
 
 type AssetMetadataUpsertItemDtoValue struct{}
 
+// Ref: #/components/schemas/AssetOcrResponseDto
+type AssetOcrResponseDto struct {
+	AssetId uuid.UUID `json:"assetId"`
+	// Confidence score for text detection box.
+	BoxScore float64   `json:"boxScore"`
+	ID       uuid.UUID `json:"id"`
+	// Recognized text.
+	Text string `json:"text"`
+	// Confidence score for text recognition.
+	TextScore float64 `json:"textScore"`
+	// Normalized x coordinate of box corner 1 (0-1).
+	X1 float64 `json:"x1"`
+	// Normalized x coordinate of box corner 2 (0-1).
+	X2 float64 `json:"x2"`
+	// Normalized x coordinate of box corner 3 (0-1).
+	X3 float64 `json:"x3"`
+	// Normalized x coordinate of box corner 4 (0-1).
+	X4 float64 `json:"x4"`
+	// Normalized y coordinate of box corner 1 (0-1).
+	Y1 float64 `json:"y1"`
+	// Normalized y coordinate of box corner 2 (0-1).
+	Y2 float64 `json:"y2"`
+	// Normalized y coordinate of box corner 3 (0-1).
+	Y3 float64 `json:"y3"`
+	// Normalized y coordinate of box corner 4 (0-1).
+	Y4 float64 `json:"y4"`
+}
+
+// GetAssetId returns the value of AssetId.
+func (s *AssetOcrResponseDto) GetAssetId() uuid.UUID {
+	return s.AssetId
+}
+
+// GetBoxScore returns the value of BoxScore.
+func (s *AssetOcrResponseDto) GetBoxScore() float64 {
+	return s.BoxScore
+}
+
+// GetID returns the value of ID.
+func (s *AssetOcrResponseDto) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetText returns the value of Text.
+func (s *AssetOcrResponseDto) GetText() string {
+	return s.Text
+}
+
+// GetTextScore returns the value of TextScore.
+func (s *AssetOcrResponseDto) GetTextScore() float64 {
+	return s.TextScore
+}
+
+// GetX1 returns the value of X1.
+func (s *AssetOcrResponseDto) GetX1() float64 {
+	return s.X1
+}
+
+// GetX2 returns the value of X2.
+func (s *AssetOcrResponseDto) GetX2() float64 {
+	return s.X2
+}
+
+// GetX3 returns the value of X3.
+func (s *AssetOcrResponseDto) GetX3() float64 {
+	return s.X3
+}
+
+// GetX4 returns the value of X4.
+func (s *AssetOcrResponseDto) GetX4() float64 {
+	return s.X4
+}
+
+// GetY1 returns the value of Y1.
+func (s *AssetOcrResponseDto) GetY1() float64 {
+	return s.Y1
+}
+
+// GetY2 returns the value of Y2.
+func (s *AssetOcrResponseDto) GetY2() float64 {
+	return s.Y2
+}
+
+// GetY3 returns the value of Y3.
+func (s *AssetOcrResponseDto) GetY3() float64 {
+	return s.Y3
+}
+
+// GetY4 returns the value of Y4.
+func (s *AssetOcrResponseDto) GetY4() float64 {
+	return s.Y4
+}
+
+// SetAssetId sets the value of AssetId.
+func (s *AssetOcrResponseDto) SetAssetId(val uuid.UUID) {
+	s.AssetId = val
+}
+
+// SetBoxScore sets the value of BoxScore.
+func (s *AssetOcrResponseDto) SetBoxScore(val float64) {
+	s.BoxScore = val
+}
+
+// SetID sets the value of ID.
+func (s *AssetOcrResponseDto) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetText sets the value of Text.
+func (s *AssetOcrResponseDto) SetText(val string) {
+	s.Text = val
+}
+
+// SetTextScore sets the value of TextScore.
+func (s *AssetOcrResponseDto) SetTextScore(val float64) {
+	s.TextScore = val
+}
+
+// SetX1 sets the value of X1.
+func (s *AssetOcrResponseDto) SetX1(val float64) {
+	s.X1 = val
+}
+
+// SetX2 sets the value of X2.
+func (s *AssetOcrResponseDto) SetX2(val float64) {
+	s.X2 = val
+}
+
+// SetX3 sets the value of X3.
+func (s *AssetOcrResponseDto) SetX3(val float64) {
+	s.X3 = val
+}
+
+// SetX4 sets the value of X4.
+func (s *AssetOcrResponseDto) SetX4(val float64) {
+	s.X4 = val
+}
+
+// SetY1 sets the value of Y1.
+func (s *AssetOcrResponseDto) SetY1(val float64) {
+	s.Y1 = val
+}
+
+// SetY2 sets the value of Y2.
+func (s *AssetOcrResponseDto) SetY2(val float64) {
+	s.Y2 = val
+}
+
+// SetY3 sets the value of Y3.
+func (s *AssetOcrResponseDto) SetY3(val float64) {
+	s.Y3 = val
+}
+
+// SetY4 sets the value of Y4.
+func (s *AssetOcrResponseDto) SetY4(val float64) {
+	s.Y4 = val
+}
+
 // Ref: #/components/schemas/AssetOrder
 type AssetOrder string
 
@@ -3439,8 +3689,14 @@ func (s *CastUpdate) SetGCastEnabled(val OptBool) {
 
 // Ref: #/components/schemas/ChangePasswordDto
 type ChangePasswordDto struct {
-	NewPassword string `json:"newPassword"`
-	Password    string `json:"password"`
+	InvalidateSessions OptBool `json:"invalidateSessions"`
+	NewPassword        string  `json:"newPassword"`
+	Password           string  `json:"password"`
+}
+
+// GetInvalidateSessions returns the value of InvalidateSessions.
+func (s *ChangePasswordDto) GetInvalidateSessions() OptBool {
+	return s.InvalidateSessions
 }
 
 // GetNewPassword returns the value of NewPassword.
@@ -3451,6 +3707,11 @@ func (s *ChangePasswordDto) GetNewPassword() string {
 // GetPassword returns the value of Password.
 func (s *ChangePasswordDto) GetPassword() string {
 	return s.Password
+}
+
+// SetInvalidateSessions sets the value of InvalidateSessions.
+func (s *ChangePasswordDto) SetInvalidateSessions(val OptBool) {
+	s.InvalidateSessions = val
 }
 
 // SetNewPassword sets the value of NewPassword.
@@ -3599,6 +3860,9 @@ func (s *Cookie) SetAPIKey(val string) {
 func (s *Cookie) SetRoles(val []string) {
 	s.Roles = val
 }
+
+// CopyAssetNoContent is response for CopyAsset operation.
+type CopyAssetNoContent struct{}
 
 // Ref: #/components/schemas/CreateAlbumDto
 type CreateAlbumDto struct {
@@ -4812,6 +5076,7 @@ const (
 	JobNameLibrary                  JobName = "library"
 	JobNameNotifications            JobName = "notifications"
 	JobNameBackupDatabase           JobName = "backupDatabase"
+	JobNameOcr                      JobName = "ocr"
 )
 
 // AllValues returns all JobName values.
@@ -4832,6 +5097,7 @@ func (JobName) AllValues() []JobName {
 		JobNameLibrary,
 		JobNameNotifications,
 		JobNameBackupDatabase,
+		JobNameOcr,
 	}
 }
 
@@ -4867,6 +5133,8 @@ func (s JobName) MarshalText() ([]byte, error) {
 	case JobNameNotifications:
 		return []byte(s), nil
 	case JobNameBackupDatabase:
+		return []byte(s), nil
+	case JobNameOcr:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -4920,6 +5188,9 @@ func (s *JobName) UnmarshalText(data []byte) error {
 		return nil
 	case JobNameBackupDatabase:
 		*s = JobNameBackupDatabase
+		return nil
+	case JobNameOcr:
+		*s = JobNameOcr
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -5988,6 +6259,7 @@ type MetadataSearchDto struct {
 	LibraryId        OptNilUUID         `json:"libraryId"`
 	Make             OptString          `json:"make"`
 	Model            OptNilString       `json:"model"`
+	Ocr              OptString          `json:"ocr"`
 	Order            OptAssetOrder      `json:"order"`
 	OriginalFileName OptString          `json:"originalFileName"`
 	OriginalPath     OptString          `json:"originalPath"`
@@ -6111,6 +6383,11 @@ func (s *MetadataSearchDto) GetMake() OptString {
 // GetModel returns the value of Model.
 func (s *MetadataSearchDto) GetModel() OptNilString {
 	return s.Model
+}
+
+// GetOcr returns the value of Ocr.
+func (s *MetadataSearchDto) GetOcr() OptString {
+	return s.Ocr
 }
 
 // GetOrder returns the value of Order.
@@ -6326,6 +6603,11 @@ func (s *MetadataSearchDto) SetMake(val OptString) {
 // SetModel sets the value of Model.
 func (s *MetadataSearchDto) SetModel(val OptNilString) {
 	s.Model = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *MetadataSearchDto) SetOcr(val OptString) {
+	s.Ocr = val
 }
 
 // SetOrder sets the value of Order.
@@ -7246,6 +7528,65 @@ func (s *OAuthTokenEndpointAuthMethod) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/OcrConfig
+type OcrConfig struct {
+	Enabled             bool    `json:"enabled"`
+	MaxResolution       int     `json:"maxResolution"`
+	MinDetectionScore   float64 `json:"minDetectionScore"`
+	MinRecognitionScore float64 `json:"minRecognitionScore"`
+	ModelName           string  `json:"modelName"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *OcrConfig) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetMaxResolution returns the value of MaxResolution.
+func (s *OcrConfig) GetMaxResolution() int {
+	return s.MaxResolution
+}
+
+// GetMinDetectionScore returns the value of MinDetectionScore.
+func (s *OcrConfig) GetMinDetectionScore() float64 {
+	return s.MinDetectionScore
+}
+
+// GetMinRecognitionScore returns the value of MinRecognitionScore.
+func (s *OcrConfig) GetMinRecognitionScore() float64 {
+	return s.MinRecognitionScore
+}
+
+// GetModelName returns the value of ModelName.
+func (s *OcrConfig) GetModelName() string {
+	return s.ModelName
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *OcrConfig) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetMaxResolution sets the value of MaxResolution.
+func (s *OcrConfig) SetMaxResolution(val int) {
+	s.MaxResolution = val
+}
+
+// SetMinDetectionScore sets the value of MinDetectionScore.
+func (s *OcrConfig) SetMinDetectionScore(val float64) {
+	s.MinDetectionScore = val
+}
+
+// SetMinRecognitionScore sets the value of MinRecognitionScore.
+func (s *OcrConfig) SetMinRecognitionScore(val float64) {
+	s.MinRecognitionScore = val
+}
+
+// SetModelName sets the value of ModelName.
+func (s *OcrConfig) SetModelName(val string) {
+	s.ModelName = val
 }
 
 // Ref: #/components/schemas/OnThisDayDto
@@ -9987,6 +10328,7 @@ const (
 	PermissionAssetDownload          Permission = "asset.download"
 	PermissionAssetUpload            Permission = "asset.upload"
 	PermissionAssetReplace           Permission = "asset.replace"
+	PermissionAssetCopy              Permission = "asset.copy"
 	PermissionAlbumCreate            Permission = "album.create"
 	PermissionAlbumRead              Permission = "album.read"
 	PermissionAlbumUpdate            Permission = "album.update"
@@ -10095,6 +10437,7 @@ const (
 	PermissionAdminUserRead          Permission = "adminUser.read"
 	PermissionAdminUserUpdate        Permission = "adminUser.update"
 	PermissionAdminUserDelete        Permission = "adminUser.delete"
+	PermissionAdminSessionRead       Permission = "adminSession.read"
 	PermissionAdminAuthUnlinkAll     Permission = "adminAuth.unlinkAll"
 )
 
@@ -10120,6 +10463,7 @@ func (Permission) AllValues() []Permission {
 		PermissionAssetDownload,
 		PermissionAssetUpload,
 		PermissionAssetReplace,
+		PermissionAssetCopy,
 		PermissionAlbumCreate,
 		PermissionAlbumRead,
 		PermissionAlbumUpdate,
@@ -10228,6 +10572,7 @@ func (Permission) AllValues() []Permission {
 		PermissionAdminUserRead,
 		PermissionAdminUserUpdate,
 		PermissionAdminUserDelete,
+		PermissionAdminSessionRead,
 		PermissionAdminAuthUnlinkAll,
 	}
 }
@@ -10272,6 +10617,8 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionAssetUpload:
 		return []byte(s), nil
 	case PermissionAssetReplace:
+		return []byte(s), nil
+	case PermissionAssetCopy:
 		return []byte(s), nil
 	case PermissionAlbumCreate:
 		return []byte(s), nil
@@ -10489,6 +10836,8 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionAdminUserDelete:
 		return []byte(s), nil
+	case PermissionAdminSessionRead:
+		return []byte(s), nil
 	case PermissionAdminAuthUnlinkAll:
 		return []byte(s), nil
 	default:
@@ -10555,6 +10904,9 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionAssetReplace:
 		*s = PermissionAssetReplace
+		return nil
+	case PermissionAssetCopy:
+		*s = PermissionAssetCopy
 		return nil
 	case PermissionAlbumCreate:
 		*s = PermissionAlbumCreate
@@ -10879,6 +11231,9 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionAdminUserDelete:
 		*s = PermissionAdminUserDelete
+		return nil
+	case PermissionAdminSessionRead:
+		*s = PermissionAdminSessionRead
 		return nil
 	case PermissionAdminAuthUnlinkAll:
 		*s = PermissionAdminAuthUnlinkAll
@@ -11488,6 +11843,7 @@ type RandomSearchDto struct {
 	LibraryId     OptNilUUID         `json:"libraryId"`
 	Make          OptString          `json:"make"`
 	Model         OptNilString       `json:"model"`
+	Ocr           OptString          `json:"ocr"`
 	PersonIds     []uuid.UUID        `json:"personIds"`
 	Rating        OptFloat64         `json:"rating"`
 	Size          OptFloat64         `json:"size"`
@@ -11580,6 +11936,11 @@ func (s *RandomSearchDto) GetMake() OptString {
 // GetModel returns the value of Model.
 func (s *RandomSearchDto) GetModel() OptNilString {
 	return s.Model
+}
+
+// GetOcr returns the value of Ocr.
+func (s *RandomSearchDto) GetOcr() OptString {
+	return s.Ocr
 }
 
 // GetPersonIds returns the value of PersonIds.
@@ -11740,6 +12101,11 @@ func (s *RandomSearchDto) SetMake(val OptString) {
 // SetModel sets the value of Model.
 func (s *RandomSearchDto) SetModel(val OptNilString) {
 	s.Model = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *RandomSearchDto) SetOcr(val OptString) {
+	s.Ocr = val
 }
 
 // SetPersonIds sets the value of PersonIds.
@@ -12247,11 +12613,12 @@ func (s *SearchStatisticsResponseDto) SetTotal(val int) {
 type SearchSuggestionType string
 
 const (
-	SearchSuggestionTypeCountry     SearchSuggestionType = "country"
-	SearchSuggestionTypeState       SearchSuggestionType = "state"
-	SearchSuggestionTypeCity        SearchSuggestionType = "city"
-	SearchSuggestionTypeCameraMake  SearchSuggestionType = "camera-make"
-	SearchSuggestionTypeCameraModel SearchSuggestionType = "camera-model"
+	SearchSuggestionTypeCountry         SearchSuggestionType = "country"
+	SearchSuggestionTypeState           SearchSuggestionType = "state"
+	SearchSuggestionTypeCity            SearchSuggestionType = "city"
+	SearchSuggestionTypeCameraMake      SearchSuggestionType = "camera-make"
+	SearchSuggestionTypeCameraModel     SearchSuggestionType = "camera-model"
+	SearchSuggestionTypeCameraLensModel SearchSuggestionType = "camera-lens-model"
 )
 
 // AllValues returns all SearchSuggestionType values.
@@ -12262,6 +12629,7 @@ func (SearchSuggestionType) AllValues() []SearchSuggestionType {
 		SearchSuggestionTypeCity,
 		SearchSuggestionTypeCameraMake,
 		SearchSuggestionTypeCameraModel,
+		SearchSuggestionTypeCameraLensModel,
 	}
 }
 
@@ -12277,6 +12645,8 @@ func (s SearchSuggestionType) MarshalText() ([]byte, error) {
 	case SearchSuggestionTypeCameraMake:
 		return []byte(s), nil
 	case SearchSuggestionTypeCameraModel:
+		return []byte(s), nil
+	case SearchSuggestionTypeCameraLensModel:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -12300,6 +12670,9 @@ func (s *SearchSuggestionType) UnmarshalText(data []byte) error {
 		return nil
 	case SearchSuggestionTypeCameraModel:
 		*s = SearchSuggestionTypeCameraModel
+		return nil
+	case SearchSuggestionTypeCameraLensModel:
+		*s = SearchSuggestionTypeCameraLensModel
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12716,6 +13089,7 @@ type ServerFeaturesDto struct {
 	Map                bool `json:"map"`
 	OAuth              bool `json:"oauth"`
 	OauthAutoLaunch    bool `json:"oauthAutoLaunch"`
+	Ocr                bool `json:"ocr"`
 	PasswordLogin      bool `json:"passwordLogin"`
 	ReverseGeocoding   bool `json:"reverseGeocoding"`
 	Search             bool `json:"search"`
@@ -12762,6 +13136,11 @@ func (s *ServerFeaturesDto) GetOAuth() bool {
 // GetOauthAutoLaunch returns the value of OauthAutoLaunch.
 func (s *ServerFeaturesDto) GetOauthAutoLaunch() bool {
 	return s.OauthAutoLaunch
+}
+
+// GetOcr returns the value of Ocr.
+func (s *ServerFeaturesDto) GetOcr() bool {
+	return s.Ocr
 }
 
 // GetPasswordLogin returns the value of PasswordLogin.
@@ -12832,6 +13211,11 @@ func (s *ServerFeaturesDto) SetOAuth(val bool) {
 // SetOauthAutoLaunch sets the value of OauthAutoLaunch.
 func (s *ServerFeaturesDto) SetOauthAutoLaunch(val bool) {
 	s.OauthAutoLaunch = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *ServerFeaturesDto) SetOcr(val bool) {
+	s.Ocr = val
 }
 
 // SetPasswordLogin sets the value of PasswordLogin.
@@ -13196,6 +13580,7 @@ func (s *SessionCreateDto) SetDuration(val OptFloat64) {
 
 // Ref: #/components/schemas/SessionCreateResponseDto
 type SessionCreateResponseDto struct {
+	AppVersion         NilString `json:"appVersion"`
 	CreatedAt          string    `json:"createdAt"`
 	Current            bool      `json:"current"`
 	DeviceOS           string    `json:"deviceOS"`
@@ -13205,6 +13590,11 @@ type SessionCreateResponseDto struct {
 	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
 	Token              string    `json:"token"`
 	UpdatedAt          string    `json:"updatedAt"`
+}
+
+// GetAppVersion returns the value of AppVersion.
+func (s *SessionCreateResponseDto) GetAppVersion() NilString {
+	return s.AppVersion
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -13250,6 +13640,11 @@ func (s *SessionCreateResponseDto) GetToken() string {
 // GetUpdatedAt returns the value of UpdatedAt.
 func (s *SessionCreateResponseDto) GetUpdatedAt() string {
 	return s.UpdatedAt
+}
+
+// SetAppVersion sets the value of AppVersion.
+func (s *SessionCreateResponseDto) SetAppVersion(val NilString) {
+	s.AppVersion = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -13299,6 +13694,7 @@ func (s *SessionCreateResponseDto) SetUpdatedAt(val string) {
 
 // Ref: #/components/schemas/SessionResponseDto
 type SessionResponseDto struct {
+	AppVersion         NilString `json:"appVersion"`
 	CreatedAt          string    `json:"createdAt"`
 	Current            bool      `json:"current"`
 	DeviceOS           string    `json:"deviceOS"`
@@ -13307,6 +13703,11 @@ type SessionResponseDto struct {
 	ID                 string    `json:"id"`
 	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
 	UpdatedAt          string    `json:"updatedAt"`
+}
+
+// GetAppVersion returns the value of AppVersion.
+func (s *SessionResponseDto) GetAppVersion() NilString {
+	return s.AppVersion
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -13347,6 +13748,11 @@ func (s *SessionResponseDto) GetIsPendingSyncReset() bool {
 // GetUpdatedAt returns the value of UpdatedAt.
 func (s *SessionResponseDto) GetUpdatedAt() string {
 	return s.UpdatedAt
+}
+
+// SetAppVersion sets the value of AppVersion.
+func (s *SessionResponseDto) SetAppVersion(val NilString) {
+	s.AppVersion = val
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -13960,6 +14366,7 @@ type SmartSearchDto struct {
 	LibraryId     OptNilUUID         `json:"libraryId"`
 	Make          OptString          `json:"make"`
 	Model         OptNilString       `json:"model"`
+	Ocr           OptString          `json:"ocr"`
 	Page          OptFloat64         `json:"page"`
 	PersonIds     []uuid.UUID        `json:"personIds"`
 	Query         OptString          `json:"query"`
@@ -14058,6 +14465,11 @@ func (s *SmartSearchDto) GetMake() OptString {
 // GetModel returns the value of Model.
 func (s *SmartSearchDto) GetModel() OptNilString {
 	return s.Model
+}
+
+// GetOcr returns the value of Ocr.
+func (s *SmartSearchDto) GetOcr() OptString {
+	return s.Ocr
 }
 
 // GetPage returns the value of Page.
@@ -14228,6 +14640,11 @@ func (s *SmartSearchDto) SetMake(val OptString) {
 // SetModel sets the value of Model.
 func (s *SmartSearchDto) SetModel(val OptNilString) {
 	s.Model = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *SmartSearchDto) SetOcr(val OptString) {
+	s.Ocr = val
 }
 
 // SetPage sets the value of Page.
@@ -14455,6 +14872,7 @@ type StatisticsSearchDto struct {
 	LibraryId     OptNilUUID         `json:"libraryId"`
 	Make          OptString          `json:"make"`
 	Model         OptNilString       `json:"model"`
+	Ocr           OptString          `json:"ocr"`
 	PersonIds     []uuid.UUID        `json:"personIds"`
 	Rating        OptFloat64         `json:"rating"`
 	State         OptNilString       `json:"state"`
@@ -14547,6 +14965,11 @@ func (s *StatisticsSearchDto) GetMake() OptString {
 // GetModel returns the value of Model.
 func (s *StatisticsSearchDto) GetModel() OptNilString {
 	return s.Model
+}
+
+// GetOcr returns the value of Ocr.
+func (s *StatisticsSearchDto) GetOcr() OptString {
+	return s.Ocr
 }
 
 // GetPersonIds returns the value of PersonIds.
@@ -14687,6 +15110,11 @@ func (s *StatisticsSearchDto) SetMake(val OptString) {
 // SetModel sets the value of Model.
 func (s *StatisticsSearchDto) SetModel(val OptNilString) {
 	s.Model = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *StatisticsSearchDto) SetOcr(val OptString) {
+	s.Ocr = val
 }
 
 // SetPersonIds sets the value of PersonIds.
@@ -15997,6 +16425,7 @@ type SystemConfigJobDto struct {
 	MetadataExtraction  JobSettingsDto `json:"metadataExtraction"`
 	Migration           JobSettingsDto `json:"migration"`
 	Notifications       JobSettingsDto `json:"notifications"`
+	Ocr                 JobSettingsDto `json:"ocr"`
 	Search              JobSettingsDto `json:"search"`
 	Sidecar             JobSettingsDto `json:"sidecar"`
 	SmartSearch         JobSettingsDto `json:"smartSearch"`
@@ -16032,6 +16461,11 @@ func (s *SystemConfigJobDto) GetMigration() JobSettingsDto {
 // GetNotifications returns the value of Notifications.
 func (s *SystemConfigJobDto) GetNotifications() JobSettingsDto {
 	return s.Notifications
+}
+
+// GetOcr returns the value of Ocr.
+func (s *SystemConfigJobDto) GetOcr() JobSettingsDto {
+	return s.Ocr
 }
 
 // GetSearch returns the value of Search.
@@ -16087,6 +16521,11 @@ func (s *SystemConfigJobDto) SetMigration(val JobSettingsDto) {
 // SetNotifications sets the value of Notifications.
 func (s *SystemConfigJobDto) SetNotifications(val JobSettingsDto) {
 	s.Notifications = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *SystemConfigJobDto) SetOcr(val JobSettingsDto) {
+	s.Ocr = val
 }
 
 // SetSearch sets the value of Search.
@@ -16214,6 +16653,7 @@ type SystemConfigMachineLearningDto struct {
 	DuplicateDetection DuplicateDetectionConfig             `json:"duplicateDetection"`
 	Enabled            bool                                 `json:"enabled"`
 	FacialRecognition  FacialRecognitionConfig              `json:"facialRecognition"`
+	Ocr                OcrConfig                            `json:"ocr"`
 	Urls               []url.URL                            `json:"urls"`
 }
 
@@ -16240,6 +16680,11 @@ func (s *SystemConfigMachineLearningDto) GetEnabled() bool {
 // GetFacialRecognition returns the value of FacialRecognition.
 func (s *SystemConfigMachineLearningDto) GetFacialRecognition() FacialRecognitionConfig {
 	return s.FacialRecognition
+}
+
+// GetOcr returns the value of Ocr.
+func (s *SystemConfigMachineLearningDto) GetOcr() OcrConfig {
+	return s.Ocr
 }
 
 // GetUrls returns the value of Urls.
@@ -16270,6 +16715,11 @@ func (s *SystemConfigMachineLearningDto) SetEnabled(val bool) {
 // SetFacialRecognition sets the value of FacialRecognition.
 func (s *SystemConfigMachineLearningDto) SetFacialRecognition(val FacialRecognitionConfig) {
 	s.FacialRecognition = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *SystemConfigMachineLearningDto) SetOcr(val OcrConfig) {
+	s.Ocr = val
 }
 
 // SetUrls sets the value of Urls.
@@ -16752,6 +17202,7 @@ type SystemConfigSmtpTransportDto struct {
 	IgnoreCert bool    `json:"ignoreCert"`
 	Password   string  `json:"password"`
 	Port       float64 `json:"port"`
+	Secure     bool    `json:"secure"`
 	Username   string  `json:"username"`
 }
 
@@ -16773,6 +17224,11 @@ func (s *SystemConfigSmtpTransportDto) GetPassword() string {
 // GetPort returns the value of Port.
 func (s *SystemConfigSmtpTransportDto) GetPort() float64 {
 	return s.Port
+}
+
+// GetSecure returns the value of Secure.
+func (s *SystemConfigSmtpTransportDto) GetSecure() bool {
+	return s.Secure
 }
 
 // GetUsername returns the value of Username.
@@ -16798,6 +17254,11 @@ func (s *SystemConfigSmtpTransportDto) SetPassword(val string) {
 // SetPort sets the value of Port.
 func (s *SystemConfigSmtpTransportDto) SetPort(val float64) {
 	s.Port = val
+}
+
+// SetSecure sets the value of Secure.
+func (s *SystemConfigSmtpTransportDto) SetSecure(val bool) {
+	s.Secure = val
 }
 
 // SetUsername sets the value of Username.
@@ -17965,8 +18426,8 @@ func (s *UpdateAssetDto) SetVisibility(val OptAssetVisibility) {
 	s.Visibility = val
 }
 
-// UpdateAssetsNoContent is response for UpdateAssets operation.
-type UpdateAssetsNoContent struct{}
+// UpdateAssetsOK is response for UpdateAssets operation.
+type UpdateAssetsOK struct{}
 
 // Ref: #/components/schemas/UpdateLibraryDto
 type UpdateLibraryDto struct {
@@ -18007,6 +18468,14 @@ func (s *UpdateLibraryDto) SetName(val OptString) {
 
 // UpdateNotificationsNoContent is response for UpdateNotifications operation.
 type UpdateNotificationsNoContent struct{}
+
+type UploadAssetCreated AssetMediaResponseDto
+
+func (*UploadAssetCreated) uploadAssetRes() {}
+
+type UploadAssetOK AssetMediaResponseDto
+
+func (*UploadAssetOK) uploadAssetRes() {}
 
 // Ref: #/components/schemas/UsageByUserDto
 type UsageByUserDto struct {

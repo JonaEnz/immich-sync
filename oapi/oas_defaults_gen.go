@@ -3,10 +3,42 @@
 package oapi
 
 // setDefaults set default value of fields.
+func (s *AssetCopyDto) setDefaults() {
+	{
+		val := bool(true)
+		s.Albums.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.Favorite.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.SharedLinks.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.Sidecar.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.Stack.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *CastResponse) setDefaults() {
 	{
 		val := bool(false)
 		s.GCastEnabled = val
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *ChangePasswordDto) setDefaults() {
+	{
+		val := bool(false)
+		s.InvalidateSessions.SetTo(val)
 	}
 }
 

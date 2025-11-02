@@ -86,6 +86,12 @@ type Invoker interface {
 	//
 	// POST /assets/exist
 	CheckExistingAssets(ctx context.Context, request *CheckExistingAssetsDto) (*CheckExistingAssetsResponseDto, error)
+	// CopyAsset invokes copyAsset operation.
+	//
+	// This endpoint requires the `asset.copy` permission.
+	//
+	// PUT /assets/copy
+	CopyAsset(ctx context.Context, request *AssetCopyDto) error
 	// CreateActivity invokes createActivity operation.
 	//
 	// This endpoint requires the `activity.create` permission.
@@ -480,6 +486,12 @@ type Invoker interface {
 	//
 	// GET /assets/{id}/metadata/{key}
 	GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error)
+	// GetAssetOcr invokes getAssetOcr operation.
+	//
+	// This endpoint requires the `asset.read` permission.
+	//
+	// GET /assets/{id}/ocr
+	GetAssetOcr(ctx context.Context, params GetAssetOcrParams) ([]AssetOcrResponseDto, error)
 	// GetAssetStatistics invokes getAssetStatistics operation.
 	//
 	// This endpoint requires the `asset.statistics` permission.
@@ -772,6 +784,12 @@ type Invoker interface {
 	//
 	// GET /admin/users/{id}/preferences
 	GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
+	// GetUserSessionsAdmin invokes getUserSessionsAdmin operation.
+	//
+	// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+	//
+	// GET /admin/users/{id}/sessions
+	GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) ([]SessionResponseDto, error)
 	// GetUserStatisticsAdmin invokes getUserStatisticsAdmin operation.
 	//
 	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
@@ -1224,7 +1242,7 @@ type Invoker interface {
 	// This endpoint requires the `asset.upload` permission.
 	//
 	// POST /assets
-	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error)
+	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
 	// UpsertTags invokes upsertTags operation.
 	//
 	// This endpoint requires the `tag.create` permission.
@@ -2803,6 +2821,139 @@ func (c *Client) sendCheckExistingAssets(ctx context.Context, request *CheckExis
 
 	stage = "DecodeResponse"
 	result, err := decodeCheckExistingAssetsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// CopyAsset invokes copyAsset operation.
+//
+// This endpoint requires the `asset.copy` permission.
+//
+// PUT /assets/copy
+func (c *Client) CopyAsset(ctx context.Context, request *AssetCopyDto) error {
+	_, err := c.sendCopyAsset(ctx, request)
+	return err
+}
+
+func (c *Client) sendCopyAsset(ctx context.Context, request *AssetCopyDto) (res *CopyAssetNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("copyAsset"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/assets/copy"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, CopyAssetOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/assets/copy"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeCopyAssetRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, CopyAssetOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, CopyAssetOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, CopyAssetOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeCopyAssetResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -12283,6 +12434,155 @@ func (c *Client) sendGetAssetMetadataByKey(ctx context.Context, params GetAssetM
 	return result, nil
 }
 
+// GetAssetOcr invokes getAssetOcr operation.
+//
+// This endpoint requires the `asset.read` permission.
+//
+// GET /assets/{id}/ocr
+func (c *Client) GetAssetOcr(ctx context.Context, params GetAssetOcrParams) ([]AssetOcrResponseDto, error) {
+	res, err := c.sendGetAssetOcr(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAssetOcr(ctx context.Context, params GetAssetOcrParams) (res []AssetOcrResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAssetOcr"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/assets/{id}/ocr"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAssetOcrOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/ocr"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetAssetOcrOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetAssetOcrOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetAssetOcrOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAssetOcrResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetAssetStatistics invokes getAssetStatistics operation.
 //
 // This endpoint requires the `asset.statistics` permission.
@@ -16723,6 +17023,23 @@ func (c *Client) sendGetSearchSuggestions(ctx context.Context, params GetSearchS
 		}
 	}
 	{
+		// Encode "lensModel" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "lensModel",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.LensModel.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "make" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "make",
@@ -20130,6 +20447,155 @@ func (c *Client) sendGetUserPreferencesAdmin(ctx context.Context, params GetUser
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserPreferencesAdminResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetUserSessionsAdmin invokes getUserSessionsAdmin operation.
+//
+// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+//
+// GET /admin/users/{id}/sessions
+func (c *Client) GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) ([]SessionResponseDto, error) {
+	res, err := c.sendGetUserSessionsAdmin(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) (res []SessionResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getUserSessionsAdmin"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/users/{id}/sessions"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetUserSessionsAdminOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/admin/users/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/sessions"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetUserSessionsAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetUserSessionsAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetUserSessionsAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetUserSessionsAdminResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -25170,6 +25636,23 @@ func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAs
 		}
 	}
 	{
+		// Encode "ocr" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "ocr",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Ocr.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "personIds" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "personIds",
@@ -29459,7 +29942,7 @@ func (c *Client) UpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) 
 	return err
 }
 
-func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) (res *UpdateAssetsNoContent, err error) {
+func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) (res *UpdateAssetsOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
@@ -31914,12 +32397,12 @@ func (c *Client) sendUpdateUserPreferencesAdmin(ctx context.Context, request *Us
 // This endpoint requires the `asset.upload` permission.
 //
 // POST /assets
-func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (*AssetMediaResponseDto, error) {
+func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error) {
 	res, err := c.sendUploadAsset(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (res *AssetMediaResponseDto, err error) {
+func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (res UploadAssetRes, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("uploadAsset"),
 		semconv.HTTPRequestMethodKey.String("POST"),

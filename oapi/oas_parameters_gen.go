@@ -3533,6 +3533,71 @@ func decodeGetAssetMetadataByKeyParams(args [2]string, argsEscaped bool, r *http
 	return params, nil
 }
 
+// GetAssetOcrParams is parameters of getAssetOcr operation.
+type GetAssetOcrParams struct {
+	ID uuid.UUID
+}
+
+func unpackGetAssetOcrParams(packed middleware.Parameters) (params GetAssetOcrParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeGetAssetOcrParams(args [1]string, argsEscaped bool, r *http.Request) (params GetAssetOcrParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetAssetStatisticsParams is parameters of getAssetStatistics operation.
 type GetAssetStatisticsParams struct {
 	IsFavorite OptBool            `json:",omitempty,omitzero"`
@@ -5469,6 +5534,7 @@ type GetSearchSuggestionsParams struct {
 	Country OptString `json:",omitempty,omitzero"`
 	// This property was added in v111.0.0.
 	IncludeNull OptBool   `json:",omitempty,omitzero"`
+	LensModel   OptString `json:",omitempty,omitzero"`
 	Make        OptString `json:",omitempty,omitzero"`
 	Model       OptString `json:",omitempty,omitzero"`
 	State       OptString `json:",omitempty,omitzero"`
@@ -5492,6 +5558,15 @@ func unpackGetSearchSuggestionsParams(packed middleware.Parameters) (params GetS
 		}
 		if v, ok := packed[key]; ok {
 			params.IncludeNull = v.(OptBool)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "lensModel",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.LensModel = v.(OptString)
 		}
 	}
 	{
@@ -5611,6 +5686,47 @@ func decodeGetSearchSuggestionsParams(args [0]string, argsEscaped bool, r *http.
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "includeNull",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: lensModel.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "lensModel",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotLensModelVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotLensModelVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.LensModel.SetTo(paramsDotLensModelVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "lensModel",
 			In:   "query",
 			Err:  err,
 		}
@@ -7654,6 +7770,71 @@ func decodeGetUserPreferencesAdminParams(args [1]string, argsEscaped bool, r *ht
 	return params, nil
 }
 
+// GetUserSessionsAdminParams is parameters of getUserSessionsAdmin operation.
+type GetUserSessionsAdminParams struct {
+	ID uuid.UUID
+}
+
+func unpackGetUserSessionsAdminParams(packed middleware.Parameters) (params GetUserSessionsAdminParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeGetUserSessionsAdminParams(args [1]string, argsEscaped bool, r *http.Request) (params GetUserSessionsAdminParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetUserStatisticsAdminParams is parameters of getUserStatisticsAdmin operation.
 type GetUserStatisticsAdminParams struct {
 	ID         uuid.UUID
@@ -9645,6 +9826,7 @@ type SearchLargeAssetsParams struct {
 	Make          OptString          `json:",omitempty,omitzero"`
 	MinFileSize   OptInt             `json:",omitempty,omitzero"`
 	Model         OptNilString       `json:",omitempty,omitzero"`
+	Ocr           OptString          `json:",omitempty,omitzero"`
 	PersonIds     []uuid.UUID        `json:",omitempty"`
 	Rating        OptFloat64         `json:",omitempty,omitzero"`
 	Size          OptFloat64         `json:",omitempty,omitzero"`
@@ -9805,6 +9987,15 @@ func unpackSearchLargeAssetsParams(packed middleware.Parameters) (params SearchL
 		}
 		if v, ok := packed[key]; ok {
 			params.Model = v.(OptNilString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "ocr",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Ocr = v.(OptString)
 		}
 	}
 	{
@@ -10625,6 +10816,47 @@ func decodeSearchLargeAssetsParams(args [0]string, argsEscaped bool, r *http.Req
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "model",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: ocr.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "ocr",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotOcrVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotOcrVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Ocr.SetTo(paramsDotOcrVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "ocr",
 			In:   "query",
 			Err:  err,
 		}
