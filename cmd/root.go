@@ -53,8 +53,8 @@ func initConfig() {
 
 	viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err == nil {
-		log.Printf("Error reading config: %s\n", err)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("Error reading config: %s\n", err.Error())
 	}
 
 	if !viper.IsSet("server") || !viper.IsSet("apikey") {
