@@ -9,165 +9,6 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
-func (s *APIKeyCreateDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.Permissions == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    0,
-			MaxLengthSet: false,
-		}).ValidateLength(len(s.Permissions)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *APIKeyCreateResponseDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.ApiKey.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "apiKey",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *APIKeyResponseDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.Permissions == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *APIKeyUpdateDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.Permissions == nil {
-			return nil // optional
-		}
-		if err := (validate.Array{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    0,
-			MaxLengthSet: false,
-		}).ValidateLength(len(s.Permissions)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
 func (s *ActivityCreateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -216,6 +57,60 @@ func (s *ActivityResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "user",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ActivityStatisticsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Comments)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "comments",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Likes)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "likes",
 			Error: err,
 		})
 	}
@@ -283,6 +178,14 @@ func (s *AlbumResponseDto) Validate() error {
 		if s.AlbumUsers == nil {
 			return errors.New("nil is invalid value")
 		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.AlbumUsers)); err != nil {
+			return errors.Wrap(err, "array")
+		}
 		var failures []validate.FieldError
 		for i, elem := range s.AlbumUsers {
 			if err := func() error {
@@ -308,11 +211,29 @@ func (s *AlbumResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.Assets == nil {
-			return errors.New("nil is invalid value")
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.AssetCount)); err != nil {
+			return errors.Wrap(err, "int")
 		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assetCount",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		var failures []validate.FieldError
-		for i, elem := range s.Assets {
+		for i, elem := range s.ContributorCounts {
 			if err := func() error {
 				if err := elem.Validate(); err != nil {
 					return err
@@ -331,7 +252,7 @@ func (s *AlbumResponseDto) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "assets",
+			Name:  "contributorCounts",
 			Error: err,
 		})
 	}
@@ -353,14 +274,78 @@ func (s *AlbumResponseDto) Validate() error {
 			Error: err,
 		})
 	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AlbumStatisticsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Owner.Validate(); err != nil {
-			return err
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NotShared)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "owner",
+			Name:  "notShared",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Owned)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "owned",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Shared)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "shared",
 			Error: err,
 		})
 	}
@@ -460,6 +445,8 @@ func (s *AlbumUserResponseDto) Validate() error {
 func (s AlbumUserRole) Validate() error {
 	switch s {
 	case "editor":
+		return nil
+	case "owner":
 		return nil
 	case "viewer":
 		return nil
@@ -585,6 +572,165 @@ func (s *AlbumsUpdate) Validate() error {
 	return nil
 }
 
+func (s *ApiKeyCreateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Permissions == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Permissions)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ApiKeyCreateResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.ApiKey.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "apiKey",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ApiKeyResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Permissions == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ApiKeyUpdateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Permissions == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Permissions)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *AssetBulkDeleteDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -617,8 +763,18 @@ func (s *AssetBulkUpdateDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.DateTimeRelative.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -646,7 +802,17 @@ func (s *AssetBulkUpdateDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Latitude.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           -90,
+					MaxSet:        true,
+					Max:           90,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+					Pattern:       nil,
+				}).Validate(float64(value)); err != nil {
 					return errors.Wrap(err, "float")
 				}
 				return nil
@@ -664,7 +830,17 @@ func (s *AssetBulkUpdateDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Longitude.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           -180,
+					MaxSet:        true,
+					Max:           180,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+					Pattern:       nil,
+				}).Validate(float64(value)); err != nil {
 					return errors.Wrap(err, "float")
 				}
 				return nil
@@ -682,7 +858,7 @@ func (s *AssetBulkUpdateDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           -1,
 					MaxSet:        true,
@@ -690,9 +866,10 @@ func (s *AssetBulkUpdateDto) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -834,93 +1011,135 @@ func (s *AssetBulkUploadCheckResult) Validate() error {
 	return nil
 }
 
-func (s AssetBulkUploadCheckResultAction) Validate() error {
-	switch s {
-	case "accept":
-		return nil
-	case "reject":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AssetBulkUploadCheckResultReason) Validate() error {
-	switch s {
-	case "duplicate":
-		return nil
-	case "unsupported-format":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *AssetDeltaSyncDto) Validate() error {
+func (s *AssetFaceCreateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.UserIds == nil {
-			return errors.New("nil is invalid value")
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Height)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "userIds",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *AssetDeltaSyncResponseDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.Deleted == nil {
-			return errors.New("nil is invalid value")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "deleted",
+			Name:  "height",
 			Error: err,
 		})
 	}
 	if err := func() error {
-		if s.Upserted == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Upserted {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ImageHeight)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "upserted",
+			Name:  "imageHeight",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ImageWidth)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "imageWidth",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Width)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "width",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.X)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "x",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Y)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "y",
 			Error: err,
 		})
 	}
@@ -936,6 +1155,132 @@ func (s *AssetFaceResponseDto) Validate() error {
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.BoundingBoxX1)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "boundingBoxX1",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.BoundingBoxX2)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "boundingBoxX2",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.BoundingBoxY1)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "boundingBoxY1",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.BoundingBoxY2)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "boundingBoxY2",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ImageHeight)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "imageHeight",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ImageWidth)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "imageWidth",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if value, ok := s.SourceType.Get(); ok {
 			if err := func() error {
@@ -983,66 +1328,17 @@ func (s *AssetFaceUpdateDto) Validate() error {
 	return nil
 }
 
-func (s *AssetFaceWithoutPersonResponseDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if value, ok := s.SourceType.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
+func (s AssetIdErrorReason) Validate() error {
+	switch s {
+	case "duplicate":
 		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "sourceType",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *AssetFullSyncDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        false,
-			Max:           0,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-		}).Validate(int64(s.Limit)); err != nil {
-			return errors.Wrap(err, "int")
-		}
+	case "no_permission":
 		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "limit",
-			Error: err,
-		})
+	case "not_found":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
 	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
 }
 
 func (s *AssetIdsDto) Validate() error {
@@ -1096,19 +1392,6 @@ func (s *AssetIdsResponseDto) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s AssetIdsResponseDtoError) Validate() error {
-	switch s {
-	case "duplicate":
-		return nil
-	case "no_permission":
-		return nil
-	case "not_found":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s AssetJobName) Validate() error {
@@ -1167,30 +1450,30 @@ func (s *AssetMediaCreateDtoMultipart) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.Metadata == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Metadata {
+		if value, ok := s.Duration.Get(); ok {
 			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
+				return err
 			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "metadata",
+			Name:  "duration",
 			Error: err,
 		})
 	}
@@ -1243,6 +1526,8 @@ func (s *AssetMediaResponseDto) Validate() error {
 
 func (s AssetMediaSize) Validate() error {
 	switch s {
+	case "original":
+		return nil
 	case "fullsize":
 		return nil
 	case "preview":
@@ -1258,8 +1543,6 @@ func (s AssetMediaStatus) Validate() error {
 	switch s {
 	case "created":
 		return nil
-	case "replaced":
-		return nil
 	case "duplicate":
 		return nil
 	default:
@@ -1267,29 +1550,43 @@ func (s AssetMediaStatus) Validate() error {
 	}
 }
 
-func (s AssetMetadataKey) Validate() error {
-	switch s {
-	case "mobile-app":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *AssetMetadataResponseDto) Validate() error {
+func (s *AssetMetadataBulkDeleteDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Key.Validate(); err != nil {
-			return err
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "key",
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AssetMetadataBulkUpsertDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
 			Error: err,
 		})
 	}
@@ -1309,50 +1606,10 @@ func (s *AssetMetadataUpsertDto) Validate() error {
 		if s.Items == nil {
 			return errors.New("nil is invalid value")
 		}
-		var failures []validate.FieldError
-		for i, elem := range s.Items {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "items",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *AssetMetadataUpsertItemDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Key.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "key",
 			Error: err,
 		})
 	}
@@ -1495,12 +1752,62 @@ func (s AssetOrder) Validate() error {
 	}
 }
 
+func (s AssetOrderBy) Validate() error {
+	switch s {
+	case "takenAt":
+		return nil
+	case "createdAt":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s AssetRejectReason) Validate() error {
+	switch s {
+	case "duplicate":
+		return nil
+	case "unsupported-format":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *AssetResponseDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Duration.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           2147483647,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "duration",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if value, ok := s.ExifInfo.Get(); ok {
 			if err := func() error {
@@ -1516,6 +1823,34 @@ func (s *AssetResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "exifInfo",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Height.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "height",
 			Error: err,
 		})
 	}
@@ -1538,27 +1873,20 @@ func (s *AssetResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.People {
+		if value, ok := s.Stack.Get(); ok {
 			if err := func() error {
-				if err := elem.Validate(); err != nil {
+				if err := value.Validate(); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
+				return err
 			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "people",
+			Name:  "stack",
 			Error: err,
 		})
 	}
@@ -1574,31 +1902,6 @@ func (s *AssetResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.UnassignedFaces {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "unassignedFaces",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := s.Visibility.Validate(); err != nil {
 			return err
 		}
@@ -1606,6 +1909,142 @@ func (s *AssetResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "visibility",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Width.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "width",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AssetStackResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.AssetCount)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assetCount",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AssetStatsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Images)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "images",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Videos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "videos",
 			Error: err,
 		})
 	}
@@ -1624,6 +2063,17 @@ func (s AssetTypeEnum) Validate() error {
 	case "AUDIO":
 		return nil
 	case "OTHER":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s AssetUploadAction) Validate() error {
+	switch s {
+	case "accept":
+		return nil
+	case "reject":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -1651,7 +2101,7 @@ func (s AudioCodec) Validate() error {
 		return nil
 	case "aac":
 		return nil
-	case "libopus":
+	case "opus":
 		return nil
 	case "pcm_s16le":
 		return nil
@@ -1700,6 +2150,8 @@ func (s BulkIdErrorReason) Validate() error {
 		return nil
 	case "unknown":
 		return nil
+	case "validation":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -1733,21 +2185,6 @@ func (s *BulkIdResponseDto) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s BulkIdResponseDtoError) Validate() error {
-	switch s {
-	case "duplicate":
-		return nil
-	case "no_permission":
-		return nil
-	case "not_found":
-		return nil
-	case "unknown":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *BulkIdsDto) Validate() error {
@@ -1786,6 +2223,111 @@ func (s CQMode) Validate() error {
 	}
 }
 
+func (s *CalendarHeatmapResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Series == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Series {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "series",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.TotalCount)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "totalCount",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *CalendarHeatmapResponseDtoSeriesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CalendarHeatmapType) Validate() error {
+	switch s {
+	case "Upload":
+		return nil
+	case "Taken":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ChangePasswordDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -1794,13 +2336,17 @@ func (s *ChangePasswordDto) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:    8,
-			MinLengthSet: true,
-			MaxLength:    0,
-			MaxLengthSet: false,
-			Email:        false,
-			Hostname:     false,
-			Regex:        nil,
+			MinLength:     8,
+			MinLengthSet:  true,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
 		}).Validate(string(s.NewPassword)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -1808,60 +2354,6 @@ func (s *ChangePasswordDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "newPassword",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *CheckExistingAssetsDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.DeviceAssetIds == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    0,
-			MaxLengthSet: false,
-		}).ValidateLength(len(s.DeviceAssetIds)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "deviceAssetIds",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *CheckExistingAssetsResponseDto) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.ExistingIds == nil {
-			return errors.New("nil is invalid value")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "existingIds",
 			Error: err,
 		})
 	}
@@ -1880,6 +2372,39 @@ func (s Colorspace) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ContributorCountResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.AssetCount)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assetCount",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *CreateAlbumDto) Validate() error {
@@ -1937,9 +2462,6 @@ func (s *CreateLibraryDto) Validate() error {
 		}).ValidateLength(len(s.ExclusionPatterns)); err != nil {
 			return errors.Wrap(err, "array")
 		}
-		if err := validate.UniqueItems(s.ExclusionPatterns); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
@@ -1959,13 +2481,40 @@ func (s *CreateLibraryDto) Validate() error {
 		}).ValidateLength(len(s.ImportPaths)); err != nil {
 			return errors.Wrap(err, "array")
 		}
-		if err := validate.UniqueItems(s.ImportPaths); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "importPaths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Name.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "name",
 			Error: err,
 		})
 	}
@@ -1982,22 +2531,142 @@ func (s *DatabaseBackupConfig) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Float{
+		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
-			MultipleOf:    nil,
-		}).Validate(float64(s.KeepLastAmount)); err != nil {
-			return errors.Wrap(err, "float")
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.KeepLastAmount)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "keepLastAmount",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DatabaseBackupDeleteDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Backups == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backups",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DatabaseBackupDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Filesize)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "filesize",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DatabaseBackupListResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Backups == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Backups {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backups",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DownloadArchiveDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.AssetIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assetIds",
 			Error: err,
 		})
 	}
@@ -2024,6 +2693,27 @@ func (s *DownloadArchiveInfo) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Size)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "size",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -2042,12 +2732,13 @@ func (s *DownloadInfoDto) Validate() error {
 				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
 					MultipleOf:    0,
+					Pattern:       nil,
 				}).Validate(int64(value)); err != nil {
 					return errors.Wrap(err, "int")
 				}
@@ -2055,6 +2746,39 @@ func (s *DownloadInfoDto) Validate() error {
 			}(); err != nil {
 				return err
 			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "archiveSize",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DownloadResponse) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ArchiveSize)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -2103,6 +2827,27 @@ func (s *DownloadResponseDto) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.TotalSize)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "totalSize",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -2121,12 +2866,13 @@ func (s *DownloadUpdate) Validate() error {
 				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
 					MultipleOf:    0,
+					Pattern:       nil,
 				}).Validate(int64(value)); err != nil {
 					return errors.Wrap(err, "int")
 				}
@@ -2164,6 +2910,7 @@ func (s *DuplicateDetectionConfig) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    nil,
+			Pattern:       nil,
 		}).Validate(float64(s.MaxDistance)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -2171,6 +2918,88 @@ func (s *DuplicateDetectionConfig) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "maxDistance",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DuplicateResolveDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Groups == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Groups)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Groups {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "groups",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *DuplicateResolveGroupDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.KeepAssetIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "keepAssetIds",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.TrashAssetIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trashAssetIds",
 			Error: err,
 		})
 	}
@@ -2214,6 +3043,17 @@ func (s *DuplicateResponseDto) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.SuggestedKeepAssetIds == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "suggestedKeepAssetIds",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -2229,8 +3069,18 @@ func (s *ExifResponseDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.ExifImageHeight.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -2247,8 +3097,18 @@ func (s *ExifResponseDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.ExifImageWidth.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -2281,6 +3141,34 @@ func (s *ExifResponseDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.FileSizeInByte.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fileSizeInByte",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.FocalLength.Get(); ok {
 			if err := func() error {
 				if err := (validate.Float{}).Validate(float64(value)); err != nil {
@@ -2301,8 +3189,18 @@ func (s *ExifResponseDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Iso.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -2355,8 +3253,18 @@ func (s *ExifResponseDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           5,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -2392,6 +3300,7 @@ func (s *FacialRecognitionConfig) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    nil,
+			Pattern:       nil,
 		}).Validate(float64(s.MaxDistance)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -2406,12 +3315,13 @@ func (s *FacialRecognitionConfig) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.MinFaces)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -2432,6 +3342,7 @@ func (s *FacialRecognitionConfig) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    nil,
+			Pattern:       nil,
 		}).Validate(float64(s.MinScore)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -2448,6 +3359,23 @@ func (s *FacialRecognitionConfig) Validate() error {
 	return nil
 }
 
+func (s HlsVideoResolution) Validate() error {
+	switch s {
+	case 480:
+		return nil
+	case 720:
+		return nil
+	case 1080:
+		return nil
+	case 1440:
+		return nil
+	case 2160:
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ImageFormat) Validate() error {
 	switch s {
 	case "jpeg":
@@ -2459,37 +3387,148 @@ func (s ImageFormat) Validate() error {
 	}
 }
 
-func (s JobCommand) Validate() error {
+func (s IntegrityReport) Validate() error {
 	switch s {
-	case "start":
+	case "untracked_file":
 		return nil
-	case "pause":
+	case "missing_file":
 		return nil
-	case "resume":
-		return nil
-	case "empty":
-		return nil
-	case "clear-failed":
+	case "checksum_mismatch":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
 }
 
-func (s *JobCommandDto) Validate() error {
+func (s *IntegrityReportResponseDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Command.Validate(); err != nil {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *IntegrityReportResponseDtoItemsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Type.Validate(); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "command",
+			Name:  "type",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *IntegrityReportSummaryResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ChecksumMismatch)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "checksum_mismatch",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.MissingFile)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "missing_file",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.UntrackedFile)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "untracked_file",
 			Error: err,
 		})
 	}
@@ -2524,37 +3563,137 @@ func (s *JobCreateDto) Validate() error {
 
 func (s JobName) Validate() error {
 	switch s {
-	case "thumbnailGeneration":
+	case "AssetDelete":
 		return nil
-	case "metadataExtraction":
+	case "AssetDeleteCheck":
 		return nil
-	case "videoConversion":
+	case "AssetDetectFacesQueueAll":
 		return nil
-	case "faceDetection":
+	case "AssetDetectFaces":
 		return nil
-	case "facialRecognition":
+	case "AssetDetectDuplicatesQueueAll":
 		return nil
-	case "smartSearch":
+	case "AssetDetectDuplicates":
 		return nil
-	case "duplicateDetection":
+	case "AssetEditThumbnailGeneration":
 		return nil
-	case "backgroundTask":
+	case "AssetEncodeVideoQueueAll":
 		return nil
-	case "storageTemplateMigration":
+	case "AssetEncodeVideo":
 		return nil
-	case "migration":
+	case "AssetEmptyTrash":
 		return nil
-	case "search":
+	case "AssetExtractMetadataQueueAll":
 		return nil
-	case "sidecar":
+	case "AssetExtractMetadata":
 		return nil
-	case "library":
+	case "AssetFileMigration":
 		return nil
-	case "notifications":
+	case "AssetGenerateThumbnailsQueueAll":
 		return nil
-	case "backupDatabase":
+	case "AssetGenerateThumbnails":
 		return nil
-	case "ocr":
+	case "AuditTableCleanup":
+		return nil
+	case "DatabaseBackup":
+		return nil
+	case "FacialRecognitionQueueAll":
+		return nil
+	case "FacialRecognition":
+		return nil
+	case "FileDelete":
+		return nil
+	case "FileMigrationQueueAll":
+		return nil
+	case "LibraryDeleteCheck":
+		return nil
+	case "LibraryDelete":
+		return nil
+	case "LibraryRemoveAsset":
+		return nil
+	case "LibraryScanAssetsQueueAll":
+		return nil
+	case "LibrarySyncAssets":
+		return nil
+	case "LibrarySyncFilesQueueAll":
+		return nil
+	case "LibrarySyncFiles":
+		return nil
+	case "LibraryScanQueueAll":
+		return nil
+	case "HlsSessionCleanup":
+		return nil
+	case "MemoryCleanup":
+		return nil
+	case "MemoryGenerate":
+		return nil
+	case "NotificationsCleanup":
+		return nil
+	case "NotifyUserSignup":
+		return nil
+	case "NotifyAlbumInvite":
+		return nil
+	case "NotifyAlbumUpdate":
+		return nil
+	case "UserDelete":
+		return nil
+	case "UserDeleteCheck":
+		return nil
+	case "UserSyncUsage":
+		return nil
+	case "PersonCleanup":
+		return nil
+	case "PersonFileMigration":
+		return nil
+	case "PersonGenerateThumbnail":
+		return nil
+	case "SessionCleanup":
+		return nil
+	case "SendMail":
+		return nil
+	case "SidecarQueueAll":
+		return nil
+	case "SidecarCheck":
+		return nil
+	case "SidecarWrite":
+		return nil
+	case "SmartSearchQueueAll":
+		return nil
+	case "SmartSearch":
+		return nil
+	case "StorageTemplateMigration":
+		return nil
+	case "StorageTemplateMigrationSingle":
+		return nil
+	case "TagCleanup":
+		return nil
+	case "VersionCheck":
+		return nil
+	case "OcrQueueAll":
+		return nil
+	case "Ocr":
+		return nil
+	case "WorkflowAssetTrigger":
+		return nil
+	case "IntegrityUntrackedFilesQueueAll":
+		return nil
+	case "IntegrityUntrackedFiles":
+		return nil
+	case "IntegrityUntrackedRefresh":
+		return nil
+	case "IntegrityMissingFilesQueueAll":
+		return nil
+	case "IntegrityMissingFiles":
+		return nil
+	case "IntegrityMissingFilesRefresh":
+		return nil
+	case "IntegrityChecksumFiles":
+		return nil
+	case "IntegrityChecksumFilesRefresh":
+		return nil
+	case "IntegrityDeleteReportType":
+		return nil
+	case "IntegrityDeleteReports":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -2571,12 +3710,13 @@ func (s *JobSettingsDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Concurrency)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -2599,6 +3739,27 @@ func (s *LibraryResponseDto) Validate() error {
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.AssetCount)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assetCount",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if s.ExclusionPatterns == nil {
 			return errors.New("nil is invalid value")
@@ -2627,28 +3788,93 @@ func (s *LibraryResponseDto) Validate() error {
 	return nil
 }
 
-func (s *LicenseKeyDto) Validate() error {
+func (s *LibraryStatsResponseDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    0,
-			MaxLengthSet: false,
-			Email:        false,
-			Hostname:     false,
-			Regex:        regexMap["/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/"],
-		}).Validate(string(s.LicenseKey)); err != nil {
-			return errors.Wrap(err, "string")
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Photos)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "licenseKey",
+			Name:  "photos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Usage)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usage",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Videos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "videos",
 			Error: err,
 		})
 	}
@@ -2658,7 +3884,7 @@ func (s *LicenseKeyDto) Validate() error {
 	return nil
 }
 
-func (s *LicenseResponseDto) Validate() error {
+func (s *LicenseKeyDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -2666,13 +3892,17 @@ func (s *LicenseResponseDto) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    0,
-			MaxLengthSet: false,
-			Email:        false,
-			Hostname:     false,
-			Regex:        regexMap["/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/"],
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^IM(SV|CL)(-[\\dA-Za-z]{4}){8}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
 		}).Validate(string(s.LicenseKey)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -2716,13 +3946,17 @@ func (s *LoginCredentialDto) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    0,
-			MaxLengthSet: false,
-			Email:        true,
-			Hostname:     false,
-			Regex:        nil,
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
 		}).Validate(string(s.Email)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -2739,6 +3973,41 @@ func (s *LoginCredentialDto) Validate() error {
 	return nil
 }
 
+func (s *LoginResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.UserEmail)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "userEmail",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *MachineLearningAvailabilityChecksDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -2746,8 +4015,18 @@ func (s *MachineLearningAvailabilityChecksDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Float{}).Validate(float64(s.Interval)); err != nil {
-			return errors.Wrap(err, "float")
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Interval)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -2757,13 +4036,173 @@ func (s *MachineLearningAvailabilityChecksDto) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.Float{}).Validate(float64(s.Timeout)); err != nil {
-			return errors.Wrap(err, "float")
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Timeout)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "timeout",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s MaintenanceAction) Validate() error {
+	switch s {
+	case "start":
+		return nil
+	case "end":
+		return nil
+	case "select_database_restore":
+		return nil
+	case "restore_database":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *MaintenanceDetectInstallResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Storage == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Storage {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "storage",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *MaintenanceDetectInstallStorageFolderDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Files)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "files",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Folder.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "folder",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *MaintenanceStatusResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Progress.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "progress",
 			Error: err,
 		})
 	}
@@ -2786,6 +4225,24 @@ func (s ManualJobName) Validate() error {
 	case "memory-create":
 		return nil
 	case "backup-database":
+		return nil
+	case "integrity-missing-files":
+		return nil
+	case "integrity-untracked-files":
+		return nil
+	case "integrity-checksum-mismatch":
+		return nil
+	case "integrity-missing-files-refresh":
+		return nil
+	case "integrity-untracked-files-refresh":
+		return nil
+	case "integrity-checksum-mismatch-refresh":
+		return nil
+	case "integrity-missing-files-delete-all":
+		return nil
+	case "integrity-untracked-files-delete-all":
+		return nil
+	case "integrity-checksum-mismatch-delete-all":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -2817,6 +4274,79 @@ func (s *MapMarkerResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "lon",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *MemoriesResponse) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Duration)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "duration",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *MemoriesUpdate) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Duration.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "duration",
 			Error: err,
 		})
 	}
@@ -2922,6 +4452,52 @@ func (s *MemoryResponseDto) Validate() error {
 	return nil
 }
 
+func (s MemorySearchOrder) Validate() error {
+	switch s {
+	case "asc":
+		return nil
+	case "desc":
+		return nil
+	case "random":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *MemoryStatisticsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s MemoryType) Validate() error {
 	switch s {
 	case "on_this_day":
@@ -2981,17 +4557,18 @@ func (s *MetadataSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Page.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -3008,17 +4585,18 @@ func (s *MetadataSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
-					Min:           -1,
+					Min:           1,
 					MaxSet:        true,
 					Max:           5,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -3035,7 +4613,7 @@ func (s *MetadataSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Size.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
 					MaxSet:        true,
@@ -3043,9 +4621,10 @@ func (s *MetadataSearchDto) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -3177,6 +4756,14 @@ func (s *NotificationDeleteAllDto) Validate() error {
 		if s.Ids == nil {
 			return errors.New("nil is invalid value")
 		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Ids)); err != nil {
+			return errors.Wrap(err, "array")
+		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
@@ -3268,10 +4855,53 @@ func (s *NotificationUpdateAllDto) Validate() error {
 		if s.Ids == nil {
 			return errors.New("nil is invalid value")
 		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Ids)); err != nil {
+			return errors.Wrap(err, "array")
+		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "ids",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *OAuthCallbackDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.URL)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "url",
 			Error: err,
 		})
 	}
@@ -3302,12 +4932,13 @@ func (s *OcrConfig) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.MaxResolution)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -3328,6 +4959,7 @@ func (s *OcrConfig) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    nil,
+			Pattern:       nil,
 		}).Validate(float64(s.MinDetectionScore)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -3348,6 +4980,7 @@ func (s *OcrConfig) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    nil,
+			Pattern:       nil,
 		}).Validate(float64(s.MinRecognitionScore)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -3371,17 +5004,18 @@ func (s *OnThisDayDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Float{
+		if err := (validate.Int{
 			MinSet:        true,
-			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			Min:           1000,
+			MaxSet:        true,
+			Max:           9999,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
-			MultipleOf:    nil,
-		}).Validate(float64(s.Year)); err != nil {
-			return errors.Wrap(err, "float")
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Year)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -3424,6 +5058,69 @@ func (s *PartnerResponseDto) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Email)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "email",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PeopleResponse) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.MinimumFaces.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "minimumFaces",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -3437,6 +5134,27 @@ func (s *PeopleResponseDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Hidden)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hidden",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.People == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -3444,6 +5162,67 @@ func (s *PeopleResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "people",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PeopleUpdate) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.MinimumFaces.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "minimumFaces",
 			Error: err,
 		})
 	}
@@ -3463,10 +5242,69 @@ func (s *PeopleUpdateDto) Validate() error {
 		if s.People == nil {
 			return errors.New("nil is invalid value")
 		}
+		var failures []validate.FieldError
+		for i, elem := range s.People {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "people",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PeopleUpdateItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Color.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "color",
 			Error: err,
 		})
 	}
@@ -3514,9 +5352,15 @@ func (s Permission) Validate() error {
 		return nil
 	case "asset.upload":
 		return nil
-	case "asset.replace":
-		return nil
 	case "asset.copy":
+		return nil
+	case "asset.derive":
+		return nil
+	case "asset.edit.get":
+		return nil
+	case "asset.edit.create":
+		return nil
+	case "asset.edit.delete":
 		return nil
 	case "album.create":
 		return nil
@@ -3548,6 +5392,14 @@ func (s Permission) Validate() error {
 		return nil
 	case "archive.read":
 		return nil
+	case "backup.list":
+		return nil
+	case "backup.download":
+		return nil
+	case "backup.upload":
+		return nil
+	case "backup.delete":
+		return nil
 	case "duplicate.read":
 		return nil
 	case "duplicate.delete":
@@ -3559,6 +5411,8 @@ func (s Permission) Validate() error {
 	case "face.update":
 		return nil
 	case "face.delete":
+		return nil
+	case "folder.read":
 		return nil
 	case "job.create":
 		return nil
@@ -3577,6 +5431,12 @@ func (s Permission) Validate() error {
 	case "timeline.read":
 		return nil
 	case "timeline.download":
+		return nil
+	case "maintenance":
+		return nil
+	case "map.read":
+		return nil
+	case "map.search":
 		return nil
 	case "memory.create":
 		return nil
@@ -3627,6 +5487,14 @@ func (s Permission) Validate() error {
 	case "pinCode.update":
 		return nil
 	case "pinCode.delete":
+		return nil
+	case "plugin.create":
+		return nil
+	case "plugin.read":
+		return nil
+	case "plugin.update":
+		return nil
+	case "plugin.delete":
 		return nil
 	case "server.about":
 		return nil
@@ -3726,6 +5594,28 @@ func (s Permission) Validate() error {
 		return nil
 	case "userProfileImage.delete":
 		return nil
+	case "queue.read":
+		return nil
+	case "queue.update":
+		return nil
+	case "queueJob.create":
+		return nil
+	case "queueJob.read":
+		return nil
+	case "queueJob.update":
+		return nil
+	case "queueJob.delete":
+		return nil
+	case "workflow.create":
+		return nil
+	case "workflow.read":
+		return nil
+	case "workflow.update":
+		return nil
+	case "workflow.delete":
+		return nil
+	case "workflow.logs":
+		return nil
 	case "adminUser.create":
 		return nil
 	case "adminUser.read":
@@ -3743,37 +5633,256 @@ func (s Permission) Validate() error {
 	}
 }
 
-func (s *PersonWithFacesResponseDto) Validate() error {
+func (s *PersonCreateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.Faces == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Faces {
+		if value, ok := s.Color.Get(); ok {
 			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
 				}
 				return nil
 			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
+				return err
 			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "faces",
+			Name:  "color",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PersonStatisticsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Assets)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "assets",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PersonUpdateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Color.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "color",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PinCodeChangeDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^\\d{6}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.NewPinCode)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "newPinCode",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.PinCode.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^\\d{6}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pinCode",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PinCodeResetDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.PinCode.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^\\d{6}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pinCode",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PinCodeSetupDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^\\d{6}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.PinCode)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pinCode",
 			Error: err,
 		})
 	}
@@ -3817,6 +5926,706 @@ func (s *PlacesResponseDto) Validate() error {
 	return nil
 }
 
+func (s *PluginMethodResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Types == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Types {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "types",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.UiHints == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "uiHints",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PluginResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Methods == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Methods {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "methods",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PluginTemplateResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.UiHints == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "uiHints",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s QueueCommand) Validate() error {
+	switch s {
+	case "start":
+		return nil
+	case "pause":
+		return nil
+	case "resume":
+		return nil
+	case "empty":
+		return nil
+	case "clear-failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *QueueCommandDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Command.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "command",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *QueueJobResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Name.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Timestamp)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "timestamp",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s QueueJobStatus) Validate() error {
+	switch s {
+	case "active":
+		return nil
+	case "failed":
+		return nil
+	case "completed":
+		return nil
+	case "delayed":
+		return nil
+	case "waiting":
+		return nil
+	case "paused":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s QueueName) Validate() error {
+	switch s {
+	case "thumbnailGeneration":
+		return nil
+	case "metadataExtraction":
+		return nil
+	case "videoConversion":
+		return nil
+	case "faceDetection":
+		return nil
+	case "facialRecognition":
+		return nil
+	case "smartSearch":
+		return nil
+	case "duplicateDetection":
+		return nil
+	case "backgroundTask":
+		return nil
+	case "storageTemplateMigration":
+		return nil
+	case "migration":
+		return nil
+	case "search":
+		return nil
+	case "sidecar":
+		return nil
+	case "library":
+		return nil
+	case "notifications":
+		return nil
+	case "backupDatabase":
+		return nil
+	case "ocr":
+		return nil
+	case "workflow":
+		return nil
+	case "integrityCheck":
+		return nil
+	case "editor":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *QueueResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Name.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Statistics.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "statistics",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *QueueResponseLegacyDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.JobCounts.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "jobCounts",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *QueueStatisticsDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Active)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "active",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Completed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "completed",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Delayed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "delayed",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Failed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "failed",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Paused)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "paused",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Waiting)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "waiting",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *QueuesResponseLegacyDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.BackgroundTask.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backgroundTask",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.BackupDatabase.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupDatabase",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.DuplicateDetection.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "duplicateDetection",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Editor.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "editor",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.FaceDetection.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "faceDetection",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.FacialRecognition.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "facialRecognition",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.IntegrityCheck.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "integrityCheck",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Library.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "library",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.MetadataExtraction.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "metadataExtraction",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Migration.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "migration",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Notifications.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "notifications",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Ocr.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ocr",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Search.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "search",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Sidecar.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sidecar",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.SmartSearch.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "smartSearch",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.StorageTemplateMigration.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "storageTemplateMigration",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.ThumbnailGeneration.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "thumbnailGeneration",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.VideoConversion.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "videoConversion",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Workflow.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "workflow",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *RandomSearchDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -3826,17 +6635,18 @@ func (s *RandomSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
-					Min:           -1,
+					Min:           1,
 					MaxSet:        true,
 					Max:           5,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -3853,7 +6663,7 @@ func (s *RandomSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Size.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
 					MaxSet:        true,
@@ -3861,9 +6671,10 @@ func (s *RandomSearchDto) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -3959,12 +6770,44 @@ func (s ReactionType) Validate() error {
 	}
 }
 
+func (s ReleaseChannel) Validate() error {
+	switch s {
+	case "stable":
+		return nil
+	case "releaseCandidate":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *SearchAlbumResponseDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if s.Facets == nil {
 			return errors.New("nil is invalid value")
@@ -4018,6 +6861,27 @@ func (s *SearchAlbumResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "items",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
 			Error: err,
 		})
 	}
@@ -4034,6 +6898,27 @@ func (s *SearchAssetResponseDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Facets == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -4086,6 +6971,27 @@ func (s *SearchAssetResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "items",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
 			Error: err,
 		})
 	}
@@ -4158,6 +7064,39 @@ func (s *SearchExploreResponseDto) Validate() error {
 	return nil
 }
 
+func (s *SearchFacetCountResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *SearchFacetResponseDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -4167,6 +7106,23 @@ func (s *SearchFacetResponseDto) Validate() error {
 	if err := func() error {
 		if s.Counts == nil {
 			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Counts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
@@ -4215,6 +7171,39 @@ func (s *SearchResponseDto) Validate() error {
 	return nil
 }
 
+func (s *SearchStatisticsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Total)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "total",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s SearchSuggestionType) Validate() error {
 	switch s {
 	case "country":
@@ -4232,6 +7221,81 @@ func (s SearchSuggestionType) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ServerConfigDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.MinFaces)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "minFaces",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.TrashDays)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trashDays",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.UserDeleteDelay)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "userDeleteDelay",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *ServerMediaTypesResponseDto) Validate() error {
@@ -4286,13 +7350,135 @@ func (s *ServerStatsResponseDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Photos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "photos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Usage)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usage",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.UsageByUser == nil {
 			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.UsageByUser {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "usageByUser",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.UsagePhotos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usagePhotos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.UsageVideos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usageVideos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Videos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "videos",
 			Error: err,
 		})
 	}
@@ -4309,6 +7495,48 @@ func (s *ServerStorageResponseDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DiskAvailableRaw)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "diskAvailableRaw",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DiskSizeRaw)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "diskSizeRaw",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{}).Validate(float64(s.DiskUsagePercentage)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -4316,6 +7544,130 @@ func (s *ServerStorageResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "diskUsagePercentage",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.DiskUseRaw)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "diskUseRaw",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ServerVersionResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Major)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "major",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Minor)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "minor",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Patch)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "patch",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Prerelease.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "prerelease",
 			Error: err,
 		})
 	}
@@ -4334,17 +7686,18 @@ func (s *SessionCreateDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Duration.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -4355,6 +7708,71 @@ func (s *SessionCreateDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "duration",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *SessionUnlockDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.PinCode.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^\\d{6}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pinCode",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *SetMaintenanceModeDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
 			Error: err,
 		})
 	}
@@ -4475,13 +7893,17 @@ func (s *SignUpDto) Validate() error {
 	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    0,
-			MaxLengthSet: false,
-			Email:        true,
-			Hostname:     false,
-			Regex:        nil,
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
 		}).Validate(string(s.Email)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -4507,17 +7929,18 @@ func (s *SmartSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Page.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -4534,17 +7957,18 @@ func (s *SmartSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
-					Min:           -1,
+					Min:           1,
 					MaxSet:        true,
 					Max:           5,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -4561,7 +7985,7 @@ func (s *SmartSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Size.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
 					MaxSet:        true,
@@ -4569,9 +7993,10 @@ func (s *SmartSearchDto) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -4738,17 +8163,18 @@ func (s *StatisticsSearchDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
-					Min:           -1,
+					Min:           1,
 					MaxSet:        true,
 					Max:           5,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -4820,6 +8246,25 @@ func (s *StatisticsSearchDto) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s StorageFolder) Validate() error {
+	switch s {
+	case "encoded-video":
+		return nil
+	case "library":
+		return nil
+	case "upload":
+		return nil
+	case "profile":
+		return nil
+	case "thumbs":
+		return nil
+	case "backups":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *SyncAckDeleteDto) Validate() error {
@@ -4923,13 +8368,23 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "AssetV1":
 		return nil
+	case "AssetV2":
+		return nil
 	case "AssetDeleteV1":
 		return nil
 	case "AssetExifV1":
 		return nil
+	case "AssetEditV1":
+		return nil
+	case "AssetEditDeleteV1":
+		return nil
 	case "AssetMetadataV1":
 		return nil
 	case "AssetMetadataDeleteV1":
+		return nil
+	case "AssetOcrV1":
+		return nil
+	case "AssetOcrDeleteV1":
 		return nil
 	case "PartnerV1":
 		return nil
@@ -4937,7 +8392,11 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "PartnerAssetV1":
 		return nil
+	case "PartnerAssetV2":
+		return nil
 	case "PartnerAssetBackfillV1":
+		return nil
+	case "PartnerAssetBackfillV2":
 		return nil
 	case "PartnerAssetDeleteV1":
 		return nil
@@ -4953,6 +8412,8 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "AlbumV1":
 		return nil
+	case "AlbumV2":
+		return nil
 	case "AlbumDeleteV1":
 		return nil
 	case "AlbumUserV1":
@@ -4963,9 +8424,15 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "AlbumAssetCreateV1":
 		return nil
+	case "AlbumAssetCreateV2":
+		return nil
 	case "AlbumAssetUpdateV1":
 		return nil
+	case "AlbumAssetUpdateV2":
+		return nil
 	case "AlbumAssetBackfillV1":
+		return nil
+	case "AlbumAssetBackfillV2":
 		return nil
 	case "AlbumAssetExifCreateV1":
 		return nil
@@ -4997,6 +8464,8 @@ func (s SyncEntityType) Validate() error {
 		return nil
 	case "AssetFaceV1":
 		return nil
+	case "AssetFaceV2":
+		return nil
 	case "AssetFaceDeleteV1":
 		return nil
 	case "UserMetadataV1":
@@ -5018,19 +8487,29 @@ func (s SyncRequestType) Validate() error {
 	switch s {
 	case "AlbumsV1":
 		return nil
+	case "AlbumsV2":
+		return nil
 	case "AlbumUsersV1":
 		return nil
 	case "AlbumToAssetsV1":
 		return nil
 	case "AlbumAssetsV1":
 		return nil
+	case "AlbumAssetsV2":
+		return nil
 	case "AlbumAssetExifsV1":
 		return nil
 	case "AssetsV1":
 		return nil
+	case "AssetsV2":
+		return nil
 	case "AssetExifsV1":
 		return nil
+	case "AssetEditsV1":
+		return nil
 	case "AssetMetadataV1":
+		return nil
+	case "AssetOcrV1":
 		return nil
 	case "AuthUsersV1":
 		return nil
@@ -5041,6 +8520,8 @@ func (s SyncRequestType) Validate() error {
 	case "PartnersV1":
 		return nil
 	case "PartnerAssetsV1":
+		return nil
+	case "PartnerAssetsV2":
 		return nil
 	case "PartnerAssetExifsV1":
 		return nil
@@ -5053,6 +8534,8 @@ func (s SyncRequestType) Validate() error {
 	case "PeopleV1":
 		return nil
 	case "AssetFacesV1":
+		return nil
+	case "AssetFacesV2":
 		return nil
 	case "UserMetadataV1":
 		return nil
@@ -5164,6 +8647,17 @@ func (s *SystemConfigDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.IntegrityChecks.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "integrityChecks",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Job.Validate(); err != nil {
 			return err
 		}
@@ -5193,6 +8687,28 @@ func (s *SystemConfigDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "machineLearning",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.NewVersionCheck.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "newVersionCheck",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.NightlyTasks.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "nightlyTasks",
 			Error: err,
 		})
 	}
@@ -5357,6 +8873,7 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Bframes)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5388,6 +8905,7 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Crf)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5402,12 +8920,13 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.GopSize)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5415,6 +8934,17 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "gopSize",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Realtime.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "realtime",
 			Error: err,
 		})
 	}
@@ -5428,6 +8958,7 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Refs)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5464,12 +8995,13 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Threads)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5508,6 +9040,74 @@ func (s *SystemConfigFFmpegDto) Validate() error {
 	return nil
 }
 
+func (s *SystemConfigFFmpegRealtimeDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Resolutions == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Resolutions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "resolutions",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.VideoCodecs == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.VideoCodecs {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "videoCodecs",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *SystemConfigGeneratedFullsizeImageDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -5535,6 +9135,7 @@ func (s *SystemConfigGeneratedFullsizeImageDto) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Quality)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5578,6 +9179,7 @@ func (s *SystemConfigGeneratedImageDto) Validate() error {
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Quality)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5592,12 +9194,13 @@ func (s *SystemConfigGeneratedImageDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Size)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -5670,6 +9273,83 @@ func (s *SystemConfigImageDto) Validate() error {
 	return nil
 }
 
+func (s *SystemConfigIntegrityChecks) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.ChecksumFiles.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "checksumFiles",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *SystemConfigIntegrityChecksumJob) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Float{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           1,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    nil,
+			Pattern:       nil,
+		}).Validate(float64(s.PercentageLimit)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "percentageLimit",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.TimeLimit)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "timeLimit",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *SystemConfigJobDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -5688,6 +9368,17 @@ func (s *SystemConfigJobDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.Editor.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "editor",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.FaceDetection.Validate(); err != nil {
 			return err
 		}
@@ -5695,6 +9386,17 @@ func (s *SystemConfigJobDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "faceDetection",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.IntegrityCheck.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "integrityCheck",
 			Error: err,
 		})
 	}
@@ -5808,6 +9510,17 @@ func (s *SystemConfigJobDto) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.Workflow.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "workflow",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -5912,6 +9625,64 @@ func (s *SystemConfigMachineLearningDto) Validate() error {
 	return nil
 }
 
+func (s *SystemConfigNewVersionCheckDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Channel.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *SystemConfigNightlyTasksDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^(?:[01]\\d|2[0-3]):[0-5]\\d$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.StartTime)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "startTime",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *SystemConfigNotificationsDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -5947,12 +9718,13 @@ func (s *SystemConfigOAuthDto) Validate() error {
 				if err := (validate.Int{
 					MinSet:        true,
 					Min:           0,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
 					MultipleOf:    0,
+					Pattern:       nil,
 				}).Validate(int64(value)); err != nil {
 					return errors.Wrap(err, "int")
 				}
@@ -5972,12 +9744,13 @@ func (s *SystemConfigOAuthDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Timeout)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -6035,7 +9808,7 @@ func (s *SystemConfigSmtpTransportDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := (validate.Float{
+		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
 			MaxSet:        true,
@@ -6043,9 +9816,10 @@ func (s *SystemConfigSmtpTransportDto) Validate() error {
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
-			MultipleOf:    nil,
-		}).Validate(float64(s.Port)); err != nil {
-			return errors.Wrap(err, "float")
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -6170,12 +9944,13 @@ func (s *SystemConfigTrashDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           0,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.Days)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -6202,12 +9977,13 @@ func (s *SystemConfigUserDto) Validate() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           1,
-			MaxSet:        false,
-			Max:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
 			MultipleOf:    0,
+			Pattern:       nil,
 		}).Validate(int64(s.DeleteDelay)); err != nil {
 			return errors.Wrap(err, "int")
 		}
@@ -6258,6 +10034,39 @@ func (s *TagBulkAssetsDto) Validate() error {
 	return nil
 }
 
+func (s *TagBulkAssetsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *TagCreateDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -6268,13 +10077,59 @@ func (s *TagCreateDto) Validate() error {
 		if value, ok := s.Color.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    0,
-					MinLengthSet: false,
-					MaxLength:    0,
-					MaxLengthSet: false,
-					Email:        false,
-					Hostname:     false,
-					Regex:        regexMap["^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$"],
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "color",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *TagUpdateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Color.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
 				}).Validate(string(value)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -6326,30 +10181,53 @@ func (s *TimeBucketAssetResponseDto) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.City == nil {
+		if s.CreatedAt == nil {
 			return errors.New("nil is invalid value")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "city",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Country == nil {
-			return errors.New("nil is invalid value")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "country",
+			Name:  "createdAt",
 			Error: err,
 		})
 	}
 	if err := func() error {
 		if s.Duration == nil {
 			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Duration {
+			if err := func() error {
+				if value, ok := elem.Get(); ok {
+					if err := func() error {
+						if err := (validate.Int{
+							MinSet:        true,
+							Min:           0,
+							MaxSet:        true,
+							Max:           2147483647,
+							MinExclusive:  false,
+							MaxExclusive:  false,
+							MultipleOfSet: false,
+							MultipleOf:    0,
+							Pattern:       nil,
+						}).Validate(int64(value)); err != nil {
+							return errors.Wrap(err, "int")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
@@ -6644,6 +10522,39 @@ func (s *TimeBucketAssetResponseDto) Validate() error {
 	return nil
 }
 
+func (s *TimeBucketsResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s ToneMapping) Validate() error {
 	switch s {
 	case "hable":
@@ -6691,6 +10602,39 @@ func (s TranscodePolicy) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *TrashResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *UpdateAlbumDto) Validate() error {
@@ -6755,7 +10699,17 @@ func (s *UpdateAssetDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Latitude.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           -90,
+					MaxSet:        true,
+					Max:           90,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+					Pattern:       nil,
+				}).Validate(float64(value)); err != nil {
 					return errors.Wrap(err, "float")
 				}
 				return nil
@@ -6773,7 +10727,17 @@ func (s *UpdateAssetDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Longitude.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+				if err := (validate.Float{
+					MinSet:        true,
+					Min:           -180,
+					MaxSet:        true,
+					Max:           180,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    nil,
+					Pattern:       nil,
+				}).Validate(float64(value)); err != nil {
 					return errors.Wrap(err, "float")
 				}
 				return nil
@@ -6791,7 +10755,7 @@ func (s *UpdateAssetDto) Validate() error {
 	if err := func() error {
 		if value, ok := s.Rating.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           -1,
 					MaxSet:        true,
@@ -6799,9 +10763,10 @@ func (s *UpdateAssetDto) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -6857,9 +10822,6 @@ func (s *UpdateLibraryDto) Validate() error {
 		}).ValidateLength(len(s.ExclusionPatterns)); err != nil {
 			return errors.Wrap(err, "array")
 		}
-		if err := validate.UniqueItems(s.ExclusionPatterns); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
@@ -6879,13 +10841,40 @@ func (s *UpdateLibraryDto) Validate() error {
 		}).ValidateLength(len(s.ImportPaths)); err != nil {
 			return errors.Wrap(err, "array")
 		}
-		if err := validate.UniqueItems(s.ImportPaths); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "importPaths",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Name.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "name",
 			Error: err,
 		})
 	}
@@ -6907,6 +10896,151 @@ func (s *UploadAssetOK) Validate() error {
 	alias := (*AssetMediaResponseDto)(s)
 	if err := alias.Validate(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *UsageByUserDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Photos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "photos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.QuotaSizeInBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "quotaSizeInBytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Usage)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usage",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.UsagePhotos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usagePhotos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.UsageVideos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "usageVideos",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Videos)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "videos",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 	return nil
 }
@@ -6937,13 +11071,17 @@ func (s *UserAdminCreateDto) Validate() error {
 	}
 	if err := func() error {
 		if err := (validate.String{
-			MinLength:    0,
-			MinLengthSet: false,
-			MaxLength:    0,
-			MaxLengthSet: false,
-			Email:        true,
-			Hostname:     false,
-			Regex:        nil,
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
 		}).Validate(string(s.Email)); err != nil {
 			return errors.Wrap(err, "string")
 		}
@@ -6955,17 +11093,48 @@ func (s *UserAdminCreateDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.PinCode.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^\\d{6}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pinCode",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.QuotaSizeInBytes.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
 					Min:           0,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
 					MultipleOf:    0,
+					Pattern:       nil,
 				}).Validate(int64(value)); err != nil {
 					return errors.Wrap(err, "int")
 				}
@@ -7001,6 +11170,103 @@ func (s *UserAdminResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "avatarColor",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Email)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "email",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.License.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "license",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.QuotaSizeInBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "quotaSizeInBytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.QuotaUsageInBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "quotaUsageInBytes",
 			Error: err,
 		})
 	}
@@ -7049,13 +11315,17 @@ func (s *UserAdminUpdateDto) Validate() error {
 		if value, ok := s.Email.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    0,
-					MinLengthSet: false,
-					MaxLength:    0,
-					MaxLengthSet: false,
-					Email:        true,
-					Hostname:     false,
-					Regex:        nil,
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         true,
+					Hostname:      false,
+					Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
 				}).Validate(string(value)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -7072,17 +11342,48 @@ func (s *UserAdminUpdateDto) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.PinCode.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^\\d{6}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "pinCode",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.QuotaSizeInBytes.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
 					Min:           0,
-					MaxSet:        false,
-					Max:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
 					MultipleOf:    0,
+					Pattern:       nil,
 				}).Validate(int64(value)); err != nil {
 					return errors.Wrap(err, "int")
 				}
@@ -7131,6 +11432,41 @@ func (s UserAvatarColor) Validate() error {
 	}
 }
 
+func (s *UserLicense) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         false,
+			Hostname:      false,
+			Regex:         regexMap["^IM(SV|CL)(-[\\dA-Za-z]{4}){8}$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.LicenseKey)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "licenseKey",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *UserPreferencesResponseDto) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -7145,6 +11481,39 @@ func (s *UserPreferencesResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "albums",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Download.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "download",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Memories.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "memories",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.People.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "people",
 			Error: err,
 		})
 	}
@@ -7214,6 +11583,42 @@ func (s *UserPreferencesUpdateDto) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Memories.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "memories",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.People.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "people",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -7234,6 +11639,29 @@ func (s *UserResponseDto) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "avatarColor",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     0,
+			MaxLengthSet:  false,
+			Email:         true,
+			Hostname:      false,
+			Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Email)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "email",
 			Error: err,
 		})
 	}
@@ -7284,13 +11712,17 @@ func (s *UserUpdateMeDto) Validate() error {
 		if value, ok := s.Email.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
-					MinLength:    0,
-					MinLengthSet: false,
-					MaxLength:    0,
-					MaxLengthSet: false,
-					Email:        true,
-					Hostname:     false,
-					Regex:        nil,
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         true,
+					Hostname:      false,
+					Regex:         regexMap["^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
 				}).Validate(string(value)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -7330,9 +11762,6 @@ func (s *ValidateLibraryDto) Validate() error {
 		}).ValidateLength(len(s.ExclusionPatterns)); err != nil {
 			return errors.Wrap(err, "array")
 		}
-		if err := validate.UniqueItems(s.ExclusionPatterns); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
@@ -7350,9 +11779,6 @@ func (s *ValidateLibraryDto) Validate() error {
 			MaxLength:    128,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.ImportPaths)); err != nil {
-			return errors.Wrap(err, "array")
-		}
-		if err := validate.UniqueItems(s.ImportPaths); err != nil {
 			return errors.Wrap(err, "array")
 		}
 		return nil
@@ -7396,4 +11822,285 @@ func (s VideoContainer) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *WorkflowCreateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *WorkflowLogEntryDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.LastStep.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "lastStep",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Result.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "result",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *WorkflowLogEntryDtoLastStep) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  true,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Index)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "index",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *WorkflowResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s WorkflowResult) Validate() error {
+	switch s {
+	case "completed":
+		return nil
+	case "halted":
+		return nil
+	case "error":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *WorkflowShareResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Steps == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "steps",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s WorkflowTrigger) Validate() error {
+	switch s {
+	case "AssetCreate":
+		return nil
+	case "AssetMetadataExtraction":
+		return nil
+	case "AssetTagged":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *WorkflowTriggerResponseDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Trigger.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Types == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Types {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "types",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s WorkflowType) Validate() error {
+	switch s {
+	case "AssetV1":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *WorkflowUpdateDto) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Trigger.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "trigger",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }

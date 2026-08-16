@@ -27,7 +27,7 @@ func (a *ImmichAlbumCache) FillCache(server *ImmichServer) error {
 		return err
 	}
 	for _, album := range result {
-		a.cache[album.ID] = &album
+		a.cache[album.ID.String()] = &album
 	}
 	return nil
 }
@@ -35,45 +35,21 @@ func (a *ImmichAlbumCache) FillCache(server *ImmichServer) error {
 func (a *ImmichAlbumCache) GetAlbumUUIDByName(server *ImmichServer, name string) (uuid.UUID, error) {
 	for _, a := range a.cache {
 		if a.AlbumName == name {
-			u, err := uuid.Parse(a.ID)
-			if err != nil {
-				return uuid.UUID{}, err
-			}
-			return u, nil
+			return a.ID, nil
 		}
 	}
 	a.FillCache(server)
 	for _, a := range a.cache {
 		if a.AlbumName == name {
-			u, err := uuid.Parse(a.ID)
-			if err != nil {
-				return uuid.UUID{}, err
-			}
-			return u, nil
+			return a.ID, nil
 		}
 	}
 	return uuid.UUID{}, fmt.Errorf("an album with name %s does not exist.", name)
 }
 
-func (a *ImmichAlbumCache) updateAlbum(server *ImmichServer, albumUUID uuid.UUID) error {
-	resp, err := server.oapiClient.GetAlbumInfo(context.Background(), oapi.GetAlbumInfoParams{
-		ID:            albumUUID,
-		WithoutAssets: oapi.NewOptBool(false),
-	})
-	if err != nil {
-		return err
-	}
-	a.cache[resp.ID] = resp
-	return nil
-}
-
 func (a *ImmichAlbumCache) Album(server *ImmichServer, albumUUID uuid.UUID) (*oapi.AlbumResponseDto, error) {
 	tryGet := func(server *ImmichServer, albumUUID uuid.UUID) (*oapi.AlbumResponseDto, error) {
 		if album, ok := a.cache[albumUUID.String()]; ok {
-			if album.AssetCount != len(album.Assets) {
-				a.updateAlbum(server, albumUUID)
-				album = a.cache[albumUUID.String()]
-			}
 			return album, nil
 		}
 		return nil, errors.New("album not found")

@@ -3,6 +3,54 @@
 package oapi
 
 // setDefaults set default value of fields.
+func (s *AlbumResponseDto) setDefaults() {
+	{
+		val := AssetOrder("desc")
+		s.Order.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AlbumUserAddDto) setDefaults() {
+	{
+		val := AlbumUserRole("editor")
+		s.Role.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AlbumUserCreateDto) setDefaults() {
+	{
+		val := AlbumUserRole("editor")
+		s.Role = val
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AlbumUserResponseDto) setDefaults() {
+	{
+		val := AlbumUserRole("editor")
+		s.Role = val
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AlbumsResponse) setDefaults() {
+	{
+		val := AssetOrder("desc")
+		s.DefaultAssetOrder = val
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AlbumsUpdate) setDefaults() {
+	{
+		val := AssetOrder("desc")
+		s.DefaultAssetOrder.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *AssetCopyDto) setDefaults() {
 	{
 		val := bool(true)
@@ -27,26 +75,10 @@ func (s *AssetCopyDto) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *CastResponse) setDefaults() {
-	{
-		val := bool(false)
-		s.GCastEnabled = val
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *ChangePasswordDto) setDefaults() {
 	{
 		val := bool(false)
 		s.InvalidateSessions.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *DownloadResponse) setDefaults() {
-	{
-		val := bool(false)
-		s.IncludeEmbeddedVideos = val
 	}
 }
 
@@ -121,86 +153,10 @@ func (s *ExifResponseDto) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *FoldersResponse) setDefaults() {
+func (s *MetadataSearchDto) setDefaults() {
 	{
-		val := bool(false)
-		s.Enabled = val
-	}
-	{
-		val := bool(false)
-		s.SidebarWeb = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *LibraryStatsResponseDto) setDefaults() {
-	{
-		val := int(0)
-		s.Photos = val
-	}
-	{
-		val := int(0)
-		s.Total = val
-	}
-	{
-		val := int64(0)
-		s.Usage = val
-	}
-	{
-		val := int(0)
-		s.Videos = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *MemoriesResponse) setDefaults() {
-	{
-		val := bool(true)
-		s.Enabled = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *PeopleResponse) setDefaults() {
-	{
-		val := bool(true)
-		s.Enabled = val
-	}
-	{
-		val := bool(false)
-		s.SidebarWeb = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *RatingsResponse) setDefaults() {
-	{
-		val := bool(false)
-		s.Enabled = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *ServerStatsResponseDto) setDefaults() {
-	{
-		val := int(0)
-		s.Photos = val
-	}
-	{
-		val := int64(0)
-		s.Usage = val
-	}
-	{
-		val := int64(0)
-		s.UsagePhotos = val
-	}
-	{
-		val := int64(0)
-		s.UsageVideos = val
-	}
-	{
-		val := int(0)
-		s.Videos = val
+		val := AssetOrder("desc")
+		s.Order.SetTo(val)
 	}
 }
 
@@ -220,33 +176,17 @@ func (s *SharedLinkCreateDto) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *SharedLinksResponse) setDefaults() {
+func (s *UpdateAlbumDto) setDefaults() {
 	{
-		val := bool(true)
-		s.Enabled = val
-	}
-	{
-		val := bool(false)
-		s.SidebarWeb = val
+		val := AssetOrder("desc")
+		s.Order.SetTo(val)
 	}
 }
 
 // setDefaults set default value of fields.
-func (s *TagsResponse) setDefaults() {
+func (s *UpdateAlbumUserDto) setDefaults() {
 	{
-		val := bool(true)
-		s.Enabled = val
-	}
-	{
-		val := bool(true)
-		s.SidebarWeb = val
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *ValidateLibraryImportPathResponseDto) setDefaults() {
-	{
-		val := bool(false)
-		s.IsValid = val
+		val := AlbumUserRole("editor")
+		s.Role = val
 	}
 }

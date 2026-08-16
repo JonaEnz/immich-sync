@@ -96,6 +96,28 @@ func (i *ImmichServer) Album(albumUUID uuid.UUID) (*oapi.AlbumResponseDto, error
 	return i.albumCache.Album(i, albumUUID)
 }
 
+func (i *ImmichServer) AlbumAssets(albumUUID uuid.UUID) ([]oapi.AssetResponseDto, error) {
+	assets := make([]oapi.AssetResponseDto, 0)
+	page := 0
+	const size = 1000
+	for {
+		resp, err := i.oapiClient.SearchAssets(context.Background(), &oapi.MetadataSearchDto{
+			AlbumIds: []uuid.UUID{albumUUID},
+			Page:     oapi.NewOptInt(page),
+			Size:     oapi.NewOptInt(size),
+		}, oapi.SearchAssetsParams{})
+		if err != nil {
+			return nil, err
+		}
+		assets = append(assets, resp.Assets.Items...)
+		if len(resp.Assets.Items) < size {
+			break
+		}
+		page++
+	}
+	return assets, nil
+}
+
 func (i *ImmichServer) CreateNewAlbum(name string) (uuid.UUID, error) {
 	i.albumCache.FillCache(i)
 
@@ -109,17 +131,13 @@ func (i *ImmichServer) CreateNewAlbum(name string) (uuid.UUID, error) {
 		AlbumName:   name,
 		AlbumUsers:  make([]oapi.AlbumUserCreateDto, 0),
 		AssetIds:    make([]uuid.UUID, 0),
-		Description: oapi.OptString{},
+		Description: oapi.OptNilString{},
 	})
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	albumUUID, err := uuid.Parse(response.ID)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
 	i.albumCache.cache[name] = response
-	return albumUUID, nil
+	return response.ID, nil
 }
 
 func (i *ImmichServer) AddToAlbum(imageUUIDs []uuid.UUID, albumUUID uuid.UUID) error {
@@ -142,50 +160,7 @@ func (i *ImmichServer) GetUserUUID() (uuid.UUID, error) {
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	return uuid.Parse(resp.ID)
-}
-
-func (i *ImmichServer) GetSyncAfter(t time.Time) (*oapi.AssetDeltaSyncResponseDto, error) {
-	userUUID, err := i.GetUserUUID()
-	if err != nil {
-		return nil, err
-	}
-	return i.oapiClient.GetDeltaSync(context.Background(), &oapi.AssetDeltaSyncDto{
-		UpdatedAfter: t,
-		UserIds:      []uuid.UUID{userUUID},
-	})
-}
-
-func (i *ImmichServer) DoFullSync(t time.Time) (*[]oapi.AssetResponseDto, error) {
-	userUUID, err := i.GetUserUUID()
-	if err != nil {
-		return nil, err
-	}
-
-	ouuid := oapi.OptUUID{}
-	ouuid.Reset()
-	assets := make([]oapi.AssetResponseDto, 0)
-
-	getMore := true
-	for getMore {
-		newAssets, err := i.oapiClient.GetFullSyncForUser(context.Background(), &oapi.AssetFullSyncDto{
-			LastId:       ouuid,
-			Limit:        100,
-			UpdatedUntil: t,
-			UserId:       oapi.NewOptUUID(userUUID),
-		})
-		if err != nil {
-			return nil, err
-		}
-		assets = append(assets, newAssets...)
-		getMore = len(newAssets) < 100
-		if len(newAssets) == 0 {
-			break
-		}
-		u, _ := uuid.Parse(newAssets[len(newAssets)-1].ID)
-		ouuid.SetTo(u)
-	}
-	return &assets, nil
+	return resp.ID, nil
 }
 
 func (i *ImmichServer) GetImageUUIDByPath(path string) (uuid.UUID, error) {
@@ -198,11 +173,11 @@ func (i *ImmichServer) GetImageUUIDByPath(path string) (uuid.UUID, error) {
 	return uuid.UUID{}, errors.New("path is not in the watched directories")
 }
 
-func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
+func (i *ImmichServer) Upload(path string, assetSha1 *string) (uuid.UUID, error) {
 	var r io.Reader
 	file, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, err
 	}
 	r = file
 
@@ -211,7 +186,7 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 		var buf bytes.Buffer
 		tee := io.TeeReader(file, &buf)
 		if _, err = io.Copy(h, tee); err != nil {
-			return "", err
+			return uuid.UUID{}, err
 		}
 		r = &buf
 		sha1String := fmt.Sprintf("%x", h.Sum(nil))
@@ -220,11 +195,11 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, err
 	}
 	mimename, _, err := mime.ParseMediaType(filepath.Ext(path))
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, err
 	}
 	mimetype := textproto.MIMEHeader{}
 	mimetype.Set("Content-Type", mimename)
@@ -235,8 +210,6 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 			Size:   fileInfo.Size(),
 			Header: mimetype,
 		},
-		DeviceAssetId:  i.deviceID + *assetSha1,
-		DeviceId:       i.deviceID,
 		FileCreatedAt:  time.Now(),
 		FileModifiedAt: time.Now(),
 	},
@@ -244,7 +217,7 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 			XImmichChecksum: oapi.NewOptString(*assetSha1),
 		})
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, err
 	}
 	if r, ok := response.(*oapi.UploadAssetCreated); ok {
 		return r.ID, nil
@@ -252,7 +225,7 @@ func (i *ImmichServer) Upload(path string, assetSha1 *string) (string, error) {
 	if r, ok := response.(*oapi.UploadAssetOK); ok {
 		return r.ID, nil
 	}
-	return "", err
+	return uuid.UUID{}, errors.New("unexpected upload response")
 }
 
 func (i *ImmichServer) Delete(assetUUID uuid.UUID) error {

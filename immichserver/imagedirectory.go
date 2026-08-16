@@ -170,14 +170,9 @@ func (i *ImageDirectory) Upload(server *ImmichServer, concurrentUploads int, kee
 		h := entry.HashHexString()
 		sem <- 1
 		go func(imagePath, h string, mu *sync.Mutex) {
-			rawUUID, err := server.Upload(imagePath, &h)
+			u, err := server.Upload(imagePath, &h)
 			if err != nil {
 				log.Printf("Failed to upload image at '%s' to server: %s\n", imagePath, err.Error())
-				<-sem
-				return
-			}
-			u, err := uuid.Parse(rawUUID)
-			if err != nil {
 				<-sem
 				return
 			}

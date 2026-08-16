@@ -10,123 +10,125 @@ import (
 type Handler interface {
 	// AddAssetsToAlbum implements addAssetsToAlbum operation.
 	//
-	// This endpoint requires the `albumAsset.create` permission.
+	// Add multiple assets to a specific album by its ID.
 	//
 	// PUT /albums/{id}/assets
 	AddAssetsToAlbum(ctx context.Context, req *BulkIdsDto, params AddAssetsToAlbumParams) ([]BulkIdResponseDto, error)
 	// AddAssetsToAlbums implements addAssetsToAlbums operation.
 	//
-	// This endpoint requires the `albumAsset.create` permission.
+	// Send a list of asset IDs and album IDs to add each asset to each album.
 	//
 	// PUT /albums/assets
-	AddAssetsToAlbums(ctx context.Context, req *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (*AlbumsAddAssetsResponseDto, error)
+	AddAssetsToAlbums(ctx context.Context, req *AlbumsAddAssetsDto) (*AlbumsAddAssetsResponseDto, error)
 	// AddMemoryAssets implements addMemoryAssets operation.
 	//
-	// This endpoint requires the `memoryAsset.create` permission.
+	// Add a list of asset IDs to a specific memory.
 	//
 	// PUT /memories/{id}/assets
 	AddMemoryAssets(ctx context.Context, req *BulkIdsDto, params AddMemoryAssetsParams) ([]BulkIdResponseDto, error)
 	// AddSharedLinkAssets implements addSharedLinkAssets operation.
 	//
+	// Add assets to a specific shared link by its ID. This endpoint is only relevant for shared link of
+	// type individual.
+	//
 	// PUT /shared-links/{id}/assets
 	AddSharedLinkAssets(ctx context.Context, req *AssetIdsDto, params AddSharedLinkAssetsParams) ([]AssetIdsResponseDto, error)
 	// AddUsersToAlbum implements addUsersToAlbum operation.
 	//
-	// This endpoint requires the `albumUser.create` permission.
+	// Share an album with multiple users. Each user can be given a specific role in the album.
 	//
 	// PUT /albums/{id}/users
 	AddUsersToAlbum(ctx context.Context, req *AddUsersDto, params AddUsersToAlbumParams) (*AlbumResponseDto, error)
 	// BulkTagAssets implements bulkTagAssets operation.
 	//
-	// This endpoint requires the `tag.asset` permission.
+	// Add multiple tags to multiple assets in a single request.
 	//
 	// PUT /tags/assets
 	BulkTagAssets(ctx context.Context, req *TagBulkAssetsDto) (*TagBulkAssetsResponseDto, error)
 	// ChangePassword implements changePassword operation.
 	//
-	// This endpoint requires the `auth.changePassword` permission.
+	// Change the password of the current user.
 	//
 	// POST /auth/change-password
 	ChangePassword(ctx context.Context, req *ChangePasswordDto) (*UserAdminResponseDto, error)
 	// ChangePinCode implements changePinCode operation.
 	//
-	// This endpoint requires the `pinCode.update` permission.
+	// Change the pin code for the current user.
 	//
 	// PUT /auth/pin-code
 	ChangePinCode(ctx context.Context, req *PinCodeChangeDto) error
 	// CheckBulkUpload implements checkBulkUpload operation.
 	//
-	// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
+	// Determine which assets have already been uploaded to the server based on their SHA1 checksums.
 	//
 	// POST /assets/bulk-upload-check
 	CheckBulkUpload(ctx context.Context, req *AssetBulkUploadCheckDto) (*AssetBulkUploadCheckResponseDto, error)
-	// CheckExistingAssets implements checkExistingAssets operation.
-	//
-	// Checks if multiple assets exist on the server and returns all existing - used by background backup.
-	//
-	// POST /assets/exist
-	CheckExistingAssets(ctx context.Context, req *CheckExistingAssetsDto) (*CheckExistingAssetsResponseDto, error)
 	// CopyAsset implements copyAsset operation.
 	//
-	// This endpoint requires the `asset.copy` permission.
+	// Copy asset information like albums, tags, etc. from one asset to another.
 	//
 	// PUT /assets/copy
 	CopyAsset(ctx context.Context, req *AssetCopyDto) error
 	// CreateActivity implements createActivity operation.
 	//
-	// This endpoint requires the `activity.create` permission.
+	// Create a like or a comment for an album, or an asset in an album.
 	//
 	// POST /activities
 	CreateActivity(ctx context.Context, req *ActivityCreateDto) (*ActivityResponseDto, error)
 	// CreateAlbum implements createAlbum operation.
 	//
-	// This endpoint requires the `album.create` permission.
+	// Create a new album. The album can also be created with initial users and assets.
 	//
 	// POST /albums
 	CreateAlbum(ctx context.Context, req *CreateAlbumDto) (*AlbumResponseDto, error)
 	// CreateApiKey implements createApiKey operation.
 	//
-	// This endpoint requires the `apiKey.create` permission.
+	// Creates a new API key. It will be limited to the permissions specified.
 	//
 	// POST /api-keys
-	CreateApiKey(ctx context.Context, req *APIKeyCreateDto) (*APIKeyCreateResponseDto, error)
+	CreateApiKey(ctx context.Context, req *ApiKeyCreateDto) (*ApiKeyCreateResponseDto, error)
 	// CreateFace implements createFace operation.
 	//
-	// This endpoint requires the `face.create` permission.
+	// Create a new face that has not been discovered by facial recognition. The content of the bounding
+	// box is considered a face.
 	//
 	// POST /faces
 	CreateFace(ctx context.Context, req *AssetFaceCreateDto) error
 	// CreateJob implements createJob operation.
 	//
-	// This endpoint is an admin-only route, and requires the `job.create` permission.
+	// Run a specific job. Most jobs are queued automatically, but this endpoint allows for manual creation
+	// of a handful of jobs, including various cleanup tasks, as well as creating a new database backup.
 	//
 	// POST /jobs
 	CreateJob(ctx context.Context, req *JobCreateDto) error
 	// CreateLibrary implements createLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.create` permission.
+	// Create a new external library.
 	//
 	// POST /libraries
 	CreateLibrary(ctx context.Context, req *CreateLibraryDto) (*LibraryResponseDto, error)
 	// CreateMemory implements createMemory operation.
 	//
-	// This endpoint requires the `memory.create` permission.
+	// Create a new memory by providing a name, description, and a list of asset IDs to include in the
+	// memory.
 	//
 	// POST /memories
 	CreateMemory(ctx context.Context, req *MemoryCreateDto) (*MemoryResponseDto, error)
 	// CreateNotification implements createNotification operation.
 	//
+	// Create a new notification for a specific user.
+	//
 	// POST /admin/notifications
 	CreateNotification(ctx context.Context, req *NotificationCreateDto) (*NotificationDto, error)
 	// CreatePartner implements createPartner operation.
 	//
-	// This endpoint requires the `partner.create` permission.
+	// Create a new partner to share assets with.
 	//
 	// POST /partners
 	CreatePartner(ctx context.Context, req *PartnerCreateDto) (*PartnerResponseDto, error)
 	// CreatePartnerDeprecated implements createPartnerDeprecated operation.
 	//
-	// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+	// Create a new partner to share assets with.
 	//
 	// Deprecated: schema marks this operation as deprecated.
 	//
@@ -134,1112 +136,1452 @@ type Handler interface {
 	CreatePartnerDeprecated(ctx context.Context, params CreatePartnerDeprecatedParams) (*PartnerResponseDto, error)
 	// CreatePerson implements createPerson operation.
 	//
-	// This endpoint requires the `person.create` permission.
+	// Create a new person that can have multiple faces assigned to them.
 	//
 	// POST /people
 	CreatePerson(ctx context.Context, req *PersonCreateDto) (*PersonResponseDto, error)
 	// CreateProfileImage implements createProfileImage operation.
 	//
-	// This endpoint requires the `userProfileImage.update` permission.
+	// Upload and set a new profile image for the current user.
 	//
 	// POST /users/profile-image
 	CreateProfileImage(ctx context.Context, req *CreateProfileImageDtoMultipart) (*CreateProfileImageResponseDto, error)
 	// CreateSession implements createSession operation.
 	//
-	// This endpoint requires the `session.create` permission.
+	// Create a session as a child to the current session. This endpoint is used for casting.
 	//
 	// POST /sessions
 	CreateSession(ctx context.Context, req *SessionCreateDto) (*SessionCreateResponseDto, error)
 	// CreateSharedLink implements createSharedLink operation.
 	//
-	// This endpoint requires the `sharedLink.create` permission.
+	// Create a new shared link.
 	//
 	// POST /shared-links
 	CreateSharedLink(ctx context.Context, req *SharedLinkCreateDto) (*SharedLinkResponseDto, error)
 	// CreateStack implements createStack operation.
 	//
-	// This endpoint requires the `stack.create` permission.
+	// Create a new stack by providing a name and a list of asset IDs to include in the stack. If any of
+	// the provided asset IDs are primary assets of an existing stack, the existing stack will be merged
+	// into the newly created stack.
 	//
 	// POST /stacks
 	CreateStack(ctx context.Context, req *StackCreateDto) (*StackResponseDto, error)
 	// CreateTag implements createTag operation.
 	//
-	// This endpoint requires the `tag.create` permission.
+	// Create a new tag by providing a name and optional color.
 	//
 	// POST /tags
 	CreateTag(ctx context.Context, req *TagCreateDto) (*TagResponseDto, error)
 	// CreateUserAdmin implements createUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
+	// Create a new user.
 	//
 	// POST /admin/users
 	CreateUserAdmin(ctx context.Context, req *UserAdminCreateDto) (*UserAdminResponseDto, error)
+	// CreateWorkflow implements createWorkflow operation.
+	//
+	// Create a new workflow, the workflow can also be created with empty filters and actions.
+	//
+	// POST /workflows
+	CreateWorkflow(ctx context.Context, req *WorkflowCreateDto) (*WorkflowResponseDto, error)
 	// DeleteActivity implements deleteActivity operation.
 	//
-	// This endpoint requires the `activity.delete` permission.
+	// Removes a like or comment from a given album or asset in an album.
 	//
 	// DELETE /activities/{id}
 	DeleteActivity(ctx context.Context, params DeleteActivityParams) error
 	// DeleteAlbum implements deleteAlbum operation.
 	//
-	// This endpoint requires the `album.delete` permission.
+	// Delete a specific album by its ID. Note the album is initially trashed and then immediately
+	// scheduled for deletion, but relies on a background job to complete the process.
 	//
 	// DELETE /albums/{id}
 	DeleteAlbum(ctx context.Context, params DeleteAlbumParams) error
 	// DeleteAllSessions implements deleteAllSessions operation.
 	//
-	// This endpoint requires the `session.delete` permission.
+	// Delete all sessions for the user. This will not delete the current session.
 	//
 	// DELETE /sessions
 	DeleteAllSessions(ctx context.Context) error
 	// DeleteApiKey implements deleteApiKey operation.
 	//
-	// This endpoint requires the `apiKey.delete` permission.
+	// Deletes an API key identified by its ID. The current user must own this API key.
 	//
 	// DELETE /api-keys/{id}
 	DeleteApiKey(ctx context.Context, params DeleteApiKeyParams) error
 	// DeleteAssetMetadata implements deleteAssetMetadata operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Delete a specific metadata key-value pair associated with the specified asset.
 	//
 	// DELETE /assets/{id}/metadata/{key}
 	DeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) error
 	// DeleteAssets implements deleteAssets operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Deletes multiple assets at the same time.
 	//
 	// DELETE /assets
 	DeleteAssets(ctx context.Context, req *AssetBulkDeleteDto) error
+	// DeleteBulkAssetMetadata implements deleteBulkAssetMetadata operation.
+	//
+	// Delete metadata key-value pairs for multiple assets.
+	//
+	// DELETE /assets/metadata
+	DeleteBulkAssetMetadata(ctx context.Context, req *AssetMetadataBulkDeleteDto) error
+	// DeleteDatabaseBackup implements deleteDatabaseBackup operation.
+	//
+	// Delete a backup by its filename.
+	//
+	// DELETE /admin/database-backups
+	DeleteDatabaseBackup(ctx context.Context, req *DatabaseBackupDeleteDto) error
 	// DeleteDuplicate implements deleteDuplicate operation.
 	//
-	// This endpoint requires the `duplicate.delete` permission.
+	// Dismiss a duplicate group by its ID, unlinking all assets in the group without deleting them.
 	//
 	// DELETE /duplicates/{id}
 	DeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) error
 	// DeleteDuplicates implements deleteDuplicates operation.
 	//
-	// This endpoint requires the `duplicate.delete` permission.
+	// Delete multiple duplicate assets specified by their IDs.
 	//
 	// DELETE /duplicates
 	DeleteDuplicates(ctx context.Context, req *BulkIdsDto) error
 	// DeleteFace implements deleteFace operation.
 	//
-	// This endpoint requires the `face.delete` permission.
+	// Delete a face identified by the id. Optionally can be force deleted.
 	//
 	// DELETE /faces/{id}
 	DeleteFace(ctx context.Context, req *AssetFaceDeleteDto, params DeleteFaceParams) error
+	// DeleteIntegrityReport implements deleteIntegrityReport operation.
+	//
+	// Delete a given report item and perform corresponding deletion (e.g. trash asset, delete file).
+	//
+	// DELETE /admin/integrity/report/{id}
+	DeleteIntegrityReport(ctx context.Context, params DeleteIntegrityReportParams) error
 	// DeleteLibrary implements deleteLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.delete` permission.
+	// Delete an external library by its ID.
 	//
 	// DELETE /libraries/{id}
 	DeleteLibrary(ctx context.Context, params DeleteLibraryParams) error
 	// DeleteMemory implements deleteMemory operation.
 	//
-	// This endpoint requires the `memory.delete` permission.
+	// Delete a specific memory by its ID.
 	//
 	// DELETE /memories/{id}
 	DeleteMemory(ctx context.Context, params DeleteMemoryParams) error
 	// DeleteNotification implements deleteNotification operation.
 	//
-	// This endpoint requires the `notification.delete` permission.
+	// Delete a specific notification.
 	//
 	// DELETE /notifications/{id}
 	DeleteNotification(ctx context.Context, params DeleteNotificationParams) error
 	// DeleteNotifications implements deleteNotifications operation.
 	//
-	// This endpoint requires the `notification.delete` permission.
+	// Delete a list of notifications at once.
 	//
 	// DELETE /notifications
 	DeleteNotifications(ctx context.Context, req *NotificationDeleteAllDto) error
 	// DeletePeople implements deletePeople operation.
 	//
-	// This endpoint requires the `person.delete` permission.
+	// Bulk delete a list of people at once.
 	//
 	// DELETE /people
 	DeletePeople(ctx context.Context, req *BulkIdsDto) error
 	// DeletePerson implements deletePerson operation.
 	//
-	// This endpoint requires the `person.delete` permission.
+	// Delete an individual person.
 	//
 	// DELETE /people/{id}
 	DeletePerson(ctx context.Context, params DeletePersonParams) error
 	// DeleteProfileImage implements deleteProfileImage operation.
 	//
-	// This endpoint requires the `userProfileImage.delete` permission.
+	// Delete the profile image of the current user.
 	//
 	// DELETE /users/profile-image
 	DeleteProfileImage(ctx context.Context) error
 	// DeleteServerLicense implements deleteServerLicense operation.
 	//
-	// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+	// Delete the currently set server product key.
 	//
 	// DELETE /server/license
 	DeleteServerLicense(ctx context.Context) error
 	// DeleteSession implements deleteSession operation.
 	//
-	// This endpoint requires the `session.delete` permission.
+	// Delete a specific session by id.
 	//
 	// DELETE /sessions/{id}
 	DeleteSession(ctx context.Context, params DeleteSessionParams) error
 	// DeleteStack implements deleteStack operation.
 	//
-	// This endpoint requires the `stack.delete` permission.
+	// Delete a specific stack by its ID.
 	//
 	// DELETE /stacks/{id}
 	DeleteStack(ctx context.Context, params DeleteStackParams) error
 	// DeleteStacks implements deleteStacks operation.
 	//
-	// This endpoint requires the `stack.delete` permission.
+	// Delete multiple stacks by providing a list of stack IDs.
 	//
 	// DELETE /stacks
 	DeleteStacks(ctx context.Context, req *BulkIdsDto) error
 	// DeleteSyncAck implements deleteSyncAck operation.
 	//
-	// This endpoint requires the `syncCheckpoint.delete` permission.
+	// Delete specific synchronization acknowledgments.
 	//
 	// DELETE /sync/ack
 	DeleteSyncAck(ctx context.Context, req *SyncAckDeleteDto) error
 	// DeleteTag implements deleteTag operation.
 	//
-	// This endpoint requires the `tag.delete` permission.
+	// Delete a specific tag by its ID.
 	//
 	// DELETE /tags/{id}
 	DeleteTag(ctx context.Context, params DeleteTagParams) error
 	// DeleteUserAdmin implements deleteUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+	// Delete a user.
 	//
 	// DELETE /admin/users/{id}
 	DeleteUserAdmin(ctx context.Context, req *UserAdminDeleteDto, params DeleteUserAdminParams) (*UserAdminResponseDto, error)
 	// DeleteUserLicense implements deleteUserLicense operation.
 	//
-	// This endpoint requires the `userLicense.delete` permission.
+	// Delete the registered product key for the current user.
 	//
 	// DELETE /users/me/license
 	DeleteUserLicense(ctx context.Context) error
 	// DeleteUserOnboarding implements deleteUserOnboarding operation.
 	//
-	// This endpoint requires the `userOnboarding.delete` permission.
+	// Delete the onboarding status of the current user.
 	//
 	// DELETE /users/me/onboarding
 	DeleteUserOnboarding(ctx context.Context) error
+	// DeleteWorkflow implements deleteWorkflow operation.
+	//
+	// Delete a workflow by its ID.
+	//
+	// DELETE /workflows/{id}
+	DeleteWorkflow(ctx context.Context, params DeleteWorkflowParams) error
+	// DetectPriorInstall implements detectPriorInstall operation.
+	//
+	// Collect integrity checks and other heuristics about local data.
+	//
+	// GET /admin/maintenance/detect-install
+	DetectPriorInstall(ctx context.Context) (*MaintenanceDetectInstallResponseDto, error)
 	// DownloadArchive implements downloadArchive operation.
 	//
-	// This endpoint requires the `asset.download` permission.
+	// Download a ZIP archive containing the specified assets. The assets must have been previously
+	// requested via the "getDownloadInfo" endpoint.
 	//
 	// POST /download/archive
-	DownloadArchive(ctx context.Context, req *AssetIdsDto, params DownloadArchiveParams) (DownloadArchiveOK, error)
+	DownloadArchive(ctx context.Context, req *DownloadArchiveDto, params DownloadArchiveParams) (DownloadArchiveOK, error)
 	// DownloadAsset implements downloadAsset operation.
 	//
-	// This endpoint requires the `asset.download` permission.
+	// Downloads the original file of the specified asset.
 	//
 	// GET /assets/{id}/original
 	DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error)
+	// DownloadDatabaseBackup implements downloadDatabaseBackup operation.
+	//
+	// Downloads the database backup file.
+	//
+	// GET /admin/database-backups/{filename}
+	DownloadDatabaseBackup(ctx context.Context, params DownloadDatabaseBackupParams) (DownloadDatabaseBackupOK, error)
+	// EmptyQueue implements emptyQueue operation.
+	//
+	// Removes all jobs from the specified queue.
+	//
+	// DELETE /queues/{name}/jobs
+	EmptyQueue(ctx context.Context, req *QueueDeleteDto, params EmptyQueueParams) error
 	// EmptyTrash implements emptyTrash operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Permanently delete all items in the trash.
 	//
 	// POST /trash/empty
 	EmptyTrash(ctx context.Context) (*TrashResponseDto, error)
+	// EndSession implements endSession operation.
+	//
+	// Releases server resources for the streaming session.
+	//
+	// DELETE /assets/{id}/video/stream/{sessionId}
+	EndSession(ctx context.Context, params EndSessionParams) error
 	// FinishOAuth implements finishOAuth operation.
+	//
+	// Complete the OAuth authorization process by exchanging the authorization code for a session token.
 	//
 	// POST /oauth/callback
 	FinishOAuth(ctx context.Context, req *OAuthCallbackDto) (*LoginResponseDto, error)
 	// GetAboutInfo implements getAboutInfo operation.
 	//
-	// This endpoint requires the `server.about` permission.
+	// Retrieve a list of information about the server.
 	//
 	// GET /server/about
 	GetAboutInfo(ctx context.Context) (*ServerAboutResponseDto, error)
 	// GetActivities implements getActivities operation.
 	//
-	// This endpoint requires the `activity.read` permission.
+	// Returns a list of activities for the selected asset or album. The activities are returned in sorted
+	// order, with the oldest activities appearing first.
 	//
 	// GET /activities
 	GetActivities(ctx context.Context, params GetActivitiesParams) ([]ActivityResponseDto, error)
 	// GetActivityStatistics implements getActivityStatistics operation.
 	//
-	// This endpoint requires the `activity.statistics` permission.
+	// Returns the number of likes and comments for a given album or asset in an album.
 	//
 	// GET /activities/statistics
 	GetActivityStatistics(ctx context.Context, params GetActivityStatisticsParams) (*ActivityStatisticsResponseDto, error)
 	// GetAdminOnboarding implements getAdminOnboarding operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	// Retrieve the current admin onboarding status.
 	//
 	// GET /system-metadata/admin-onboarding
 	GetAdminOnboarding(ctx context.Context) (*AdminOnboardingUpdateDto, error)
 	// GetAlbumInfo implements getAlbumInfo operation.
 	//
-	// This endpoint requires the `album.read` permission.
+	// Retrieve information about a specific album by its ID.
 	//
 	// GET /albums/{id}
 	GetAlbumInfo(ctx context.Context, params GetAlbumInfoParams) (*AlbumResponseDto, error)
+	// GetAlbumMapMarkers implements getAlbumMapMarkers operation.
+	//
+	// Retrieve map marker information for a specific album by its ID.
+	//
+	// GET /albums/{id}/map-markers
+	GetAlbumMapMarkers(ctx context.Context, params GetAlbumMapMarkersParams) ([]MapMarkerResponseDto, error)
 	// GetAlbumStatistics implements getAlbumStatistics operation.
 	//
-	// This endpoint requires the `album.statistics` permission.
+	// Returns statistics about the albums available to the authenticated user.
 	//
 	// GET /albums/statistics
 	GetAlbumStatistics(ctx context.Context) (*AlbumStatisticsResponseDto, error)
 	// GetAllAlbums implements getAllAlbums operation.
 	//
-	// This endpoint requires the `album.read` permission.
+	// Retrieve a list of albums available to the authenticated user.
 	//
 	// GET /albums
 	GetAllAlbums(ctx context.Context, params GetAllAlbumsParams) ([]AlbumResponseDto, error)
-	// GetAllJobsStatus implements getAllJobsStatus operation.
-	//
-	// This endpoint is an admin-only route, and requires the `job.read` permission.
-	//
-	// GET /jobs
-	GetAllJobsStatus(ctx context.Context) (*AllJobStatusResponseDto, error)
 	// GetAllLibraries implements getAllLibraries operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.read` permission.
+	// Retrieve a list of external libraries.
 	//
 	// GET /libraries
 	GetAllLibraries(ctx context.Context) ([]LibraryResponseDto, error)
 	// GetAllPeople implements getAllPeople operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Retrieve a list of all people.
 	//
 	// GET /people
 	GetAllPeople(ctx context.Context, params GetAllPeopleParams) (*PeopleResponseDto, error)
 	// GetAllSharedLinks implements getAllSharedLinks operation.
 	//
-	// This endpoint requires the `sharedLink.read` permission.
+	// Retrieve a list of all shared links.
 	//
 	// GET /shared-links
 	GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) ([]SharedLinkResponseDto, error)
 	// GetAllTags implements getAllTags operation.
 	//
-	// This endpoint requires the `tag.read` permission.
+	// Retrieve a list of all tags.
 	//
 	// GET /tags
 	GetAllTags(ctx context.Context) ([]TagResponseDto, error)
-	// GetAllUserAssetsByDeviceId implements getAllUserAssetsByDeviceId operation.
-	//
-	// Get all asset of a device that are in the database, ID only.
-	//
-	// GET /assets/device/{deviceId}
-	GetAllUserAssetsByDeviceId(ctx context.Context, params GetAllUserAssetsByDeviceIdParams) ([]string, error)
 	// GetApiKey implements getApiKey operation.
 	//
-	// This endpoint requires the `apiKey.read` permission.
+	// Retrieve an API key by its ID. The current user must own this API key.
 	//
 	// GET /api-keys/{id}
-	GetApiKey(ctx context.Context, params GetApiKeyParams) (*APIKeyResponseDto, error)
+	GetApiKey(ctx context.Context, params GetApiKeyParams) (*ApiKeyResponseDto, error)
 	// GetApiKeys implements getApiKeys operation.
 	//
-	// This endpoint requires the `apiKey.read` permission.
+	// Retrieve all API keys of the current user.
 	//
 	// GET /api-keys
-	GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error)
+	GetApiKeys(ctx context.Context) ([]ApiKeyResponseDto, error)
 	// GetApkLinks implements getApkLinks operation.
 	//
-	// This endpoint requires the `server.apkLinks` permission.
+	// Retrieve links to the APKs for the current server version.
 	//
 	// GET /server/apk-links
 	GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error)
 	// GetAssetDuplicates implements getAssetDuplicates operation.
 	//
-	// This endpoint requires the `duplicate.read` permission.
+	// Retrieve a list of duplicate assets available to the authenticated user.
 	//
 	// GET /duplicates
 	GetAssetDuplicates(ctx context.Context) ([]DuplicateResponseDto, error)
 	// GetAssetInfo implements getAssetInfo operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve detailed information about a specific asset.
 	//
 	// GET /assets/{id}
 	GetAssetInfo(ctx context.Context, params GetAssetInfoParams) (*AssetResponseDto, error)
 	// GetAssetMetadata implements getAssetMetadata operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve all metadata key-value pairs associated with the specified asset.
 	//
 	// GET /assets/{id}/metadata
 	GetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) ([]AssetMetadataResponseDto, error)
 	// GetAssetMetadataByKey implements getAssetMetadataByKey operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve the value of a specific metadata key associated with the specified asset.
 	//
 	// GET /assets/{id}/metadata/{key}
 	GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error)
 	// GetAssetOcr implements getAssetOcr operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve all OCR (Optical Character Recognition) data associated with the specified asset.
 	//
 	// GET /assets/{id}/ocr
 	GetAssetOcr(ctx context.Context, params GetAssetOcrParams) ([]AssetOcrResponseDto, error)
 	// GetAssetStatistics implements getAssetStatistics operation.
 	//
-	// This endpoint requires the `asset.statistics` permission.
+	// Retrieve various statistics about the assets owned by the authenticated user.
 	//
 	// GET /assets/statistics
 	GetAssetStatistics(ctx context.Context, params GetAssetStatisticsParams) (*AssetStatsResponseDto, error)
 	// GetAssetsByCity implements getAssetsByCity operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a list of assets with each asset belonging to a different city. This endpoint is used on
+	// the places pages to show a single thumbnail for each city the user has assets in.
 	//
 	// GET /search/cities
 	GetAssetsByCity(ctx context.Context) ([]AssetResponseDto, error)
 	// GetAssetsByOriginalPath implements getAssetsByOriginalPath operation.
 	//
+	// Retrieve assets that are children of a specific folder.
+	//
 	// GET /view/folder
 	GetAssetsByOriginalPath(ctx context.Context, params GetAssetsByOriginalPathParams) ([]AssetResponseDto, error)
 	// GetAuthStatus implements getAuthStatus operation.
+	//
+	// Get information about the current session, including whether the user has a password, and if the
+	// session can access locked assets.
 	//
 	// GET /auth/status
 	GetAuthStatus(ctx context.Context) (*AuthStatusResponseDto, error)
 	// GetConfig implements getConfig operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	// Retrieve the current system configuration.
 	//
 	// GET /system-config
 	GetConfig(ctx context.Context) (*SystemConfigDto, error)
 	// GetConfigDefaults implements getConfigDefaults operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	// Retrieve the default values for the system configuration.
 	//
 	// GET /system-config/defaults
 	GetConfigDefaults(ctx context.Context) (*SystemConfigDto, error)
-	// GetDeltaSync implements getDeltaSync operation.
-	//
-	// POST /sync/delta-sync
-	GetDeltaSync(ctx context.Context, req *AssetDeltaSyncDto) (*AssetDeltaSyncResponseDto, error)
 	// GetDownloadInfo implements getDownloadInfo operation.
 	//
-	// This endpoint requires the `asset.download` permission.
+	// Retrieve information about how to request a download for the specified assets or album. The response
+	// includes groups of assets that can be downloaded together.
 	//
 	// POST /download/info
 	GetDownloadInfo(ctx context.Context, req *DownloadInfoDto, params GetDownloadInfoParams) (*DownloadResponseDto, error)
 	// GetExploreData implements getExploreData operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve data for the explore section, such as popular people and places.
 	//
 	// GET /search/explore
 	GetExploreData(ctx context.Context) ([]SearchExploreResponseDto, error)
 	// GetFaces implements getFaces operation.
 	//
-	// This endpoint requires the `face.read` permission.
+	// Retrieve all faces belonging to an asset.
 	//
 	// GET /faces
 	GetFaces(ctx context.Context, params GetFacesParams) ([]AssetFaceResponseDto, error)
-	// GetFullSyncForUser implements getFullSyncForUser operation.
+	// GetIntegrityReport implements getIntegrityReport operation.
 	//
-	// POST /sync/full-sync
-	GetFullSyncForUser(ctx context.Context, req *AssetFullSyncDto) ([]AssetResponseDto, error)
+	// Get all flagged items by integrity report type.
+	//
+	// GET /admin/integrity/report
+	GetIntegrityReport(ctx context.Context, params GetIntegrityReportParams) (*IntegrityReportResponseDto, error)
+	// GetIntegrityReportCsv implements getIntegrityReportCsv operation.
+	//
+	// Get all integrity report entries for a given type as a CSV.
+	//
+	// GET /admin/integrity/report/{type}/csv
+	GetIntegrityReportCsv(ctx context.Context, params GetIntegrityReportCsvParams) (GetIntegrityReportCsvOK, error)
+	// GetIntegrityReportFile implements getIntegrityReportFile operation.
+	//
+	// Download the untracked/broken file if one exists.
+	//
+	// GET /admin/integrity/report/{id}/file
+	GetIntegrityReportFile(ctx context.Context, params GetIntegrityReportFileParams) (GetIntegrityReportFileOK, error)
+	// GetIntegrityReportSummary implements getIntegrityReportSummary operation.
+	//
+	// Get a count of the items flagged in each integrity report.
+	//
+	// GET /admin/integrity/summary
+	GetIntegrityReportSummary(ctx context.Context) (*IntegrityReportSummaryResponseDto, error)
 	// GetLibrary implements getLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.read` permission.
+	// Retrieve an external library by its ID.
 	//
 	// GET /libraries/{id}
 	GetLibrary(ctx context.Context, params GetLibraryParams) (*LibraryResponseDto, error)
 	// GetLibraryStatistics implements getLibraryStatistics operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.statistics` permission.
+	// Retrieve statistics for a specific external library, including number of videos, images, and storage
+	// usage.
 	//
 	// GET /libraries/{id}/statistics
 	GetLibraryStatistics(ctx context.Context, params GetLibraryStatisticsParams) (*LibraryStatsResponseDto, error)
+	// GetMainPlaylist implements getMainPlaylist operation.
+	//
+	// Returns an HLS main playlist with all available variants for the asset.
+	//
+	// GET /assets/{id}/video/stream/main.m3u8
+	GetMainPlaylist(ctx context.Context, params GetMainPlaylistParams) (GetMainPlaylistOK, error)
+	// GetMaintenanceStatus implements getMaintenanceStatus operation.
+	//
+	// Fetch information about the currently running maintenance action.
+	//
+	// GET /admin/maintenance/status
+	GetMaintenanceStatus(ctx context.Context) (*MaintenanceStatusResponseDto, error)
 	// GetMapMarkers implements getMapMarkers operation.
+	//
+	// Retrieve a list of latitude and longitude coordinates for every asset with location data.
 	//
 	// GET /map/markers
 	GetMapMarkers(ctx context.Context, params GetMapMarkersParams) ([]MapMarkerResponseDto, error)
+	// GetMediaPlaylist implements getMediaPlaylist operation.
+	//
+	// Returns an HLS media playlist for one variant of the streaming session.
+	//
+	// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8
+	GetMediaPlaylist(ctx context.Context, params GetMediaPlaylistParams) (GetMediaPlaylistOK, error)
 	// GetMemory implements getMemory operation.
 	//
-	// This endpoint requires the `memory.read` permission.
+	// Retrieve a specific memory by its ID.
 	//
 	// GET /memories/{id}
 	GetMemory(ctx context.Context, params GetMemoryParams) (*MemoryResponseDto, error)
 	// GetMyApiKey implements getMyApiKey operation.
 	//
+	// Retrieve the API key that is used to access this endpoint.
+	//
 	// GET /api-keys/me
-	GetMyApiKey(ctx context.Context) (*APIKeyResponseDto, error)
+	GetMyApiKey(ctx context.Context) (*ApiKeyResponseDto, error)
+	// GetMyCalendarHeatmap implements getMyCalendarHeatmap operation.
+	//
+	// Retrieve activity counts for a specified period, in a calendar heatmap format.
+	//
+	// GET /users/me/calendar-heatmap
+	GetMyCalendarHeatmap(ctx context.Context, params GetMyCalendarHeatmapParams) (*CalendarHeatmapResponseDto, error)
 	// GetMyPreferences implements getMyPreferences operation.
 	//
-	// This endpoint requires the `userPreference.read` permission.
+	// Retrieve the preferences for the current user.
 	//
 	// GET /users/me/preferences
 	GetMyPreferences(ctx context.Context) (*UserPreferencesResponseDto, error)
 	// GetMySharedLink implements getMySharedLink operation.
 	//
+	// Retrieve the current shared link associated with authentication method.
+	//
 	// GET /shared-links/me
 	GetMySharedLink(ctx context.Context, params GetMySharedLinkParams) (*SharedLinkResponseDto, error)
 	// GetMyUser implements getMyUser operation.
 	//
-	// This endpoint requires the `user.read` permission.
+	// Retrieve information about the user making the API request.
 	//
 	// GET /users/me
 	GetMyUser(ctx context.Context) (*UserAdminResponseDto, error)
 	// GetNotification implements getNotification operation.
 	//
-	// This endpoint requires the `notification.read` permission.
+	// Retrieve a specific notification identified by id.
 	//
 	// GET /notifications/{id}
 	GetNotification(ctx context.Context, params GetNotificationParams) (*NotificationDto, error)
 	// GetNotificationTemplateAdmin implements getNotificationTemplateAdmin operation.
 	//
+	// Retrieve a preview of the provided email template.
+	//
 	// POST /admin/notifications/templates/{name}
 	GetNotificationTemplateAdmin(ctx context.Context, req *TemplateDto, params GetNotificationTemplateAdminParams) (*TemplateResponseDto, error)
 	// GetNotifications implements getNotifications operation.
 	//
-	// This endpoint requires the `notification.read` permission.
+	// Retrieve a list of notifications.
 	//
 	// GET /notifications
 	GetNotifications(ctx context.Context, params GetNotificationsParams) ([]NotificationDto, error)
 	// GetPartners implements getPartners operation.
 	//
-	// This endpoint requires the `partner.read` permission.
+	// Retrieve a list of partners with whom assets are shared.
 	//
 	// GET /partners
 	GetPartners(ctx context.Context, params GetPartnersParams) ([]PartnerResponseDto, error)
 	// GetPerson implements getPerson operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Retrieve a person by id.
 	//
 	// GET /people/{id}
 	GetPerson(ctx context.Context, params GetPersonParams) (*PersonResponseDto, error)
 	// GetPersonStatistics implements getPersonStatistics operation.
 	//
-	// This endpoint requires the `person.statistics` permission.
+	// Retrieve statistics about a specific person.
 	//
 	// GET /people/{id}/statistics
 	GetPersonStatistics(ctx context.Context, params GetPersonStatisticsParams) (*PersonStatisticsResponseDto, error)
 	// GetPersonThumbnail implements getPersonThumbnail operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Retrieve the thumbnail file for a person.
 	//
 	// GET /people/{id}/thumbnail
 	GetPersonThumbnail(ctx context.Context, params GetPersonThumbnailParams) (GetPersonThumbnailOK, error)
+	// GetPlugin implements getPlugin operation.
+	//
+	// Retrieve information about a specific plugin by its ID.
+	//
+	// GET /plugins/{id}
+	GetPlugin(ctx context.Context, params GetPluginParams) (*PluginResponseDto, error)
 	// GetProfileImage implements getProfileImage operation.
 	//
-	// This endpoint requires the `userProfileImage.read` permission.
+	// Retrieve the profile image file for a user.
 	//
 	// GET /users/{id}/profile-image
 	GetProfileImage(ctx context.Context, params GetProfileImageParams) (GetProfileImageOK, error)
-	// GetRandom implements getRandom operation.
+	// GetQueue implements getQueue operation.
 	//
-	// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
+	// Retrieves a specific queue by its name.
+	//
+	// GET /queues/{name}
+	GetQueue(ctx context.Context, params GetQueueParams) (*QueueResponseDto, error)
+	// GetQueueJobs implements getQueueJobs operation.
+	//
+	// Retrieves a list of queue jobs from the specified queue.
+	//
+	// GET /queues/{name}/jobs
+	GetQueueJobs(ctx context.Context, params GetQueueJobsParams) ([]QueueJobResponseDto, error)
+	// GetQueues implements getQueues operation.
+	//
+	// Retrieves a list of queues.
+	//
+	// GET /queues
+	GetQueues(ctx context.Context) ([]QueueResponseDto, error)
+	// GetQueuesLegacy implements getQueuesLegacy operation.
+	//
+	// Retrieve the counts of the current queue, as well as the current status.
 	//
 	// Deprecated: schema marks this operation as deprecated.
 	//
-	// GET /assets/random
-	GetRandom(ctx context.Context, params GetRandomParams) ([]AssetResponseDto, error)
+	// GET /jobs
+	GetQueuesLegacy(ctx context.Context) (*QueuesResponseLegacyDto, error)
 	// GetReverseGeocodingState implements getReverseGeocodingState operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	// Retrieve the current state of the reverse geocoding import.
 	//
 	// GET /system-metadata/reverse-geocoding-state
 	GetReverseGeocodingState(ctx context.Context) (*ReverseGeocodingStateResponseDto, error)
 	// GetSearchSuggestions implements getSearchSuggestions operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve search suggestions based on partial input. This endpoint is used for typeahead search
+	// features.
 	//
 	// GET /search/suggestions
 	GetSearchSuggestions(ctx context.Context, params GetSearchSuggestionsParams) ([]string, error)
+	// GetSegment implements getSegment operation.
+	//
+	// Streams an HLS init segment (init.mp4) or media segment (seg_N.m4s).
+	//
+	// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}
+	GetSegment(ctx context.Context, params GetSegmentParams) (GetSegmentOK, error)
 	// GetServerConfig implements getServerConfig operation.
+	//
+	// Retrieve the current server configuration.
 	//
 	// GET /server/config
 	GetServerConfig(ctx context.Context) (*ServerConfigDto, error)
 	// GetServerFeatures implements getServerFeatures operation.
 	//
+	// Retrieve available features supported by this server.
+	//
 	// GET /server/features
 	GetServerFeatures(ctx context.Context) (*ServerFeaturesDto, error)
 	// GetServerLicense implements getServerLicense operation.
 	//
-	// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+	// Retrieve information about whether the server currently has a product key registered.
 	//
 	// GET /server/license
 	GetServerLicense(ctx context.Context) (GetServerLicenseRes, error)
 	// GetServerStatistics implements getServerStatistics operation.
 	//
-	// This endpoint is an admin-only route, and requires the `server.statistics` permission.
+	// Retrieve statistics about the entire Immich instance such as asset counts.
 	//
 	// GET /server/statistics
 	GetServerStatistics(ctx context.Context) (*ServerStatsResponseDto, error)
 	// GetServerVersion implements getServerVersion operation.
 	//
+	// Retrieve the current server version in semantic versioning (semver) format.
+	//
 	// GET /server/version
 	GetServerVersion(ctx context.Context) (*ServerVersionResponseDto, error)
 	// GetSessions implements getSessions operation.
 	//
-	// This endpoint requires the `session.read` permission.
+	// Retrieve a list of sessions for the user.
 	//
 	// GET /sessions
 	GetSessions(ctx context.Context) ([]SessionResponseDto, error)
 	// GetSharedLinkById implements getSharedLinkById operation.
 	//
-	// This endpoint requires the `sharedLink.read` permission.
+	// Retrieve a specific shared link by its ID.
 	//
 	// GET /shared-links/{id}
 	GetSharedLinkById(ctx context.Context, params GetSharedLinkByIdParams) (*SharedLinkResponseDto, error)
 	// GetStack implements getStack operation.
 	//
-	// This endpoint requires the `stack.read` permission.
+	// Retrieve a specific stack by its ID.
 	//
 	// GET /stacks/{id}
 	GetStack(ctx context.Context, params GetStackParams) (*StackResponseDto, error)
 	// GetStorage implements getStorage operation.
 	//
-	// This endpoint requires the `server.storage` permission.
+	// Retrieve the current storage utilization information of the server.
 	//
 	// GET /server/storage
 	GetStorage(ctx context.Context) (*ServerStorageResponseDto, error)
 	// GetStorageTemplateOptions implements getStorageTemplateOptions operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	// Retrieve exemplary storage template options.
 	//
 	// GET /system-config/storage-template-options
 	GetStorageTemplateOptions(ctx context.Context) (*SystemConfigTemplateStorageOptionDto, error)
 	// GetSupportedMediaTypes implements getSupportedMediaTypes operation.
 	//
+	// Retrieve all media types supported by the server.
+	//
 	// GET /server/media-types
 	GetSupportedMediaTypes(ctx context.Context) (*ServerMediaTypesResponseDto, error)
 	// GetSyncAck implements getSyncAck operation.
 	//
-	// This endpoint requires the `syncCheckpoint.read` permission.
+	// Retrieve the synchronization acknowledgments for the current session.
 	//
 	// GET /sync/ack
 	GetSyncAck(ctx context.Context) ([]SyncAckDto, error)
 	// GetSyncStream implements getSyncStream operation.
 	//
-	// This endpoint requires the `sync.stream` permission.
+	// Retrieve a JSON lines streamed response of changes for synchronization. This endpoint is used by the
+	// mobile app to efficiently stay up to date with changes.
 	//
 	// POST /sync/stream
 	GetSyncStream(ctx context.Context, req *SyncStreamDto) error
 	// GetTagById implements getTagById operation.
 	//
-	// This endpoint requires the `tag.read` permission.
+	// Retrieve a specific tag by its ID.
 	//
 	// GET /tags/{id}
 	GetTagById(ctx context.Context, params GetTagByIdParams) (*TagResponseDto, error)
-	// GetTheme implements getTheme operation.
-	//
-	// GET /server/theme
-	GetTheme(ctx context.Context) (*ServerThemeDto, error)
 	// GetTimeBucket implements getTimeBucket operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a string of all asset ids in a given time bucket.
 	//
 	// GET /timeline/bucket
 	GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (*TimeBucketAssetResponseDto, error)
 	// GetTimeBuckets implements getTimeBuckets operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a list of all minimal time buckets.
 	//
 	// GET /timeline/buckets
 	GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketsResponseDto, error)
 	// GetUniqueOriginalPaths implements getUniqueOriginalPaths operation.
 	//
+	// Retrieve a list of unique folder paths from asset original paths.
+	//
 	// GET /view/folder/unique-paths
 	GetUniqueOriginalPaths(ctx context.Context) ([]string, error)
 	// GetUser implements getUser operation.
 	//
-	// This endpoint requires the `user.read` permission.
+	// Retrieve a specific user by their ID.
 	//
 	// GET /users/{id}
 	GetUser(ctx context.Context, params GetUserParams) (*UserResponseDto, error)
 	// GetUserAdmin implements getUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Retrieve a specific user by their ID.
 	//
 	// GET /admin/users/{id}
 	GetUserAdmin(ctx context.Context, params GetUserAdminParams) (*UserAdminResponseDto, error)
+	// GetUserCalendarHeatmapAdmin implements getUserCalendarHeatmapAdmin operation.
+	//
+	// Retrieve activity counts for a specified period, in a calendar heatmap format.
+	//
+	// GET /admin/users/{id}/calendar-heatmap
+	GetUserCalendarHeatmapAdmin(ctx context.Context, params GetUserCalendarHeatmapAdminParams) (*CalendarHeatmapResponseDto, error)
 	// GetUserLicense implements getUserLicense operation.
 	//
-	// This endpoint requires the `userLicense.read` permission.
+	// Retrieve information about whether the current user has a registered product key.
 	//
 	// GET /users/me/license
-	GetUserLicense(ctx context.Context) (*LicenseResponseDto, error)
+	GetUserLicense(ctx context.Context) (*UserLicense, error)
 	// GetUserOnboarding implements getUserOnboarding operation.
 	//
-	// This endpoint requires the `userOnboarding.read` permission.
+	// Retrieve the onboarding status of the current user.
 	//
 	// GET /users/me/onboarding
 	GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error)
 	// GetUserPreferencesAdmin implements getUserPreferencesAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Retrieve the preferences of a specific user.
 	//
 	// GET /admin/users/{id}/preferences
 	GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
 	// GetUserSessionsAdmin implements getUserSessionsAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+	// Retrieve all sessions for a specific user.
 	//
 	// GET /admin/users/{id}/sessions
 	GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) ([]SessionResponseDto, error)
 	// GetUserStatisticsAdmin implements getUserStatisticsAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Retrieve asset statistics for a specific user.
 	//
 	// GET /admin/users/{id}/statistics
 	GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error)
 	// GetVersionCheck implements getVersionCheck operation.
 	//
-	// This endpoint requires the `server.versionCheck` permission.
+	// Retrieve information about the last time the version check ran.
 	//
 	// GET /server/version-check
 	GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionCheckState implements getVersionCheckState operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	// Retrieve the current state of the version check process.
 	//
 	// GET /system-metadata/version-check-state
 	GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionHistory implements getVersionHistory operation.
 	//
+	// Retrieve a list of past versions the server has been on.
+	//
 	// GET /server/version-history
 	GetVersionHistory(ctx context.Context) ([]ServerVersionHistoryResponseDto, error)
+	// GetWorkflow implements getWorkflow operation.
+	//
+	// Retrieve information about a specific workflow by its ID.
+	//
+	// GET /workflows/{id}
+	GetWorkflow(ctx context.Context, params GetWorkflowParams) (*WorkflowResponseDto, error)
+	// GetWorkflowForShare implements getWorkflowForShare operation.
+	//
+	// Retrieve a workflow details without ids, default values, etc.
+	//
+	// GET /workflows/{id}/share
+	GetWorkflowForShare(ctx context.Context, params GetWorkflowForShareParams) (*WorkflowShareResponseDto, error)
+	// GetWorkflowLogs implements getWorkflowLogs operation.
+	//
+	// Retrieve logs of a workflows runs by ID.
+	//
+	// GET /workflows/{id}/logs
+	GetWorkflowLogs(ctx context.Context, params GetWorkflowLogsParams) ([]WorkflowLogEntryDto, error)
+	// GetWorkflowTriggers implements getWorkflowTriggers operation.
+	//
+	// Retrieve a list of all available workflow triggers.
+	//
+	// GET /workflows/triggers
+	GetWorkflowTriggers(ctx context.Context) ([]WorkflowTriggerResponseDto, error)
 	// LinkOAuthAccount implements linkOAuthAccount operation.
+	//
+	// Link an OAuth account to the authenticated user.
 	//
 	// POST /oauth/link
 	LinkOAuthAccount(ctx context.Context, req *OAuthCallbackDto) (*UserAdminResponseDto, error)
+	// ListDatabaseBackups implements listDatabaseBackups operation.
+	//
+	// Get the list of the successful and failed backups.
+	//
+	// GET /admin/database-backups
+	ListDatabaseBackups(ctx context.Context) (*DatabaseBackupListResponseDto, error)
 	// LockAuthSession implements lockAuthSession operation.
+	//
+	// Remove elevated access to locked assets from the current session.
 	//
 	// POST /auth/session/lock
 	LockAuthSession(ctx context.Context) error
 	// LockSession implements lockSession operation.
 	//
-	// This endpoint requires the `session.lock` permission.
+	// Lock a specific session by id.
 	//
 	// POST /sessions/{id}/lock
 	LockSession(ctx context.Context, params LockSessionParams) error
 	// Login implements login operation.
 	//
+	// Login with username and password and receive a session token.
+	//
 	// POST /auth/login
 	Login(ctx context.Context, req *LoginCredentialDto) (*LoginResponseDto, error)
 	// Logout implements logout operation.
 	//
+	// Logout the current user and invalidate the session token.
+	//
 	// POST /auth/logout
 	Logout(ctx context.Context) (*LogoutResponseDto, error)
+	// LogoutOAuth implements logoutOAuth operation.
+	//
+	// Logout the OAuth account and invalidate the session specified by the sid claim or all sessions if
+	// the sid claim is not present.
+	//
+	// POST /oauth/backchannel-logout
+	LogoutOAuth(ctx context.Context, req *OAuthBackchannelLogoutDto) error
+	// MaintenanceLogin implements maintenanceLogin operation.
+	//
+	// Login with maintenance token or cookie to receive current information and perform further actions.
+	//
+	// POST /admin/maintenance/login
+	MaintenanceLogin(ctx context.Context, req *MaintenanceLoginDto) (*MaintenanceAuthDto, error)
 	// MemoriesStatistics implements memoriesStatistics operation.
 	//
-	// This endpoint requires the `memory.statistics` permission.
+	// Retrieve statistics about memories, such as total count and other relevant metrics.
 	//
 	// GET /memories/statistics
 	MemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (*MemoryStatisticsResponseDto, error)
 	// MergePerson implements mergePerson operation.
 	//
-	// This endpoint requires the `person.merge` permission.
+	// Merge a list of people into the person specified in the path parameter.
 	//
 	// POST /people/{id}/merge
 	MergePerson(ctx context.Context, req *MergePersonDto, params MergePersonParams) ([]BulkIdResponseDto, error)
 	// PingServer implements pingServer operation.
 	//
+	// Pong.
+	//
 	// GET /server/ping
 	PingServer(ctx context.Context) (*ServerPingResponse, error)
 	// PlayAssetVideo implements playAssetVideo operation.
 	//
-	// This endpoint requires the `asset.view` permission.
+	// Streams the video file for the specified asset. This endpoint also supports byte range requests.
 	//
 	// GET /assets/{id}/video/playback
 	PlayAssetVideo(ctx context.Context, params PlayAssetVideoParams) (PlayAssetVideoOK, error)
 	// ReassignFaces implements reassignFaces operation.
 	//
-	// This endpoint requires the `person.reassign` permission.
+	// Bulk reassign a list of faces to a different person.
 	//
 	// PUT /people/{id}/reassign
 	ReassignFaces(ctx context.Context, req *AssetFaceUpdateDto, params ReassignFacesParams) ([]PersonResponseDto, error)
 	// ReassignFacesById implements reassignFacesById operation.
 	//
-	// This endpoint requires the `face.update` permission.
+	// Re-assign the face provided in the body to the person identified by the id in the path parameter.
 	//
 	// PUT /faces/{id}
 	ReassignFacesById(ctx context.Context, req *FaceDto, params ReassignFacesByIdParams) (*PersonResponseDto, error)
 	// RedirectOAuthToMobile implements redirectOAuthToMobile operation.
 	//
+	// Requests to this URL are automatically forwarded to the mobile app, and is used in some cases for
+	// OAuth redirecting.
+	//
 	// GET /oauth/mobile-redirect
 	RedirectOAuthToMobile(ctx context.Context) error
+	// RemoveAssetEdits implements removeAssetEdits operation.
+	//
+	// Removes all edit actions (crop, rotate, mirror) associated with the specified asset.
+	//
+	// DELETE /assets/{id}/edits
+	RemoveAssetEdits(ctx context.Context, params RemoveAssetEditsParams) error
 	// RemoveAssetFromAlbum implements removeAssetFromAlbum operation.
 	//
-	// This endpoint requires the `albumAsset.delete` permission.
+	// Remove multiple assets from a specific album by its ID.
 	//
 	// DELETE /albums/{id}/assets
 	RemoveAssetFromAlbum(ctx context.Context, req *BulkIdsDto, params RemoveAssetFromAlbumParams) ([]BulkIdResponseDto, error)
 	// RemoveAssetFromStack implements removeAssetFromStack operation.
 	//
-	// This endpoint requires the `stack.update` permission.
+	// Remove a specific asset from a stack by providing the stack ID and asset ID.
 	//
 	// DELETE /stacks/{id}/assets/{assetId}
 	RemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) error
 	// RemoveMemoryAssets implements removeMemoryAssets operation.
 	//
-	// This endpoint requires the `memoryAsset.delete` permission.
+	// Remove a list of asset IDs from a specific memory.
 	//
 	// DELETE /memories/{id}/assets
 	RemoveMemoryAssets(ctx context.Context, req *BulkIdsDto, params RemoveMemoryAssetsParams) ([]BulkIdResponseDto, error)
 	// RemovePartner implements removePartner operation.
 	//
-	// This endpoint requires the `partner.delete` permission.
+	// Stop sharing assets with a partner.
 	//
 	// DELETE /partners/{id}
 	RemovePartner(ctx context.Context, params RemovePartnerParams) error
 	// RemoveSharedLink implements removeSharedLink operation.
 	//
-	// This endpoint requires the `sharedLink.delete` permission.
+	// Delete a specific shared link by its ID.
 	//
 	// DELETE /shared-links/{id}
 	RemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) error
 	// RemoveSharedLinkAssets implements removeSharedLinkAssets operation.
 	//
+	// Remove assets from a specific shared link by its ID. This endpoint is only relevant for shared link
+	// of type individual.
+	//
 	// DELETE /shared-links/{id}/assets
 	RemoveSharedLinkAssets(ctx context.Context, req *AssetIdsDto, params RemoveSharedLinkAssetsParams) ([]AssetIdsResponseDto, error)
 	// RemoveUserFromAlbum implements removeUserFromAlbum operation.
 	//
-	// This endpoint requires the `albumUser.delete` permission.
+	// Remove a user from an album. Use an ID of "me" to leave a shared album.
 	//
 	// DELETE /albums/{id}/user/{userId}
 	RemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) error
-	// ReplaceAsset implements replaceAsset operation.
-	//
-	// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
-	//  This endpoint requires the `asset.replace` permission.
-	//
-	// Deprecated: schema marks this operation as deprecated.
-	//
-	// PUT /assets/{id}/original
-	ReplaceAsset(ctx context.Context, req *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (*AssetMediaResponseDto, error)
 	// ResetPinCode implements resetPinCode operation.
 	//
-	// This endpoint requires the `pinCode.delete` permission.
+	// Reset the pin code for the current user by providing the account password.
 	//
 	// DELETE /auth/pin-code
 	ResetPinCode(ctx context.Context, req *PinCodeResetDto) error
+	// ResolveDuplicates implements resolveDuplicates operation.
+	//
+	// Resolve duplicate groups by synchronizing metadata across assets and deleting/trashing duplicates.
+	//
+	// POST /duplicates/resolve
+	ResolveDuplicates(ctx context.Context, req *DuplicateResolveDto) ([]BulkIdResponseDto, error)
 	// RestoreAssets implements restoreAssets operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Restore specific assets from the trash.
 	//
 	// POST /trash/restore/assets
 	RestoreAssets(ctx context.Context, req *BulkIdsDto) (*TrashResponseDto, error)
 	// RestoreTrash implements restoreTrash operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Restore all items in the trash.
 	//
 	// POST /trash/restore
 	RestoreTrash(ctx context.Context) (*TrashResponseDto, error)
 	// RestoreUserAdmin implements restoreUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+	// Restore a previously deleted user.
 	//
 	// POST /admin/users/{id}/restore
 	RestoreUserAdmin(ctx context.Context, params RestoreUserAdminParams) (*UserAdminResponseDto, error)
 	// ReverseGeocode implements reverseGeocode operation.
 	//
+	// Retrieve location information (e.g., city, country) for given latitude and longitude coordinates.
+	//
 	// GET /map/reverse-geocode
 	ReverseGeocode(ctx context.Context, params ReverseGeocodeParams) ([]MapReverseGeocodeResponseDto, error)
 	// RunAssetJobs implements runAssetJobs operation.
 	//
+	// Run a specific job on a set of assets.
+	//
 	// POST /assets/jobs
 	RunAssetJobs(ctx context.Context, req *AssetJobsDto) error
+	// RunQueueCommandLegacy implements runQueueCommandLegacy operation.
+	//
+	// Queue all assets for a specific job type. Defaults to only queueing assets that have not yet been
+	// processed, but the force command can be used to re-process all assets.
+	//
+	// Deprecated: schema marks this operation as deprecated.
+	//
+	// PUT /jobs/{name}
+	RunQueueCommandLegacy(ctx context.Context, req *QueueCommandDto, params RunQueueCommandLegacyParams) (*QueueResponseLegacyDto, error)
 	// ScanLibrary implements scanLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.update` permission.
+	// Queue a scan for the external library to find and import new assets.
 	//
 	// POST /libraries/{id}/scan
 	ScanLibrary(ctx context.Context, params ScanLibraryParams) error
 	// SearchAssetStatistics implements searchAssetStatistics operation.
 	//
-	// This endpoint requires the `asset.statistics` permission.
+	// Retrieve statistical data about assets based on search criteria, such as the total matching count.
 	//
 	// POST /search/statistics
 	SearchAssetStatistics(ctx context.Context, req *StatisticsSearchDto) (*SearchStatisticsResponseDto, error)
 	// SearchAssets implements searchAssets operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Search for assets based on various metadata criteria.
 	//
 	// POST /search/metadata
-	SearchAssets(ctx context.Context, req *MetadataSearchDto) (*SearchResponseDto, error)
+	SearchAssets(ctx context.Context, req *MetadataSearchDto, params SearchAssetsParams) (*SearchResponseDto, error)
 	// SearchLargeAssets implements searchLargeAssets operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Search for assets that are considered large based on specified criteria.
 	//
 	// POST /search/large-assets
 	SearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) ([]AssetResponseDto, error)
 	// SearchMemories implements searchMemories operation.
 	//
-	// This endpoint requires the `memory.read` permission.
+	// Retrieve a list of memories. Memories are sorted descending by creation date by default, although
+	// they can also be sorted in ascending order, or randomly.
 	//
 	// GET /memories
 	SearchMemories(ctx context.Context, params SearchMemoriesParams) ([]MemoryResponseDto, error)
 	// SearchPerson implements searchPerson operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Search for people by name.
 	//
 	// GET /search/person
 	SearchPerson(ctx context.Context, params SearchPersonParams) ([]PersonResponseDto, error)
 	// SearchPlaces implements searchPlaces operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Search for places by name.
 	//
 	// GET /search/places
 	SearchPlaces(ctx context.Context, params SearchPlacesParams) ([]PlacesResponseDto, error)
+	// SearchPluginMethods implements searchPluginMethods operation.
+	//
+	// Retrieve a list of plugin methods.
+	//
+	// GET /plugins/methods
+	SearchPluginMethods(ctx context.Context, params SearchPluginMethodsParams) ([]PluginMethodResponseDto, error)
+	// SearchPluginTemplates implements searchPluginTemplates operation.
+	//
+	// Retrieve workflow templates provided by installed plugins.
+	//
+	// GET /plugins/templates
+	SearchPluginTemplates(ctx context.Context) ([]PluginTemplateResponseDto, error)
+	// SearchPlugins implements searchPlugins operation.
+	//
+	// Retrieve a list of plugins available to the authenticated user.
+	//
+	// GET /plugins
+	SearchPlugins(ctx context.Context, params SearchPluginsParams) ([]PluginResponseDto, error)
 	// SearchRandom implements searchRandom operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a random selection of assets based on the provided criteria.
 	//
 	// POST /search/random
 	SearchRandom(ctx context.Context, req *RandomSearchDto) ([]AssetResponseDto, error)
 	// SearchSmart implements searchSmart operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Perform a smart search for assets by using machine learning vectors to determine relevance.
 	//
 	// POST /search/smart
 	SearchSmart(ctx context.Context, req *SmartSearchDto) (*SearchResponseDto, error)
 	// SearchStacks implements searchStacks operation.
 	//
-	// This endpoint requires the `stack.read` permission.
+	// Retrieve a list of stacks.
 	//
 	// GET /stacks
 	SearchStacks(ctx context.Context, params SearchStacksParams) ([]StackResponseDto, error)
 	// SearchUsers implements searchUsers operation.
 	//
-	// This endpoint requires the `user.read` permission.
+	// Retrieve a list of all users on the server.
 	//
 	// GET /users
 	SearchUsers(ctx context.Context) ([]UserResponseDto, error)
 	// SearchUsersAdmin implements searchUsersAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Search for users.
 	//
 	// GET /admin/users
 	SearchUsersAdmin(ctx context.Context, params SearchUsersAdminParams) ([]UserAdminResponseDto, error)
-	// SendJobCommand implements sendJobCommand operation.
+	// SearchWorkflows implements searchWorkflows operation.
 	//
-	// This endpoint is an admin-only route, and requires the `job.create` permission.
+	// Retrieve a list of workflows available to the authenticated user.
 	//
-	// PUT /jobs/{id}
-	SendJobCommand(ctx context.Context, req *JobCommandDto, params SendJobCommandParams) (*JobStatusDto, error)
+	// GET /workflows
+	SearchWorkflows(ctx context.Context, params SearchWorkflowsParams) ([]WorkflowResponseDto, error)
 	// SendSyncAck implements sendSyncAck operation.
 	//
-	// This endpoint requires the `syncCheckpoint.update` permission.
+	// Send a list of synchronization acknowledgements to confirm that the latest changes have been
+	// received.
 	//
 	// POST /sync/ack
 	SendSyncAck(ctx context.Context, req *SyncAckSetDto) error
 	// SendTestEmailAdmin implements sendTestEmailAdmin operation.
 	//
+	// Send a test email using the provided SMTP configuration.
+	//
 	// POST /admin/notifications/test-email
 	SendTestEmailAdmin(ctx context.Context, req *SystemConfigSmtpDto) (*TestEmailResponseDto, error)
+	// SetMaintenanceMode implements setMaintenanceMode operation.
+	//
+	// Put Immich into or take it out of maintenance mode.
+	//
+	// POST /admin/maintenance
+	SetMaintenanceMode(ctx context.Context, req *SetMaintenanceModeDto) error
 	// SetServerLicense implements setServerLicense operation.
 	//
-	// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+	// Validate and set the server product key if successful.
 	//
 	// PUT /server/license
-	SetServerLicense(ctx context.Context, req *LicenseKeyDto) (*LicenseResponseDto, error)
+	SetServerLicense(ctx context.Context, req *LicenseKeyDto) (*UserLicense, error)
 	// SetUserLicense implements setUserLicense operation.
 	//
-	// This endpoint requires the `userLicense.update` permission.
+	// Register a product key for the current user.
 	//
 	// PUT /users/me/license
-	SetUserLicense(ctx context.Context, req *LicenseKeyDto) (*LicenseResponseDto, error)
+	SetUserLicense(ctx context.Context, req *LicenseKeyDto) (*UserLicense, error)
 	// SetUserOnboarding implements setUserOnboarding operation.
 	//
-	// This endpoint requires the `userOnboarding.update` permission.
+	// Update the onboarding status of the current user.
 	//
 	// PUT /users/me/onboarding
 	SetUserOnboarding(ctx context.Context, req *OnboardingDto) (*OnboardingResponseDto, error)
 	// SetupPinCode implements setupPinCode operation.
 	//
-	// This endpoint requires the `pinCode.create` permission.
+	// Setup a new pin code for the current user.
 	//
 	// POST /auth/pin-code
 	SetupPinCode(ctx context.Context, req *PinCodeSetupDto) error
+	// SharedLinkLogin implements sharedLinkLogin operation.
+	//
+	// Login to a password protected shared link.
+	//
+	// POST /shared-links/login
+	SharedLinkLogin(ctx context.Context, req *SharedLinkLoginDto, params SharedLinkLoginParams) (*SharedLinkResponseDto, error)
 	// SignUpAdmin implements signUpAdmin operation.
+	//
+	// Create the first admin user in the system.
 	//
 	// POST /auth/admin-sign-up
 	SignUpAdmin(ctx context.Context, req *SignUpDto) (*UserAdminResponseDto, error)
+	// StartDatabaseRestoreFlow implements startDatabaseRestoreFlow operation.
+	//
+	// Put Immich into maintenance mode to restore a backup (Immich must not be configured).
+	//
+	// POST /admin/database-backups/start-restore
+	StartDatabaseRestoreFlow(ctx context.Context) error
 	// StartOAuth implements startOAuth operation.
+	//
+	// Initiate the OAuth authorization process.
 	//
 	// POST /oauth/authorize
 	StartOAuth(ctx context.Context, req *OAuthConfigDto) (*OAuthAuthorizeResponseDto, error)
 	// TagAssets implements tagAssets operation.
 	//
-	// This endpoint requires the `tag.asset` permission.
+	// Add a tag to all the specified assets.
 	//
 	// PUT /tags/{id}/assets
 	TagAssets(ctx context.Context, req *BulkIdsDto, params TagAssetsParams) ([]BulkIdResponseDto, error)
 	// UnlinkAllOAuthAccountsAdmin implements unlinkAllOAuthAccountsAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+	// Unlinks all OAuth accounts associated with user accounts in the system.
 	//
 	// POST /admin/auth/unlink-all
 	UnlinkAllOAuthAccountsAdmin(ctx context.Context) error
 	// UnlinkOAuthAccount implements unlinkOAuthAccount operation.
 	//
+	// Unlink the OAuth account from the authenticated user.
+	//
 	// POST /oauth/unlink
 	UnlinkOAuthAccount(ctx context.Context) (*UserAdminResponseDto, error)
 	// UnlockAuthSession implements unlockAuthSession operation.
+	//
+	// Temporarily grant the session elevated access to locked assets by providing the correct PIN code.
 	//
 	// POST /auth/session/unlock
 	UnlockAuthSession(ctx context.Context, req *SessionUnlockDto) error
 	// UntagAssets implements untagAssets operation.
 	//
-	// This endpoint requires the `tag.asset` permission.
+	// Remove a tag from all the specified assets.
 	//
 	// DELETE /tags/{id}/assets
 	UntagAssets(ctx context.Context, req *BulkIdsDto, params UntagAssetsParams) ([]BulkIdResponseDto, error)
 	// UpdateAdminOnboarding implements updateAdminOnboarding operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
+	// Update the admin onboarding status.
 	//
 	// POST /system-metadata/admin-onboarding
 	UpdateAdminOnboarding(ctx context.Context, req *AdminOnboardingUpdateDto) error
 	// UpdateAlbumInfo implements updateAlbumInfo operation.
 	//
-	// This endpoint requires the `album.update` permission.
+	// Update the information of a specific album by its ID. This endpoint can be used to update the album
+	// name, description, sort order, etc. However, it is not used to add or remove assets or users from
+	// the album.
 	//
 	// PATCH /albums/{id}
 	UpdateAlbumInfo(ctx context.Context, req *UpdateAlbumDto, params UpdateAlbumInfoParams) (*AlbumResponseDto, error)
 	// UpdateAlbumUser implements updateAlbumUser operation.
 	//
-	// This endpoint requires the `albumUser.update` permission.
+	// Change the role for a specific user in a specific album.
 	//
 	// PUT /albums/{id}/user/{userId}
 	UpdateAlbumUser(ctx context.Context, req *UpdateAlbumUserDto, params UpdateAlbumUserParams) error
 	// UpdateApiKey implements updateApiKey operation.
 	//
-	// This endpoint requires the `apiKey.update` permission.
+	// Updates the name and permissions of an API key by its ID. The current user must own this API key.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /api-keys/{id}
-	UpdateApiKey(ctx context.Context, req *APIKeyUpdateDto, params UpdateApiKeyParams) (*APIKeyResponseDto, error)
+	UpdateApiKey(ctx context.Context, req *ApiKeyUpdateDto, params UpdateApiKeyParams) (*ApiKeyResponseDto, error)
 	// UpdateAsset implements updateAsset operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Update information of a specific asset.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /assets/{id}
 	UpdateAsset(ctx context.Context, req *UpdateAssetDto, params UpdateAssetParams) (*AssetResponseDto, error)
 	// UpdateAssetMetadata implements updateAssetMetadata operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Update or add metadata key-value pairs for the specified asset.
 	//
 	// PUT /assets/{id}/metadata
 	UpdateAssetMetadata(ctx context.Context, req *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) ([]AssetMetadataResponseDto, error)
 	// UpdateAssets implements updateAssets operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Updates multiple assets at the same time.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /assets
 	UpdateAssets(ctx context.Context, req *AssetBulkUpdateDto) error
+	// UpdateBulkAssetMetadata implements updateBulkAssetMetadata operation.
+	//
+	// Upsert metadata key-value pairs for multiple assets.
+	//
+	// PUT /assets/metadata
+	UpdateBulkAssetMetadata(ctx context.Context, req *AssetMetadataBulkUpsertDto) ([]AssetMetadataBulkResponseDto, error)
 	// UpdateConfig implements updateConfig operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+	// Update the system configuration with a new system configuration.
 	//
 	// PUT /system-config
 	UpdateConfig(ctx context.Context, req *SystemConfigDto) (*SystemConfigDto, error)
 	// UpdateLibrary implements updateLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.update` permission.
+	// Update an existing external library.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /libraries/{id}
 	UpdateLibrary(ctx context.Context, req *UpdateLibraryDto, params UpdateLibraryParams) (*LibraryResponseDto, error)
 	// UpdateMemory implements updateMemory operation.
 	//
-	// This endpoint requires the `memory.update` permission.
+	// Update an existing memory by its ID.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /memories/{id}
 	UpdateMemory(ctx context.Context, req *MemoryUpdateDto, params UpdateMemoryParams) (*MemoryResponseDto, error)
 	// UpdateMyPreferences implements updateMyPreferences operation.
 	//
-	// This endpoint requires the `userPreference.update` permission.
+	// Update the preferences of the current user.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /users/me/preferences
 	UpdateMyPreferences(ctx context.Context, req *UserPreferencesUpdateDto) (*UserPreferencesResponseDto, error)
 	// UpdateMyUser implements updateMyUser operation.
 	//
-	// This endpoint requires the `user.update` permission.
+	// Update the current user making the API request.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /users/me
 	UpdateMyUser(ctx context.Context, req *UserUpdateMeDto) (*UserAdminResponseDto, error)
 	// UpdateNotification implements updateNotification operation.
 	//
-	// This endpoint requires the `notification.update` permission.
+	// Update a specific notification to set its read status.
 	//
 	// PUT /notifications/{id}
 	UpdateNotification(ctx context.Context, req *NotificationUpdateDto, params UpdateNotificationParams) (*NotificationDto, error)
 	// UpdateNotifications implements updateNotifications operation.
 	//
-	// This endpoint requires the `notification.update` permission.
+	// Update a list of notifications. Allows to bulk-set the read status of notifications.
 	//
 	// PUT /notifications
 	UpdateNotifications(ctx context.Context, req *NotificationUpdateAllDto) error
 	// UpdatePartner implements updatePartner operation.
 	//
-	// This endpoint requires the `partner.update` permission.
+	// Specify whether a partner's assets should appear in the user's timeline.
 	//
 	// PUT /partners/{id}
 	UpdatePartner(ctx context.Context, req *PartnerUpdateDto, params UpdatePartnerParams) (*PartnerResponseDto, error)
 	// UpdatePeople implements updatePeople operation.
 	//
-	// This endpoint requires the `person.update` permission.
+	// Bulk update multiple people at once.
 	//
 	// PUT /people
 	UpdatePeople(ctx context.Context, req *PeopleUpdateDto) ([]BulkIdResponseDto, error)
 	// UpdatePerson implements updatePerson operation.
 	//
-	// This endpoint requires the `person.update` permission.
+	// Update an individual person.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /people/{id}
 	UpdatePerson(ctx context.Context, req *PersonUpdateDto, params UpdatePersonParams) (*PersonResponseDto, error)
+	// UpdateQueue implements updateQueue operation.
+	//
+	// Change the paused status of a specific queue.
+	//
+	// PUT /queues/{name}
+	UpdateQueue(ctx context.Context, req *QueueUpdateDto, params UpdateQueueParams) (*QueueResponseDto, error)
 	// UpdateSession implements updateSession operation.
 	//
-	// This endpoint requires the `session.update` permission.
+	// Update a specific session identified by id.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /sessions/{id}
 	UpdateSession(ctx context.Context, req *SessionUpdateDto, params UpdateSessionParams) (*SessionResponseDto, error)
 	// UpdateSharedLink implements updateSharedLink operation.
 	//
-	// This endpoint requires the `sharedLink.update` permission.
+	// Update an existing shared link by its ID.
 	//
 	// PATCH /shared-links/{id}
 	UpdateSharedLink(ctx context.Context, req *SharedLinkEditDto, params UpdateSharedLinkParams) (*SharedLinkResponseDto, error)
 	// UpdateStack implements updateStack operation.
 	//
-	// This endpoint requires the `stack.update` permission.
+	// Update an existing stack by its ID.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /stacks/{id}
 	UpdateStack(ctx context.Context, req *StackUpdateDto, params UpdateStackParams) (*StackResponseDto, error)
 	// UpdateTag implements updateTag operation.
 	//
-	// This endpoint requires the `tag.update` permission.
+	// Update an existing tag identified by its ID.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /tags/{id}
 	UpdateTag(ctx context.Context, req *TagUpdateDto, params UpdateTagParams) (*TagResponseDto, error)
 	// UpdateUserAdmin implements updateUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+	// Update an existing user.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /admin/users/{id}
 	UpdateUserAdmin(ctx context.Context, req *UserAdminUpdateDto, params UpdateUserAdminParams) (*UserAdminResponseDto, error)
 	// UpdateUserPreferencesAdmin implements updateUserPreferencesAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+	// Update the preferences of a specific user.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /admin/users/{id}/preferences
 	UpdateUserPreferencesAdmin(ctx context.Context, req *UserPreferencesUpdateDto, params UpdateUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
+	// UpdateWorkflow implements updateWorkflow operation.
+	//
+	// Update the information of a specific workflow by its ID. This endpoint can be used to update the
+	// workflow name, description, trigger type, filters and actions order, etc.
+	//
+	// Deprecated: schema marks this operation as deprecated.
+	//
+	// PUT /workflows/{id}
+	UpdateWorkflow(ctx context.Context, req *WorkflowUpdateDto, params UpdateWorkflowParams) (*WorkflowResponseDto, error)
 	// UploadAsset implements uploadAsset operation.
 	//
-	// This endpoint requires the `asset.upload` permission.
+	// Uploads a new asset to the server.
 	//
 	// POST /assets
 	UploadAsset(ctx context.Context, req *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
+	// UploadDatabaseBackup implements uploadDatabaseBackup operation.
+	//
+	// Uploads .sql/.sql.gz file to restore backup from.
+	//
+	// POST /admin/database-backups/upload
+	UploadDatabaseBackup(ctx context.Context, req *DatabaseBackupUploadDtoMultipart) error
 	// UpsertTags implements upsertTags operation.
 	//
-	// This endpoint requires the `tag.create` permission.
+	// Create or update multiple tags in a single request.
 	//
 	// PUT /tags
 	UpsertTags(ctx context.Context, req *TagUpsertDto) ([]TagResponseDto, error)
 	// Validate implements validate operation.
 	//
+	// Validate the settings of an external library.
+	//
 	// POST /libraries/{id}/validate
 	Validate(ctx context.Context, req *ValidateLibraryDto, params ValidateParams) (*ValidateLibraryResponseDto, error)
 	// ValidateAccessToken implements validateAccessToken operation.
+	//
+	// Validate the current authorization method is still valid.
 	//
 	// POST /auth/validateToken
 	ValidateAccessToken(ctx context.Context) (*ValidateAccessTokenResponseDto, error)
 	// ViewAsset implements viewAsset operation.
 	//
-	// This endpoint requires the `asset.view` permission.
+	// Retrieve the thumbnail image for the specified asset. Viewing the fullsize thumbnail might redirect
+	// to downloadAsset, which requires a different permission.
 	//
 	// GET /assets/{id}/thumbnail
 	ViewAsset(ctx context.Context, params ViewAssetParams) (ViewAssetOK, error)

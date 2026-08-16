@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -29,9 +29,13 @@ func (c *codeRecorder) WriteHeader(status int) {
 	c.ResponseWriter.WriteHeader(status)
 }
 
+func (c *codeRecorder) Unwrap() http.ResponseWriter {
+	return c.ResponseWriter
+}
+
 // handleAddAssetsToAlbumRequest handles addAssetsToAlbum operation.
 //
-// This endpoint requires the `albumAsset.create` permission.
+// Add multiple assets to a specific album by its ID.
 //
 // PUT /albums/{id}/assets
 func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -42,6 +46,8 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/albums/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), AddAssetsToAlbumOperation,
@@ -65,7 +71,7 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -216,7 +222,7 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AddAssetsToAlbumOperation,
-			OperationSummary: "",
+			OperationSummary: "Add assets to an album",
 			OperationID:      "addAssetsToAlbum",
 			Body:             request,
 			RawBody:          rawBody,
@@ -225,14 +231,6 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 					Name: "id",
 					In:   "path",
 				}: params.ID,
-				{
-					Name: "key",
-					In:   "query",
-				}: params.Key,
-				{
-					Name: "slug",
-					In:   "query",
-				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -275,7 +273,7 @@ func (s *Server) handleAddAssetsToAlbumRequest(args [1]string, argsEscaped bool,
 
 // handleAddAssetsToAlbumsRequest handles addAssetsToAlbums operation.
 //
-// This endpoint requires the `albumAsset.create` permission.
+// Send a list of asset IDs and album IDs to add each asset to each album.
 //
 // PUT /albums/assets
 func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -286,6 +284,8 @@ func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/albums/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), AddAssetsToAlbumsOperation,
@@ -309,7 +309,7 @@ func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -427,16 +427,6 @@ func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool
 			return
 		}
 	}
-	params, err := decodeAddAssetsToAlbumsParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
 
 	var rawBody []byte
 	request, rawBody, close, err := s.decodeAddAssetsToAlbumsRequest(r)
@@ -460,26 +450,17 @@ func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AddAssetsToAlbumsOperation,
-			OperationSummary: "",
+			OperationSummary: "Add assets to albums",
 			OperationID:      "addAssetsToAlbums",
 			Body:             request,
 			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "key",
-					In:   "query",
-				}: params.Key,
-				{
-					Name: "slug",
-					In:   "query",
-				}: params.Slug,
-			},
-			Raw: r,
+			Params:           middleware.Parameters{},
+			Raw:              r,
 		}
 
 		type (
 			Request  = *AlbumsAddAssetsDto
-			Params   = AddAssetsToAlbumsParams
+			Params   = struct{}
 			Response = *AlbumsAddAssetsResponseDto
 		)
 		response, err = middleware.HookMiddleware[
@@ -489,14 +470,14 @@ func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool
 		](
 			m,
 			mreq,
-			unpackAddAssetsToAlbumsParams,
+			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.AddAssetsToAlbums(ctx, request, params)
+				response, err = s.h.AddAssetsToAlbums(ctx, request)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.AddAssetsToAlbums(ctx, request, params)
+		response, err = s.h.AddAssetsToAlbums(ctx, request)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -515,7 +496,7 @@ func (s *Server) handleAddAssetsToAlbumsRequest(args [0]string, argsEscaped bool
 
 // handleAddMemoryAssetsRequest handles addMemoryAssets operation.
 //
-// This endpoint requires the `memoryAsset.create` permission.
+// Add a list of asset IDs to a specific memory.
 //
 // PUT /memories/{id}/assets
 func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -526,6 +507,8 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/memories/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), AddMemoryAssetsOperation,
@@ -549,7 +532,7 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -700,7 +683,7 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AddMemoryAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Add assets to a memory",
 			OperationID:      "addMemoryAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -751,6 +734,9 @@ func (s *Server) handleAddMemoryAssetsRequest(args [1]string, argsEscaped bool, 
 
 // handleAddSharedLinkAssetsRequest handles addSharedLinkAssets operation.
 //
+// Add assets to a specific shared link by its ID. This endpoint is only relevant for shared link of
+// type individual.
+//
 // PUT /shared-links/{id}/assets
 func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -760,6 +746,8 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/shared-links/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), AddSharedLinkAssetsOperation,
@@ -783,7 +771,7 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -934,7 +922,7 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AddSharedLinkAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Add assets to a shared link",
 			OperationID:      "addSharedLinkAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -943,14 +931,6 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 					Name: "id",
 					In:   "path",
 				}: params.ID,
-				{
-					Name: "key",
-					In:   "query",
-				}: params.Key,
-				{
-					Name: "slug",
-					In:   "query",
-				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -993,7 +973,7 @@ func (s *Server) handleAddSharedLinkAssetsRequest(args [1]string, argsEscaped bo
 
 // handleAddUsersToAlbumRequest handles addUsersToAlbum operation.
 //
-// This endpoint requires the `albumUser.create` permission.
+// Share an album with multiple users. Each user can be given a specific role in the album.
 //
 // PUT /albums/{id}/users
 func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1004,6 +984,8 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/albums/{id}/users"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), AddUsersToAlbumOperation,
@@ -1027,7 +1009,7 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1178,7 +1160,7 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AddUsersToAlbumOperation,
-			OperationSummary: "",
+			OperationSummary: "Share album with users",
 			OperationID:      "addUsersToAlbum",
 			Body:             request,
 			RawBody:          rawBody,
@@ -1229,7 +1211,7 @@ func (s *Server) handleAddUsersToAlbumRequest(args [1]string, argsEscaped bool, 
 
 // handleBulkTagAssetsRequest handles bulkTagAssets operation.
 //
-// This endpoint requires the `tag.asset` permission.
+// Add multiple tags to multiple assets in a single request.
 //
 // PUT /tags/assets
 func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1240,6 +1222,8 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/tags/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), BulkTagAssetsOperation,
@@ -1263,7 +1247,7 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1404,7 +1388,7 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    BulkTagAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Tag assets",
 			OperationID:      "bulkTagAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -1450,7 +1434,7 @@ func (s *Server) handleBulkTagAssetsRequest(args [0]string, argsEscaped bool, w 
 
 // handleChangePasswordRequest handles changePassword operation.
 //
-// This endpoint requires the `auth.changePassword` permission.
+// Change the password of the current user.
 //
 // POST /auth/change-password
 func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1461,6 +1445,8 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/change-password"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ChangePasswordOperation,
@@ -1484,7 +1470,7 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1625,7 +1611,7 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ChangePasswordOperation,
-			OperationSummary: "",
+			OperationSummary: "Change password",
 			OperationID:      "changePassword",
 			Body:             request,
 			RawBody:          rawBody,
@@ -1671,7 +1657,7 @@ func (s *Server) handleChangePasswordRequest(args [0]string, argsEscaped bool, w
 
 // handleChangePinCodeRequest handles changePinCode operation.
 //
-// This endpoint requires the `pinCode.update` permission.
+// Change the pin code for the current user.
 //
 // PUT /auth/pin-code
 func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1682,6 +1668,8 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/auth/pin-code"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ChangePinCodeOperation,
@@ -1705,7 +1693,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -1846,7 +1834,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ChangePinCodeOperation,
-			OperationSummary: "",
+			OperationSummary: "Change pin code",
 			OperationID:      "changePinCode",
 			Body:             request,
 			RawBody:          rawBody,
@@ -1892,7 +1880,7 @@ func (s *Server) handleChangePinCodeRequest(args [0]string, argsEscaped bool, w 
 
 // handleCheckBulkUploadRequest handles checkBulkUpload operation.
 //
-// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
+// Determine which assets have already been uploaded to the server based on their SHA1 checksums.
 //
 // POST /assets/bulk-upload-check
 func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1903,6 +1891,8 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/assets/bulk-upload-check"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CheckBulkUploadOperation,
@@ -1926,7 +1916,7 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2067,7 +2057,7 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CheckBulkUploadOperation,
-			OperationSummary: "checkBulkUpload",
+			OperationSummary: "Check bulk upload",
 			OperationID:      "checkBulkUpload",
 			Body:             request,
 			RawBody:          rawBody,
@@ -2111,230 +2101,9 @@ func (s *Server) handleCheckBulkUploadRequest(args [0]string, argsEscaped bool, 
 	}
 }
 
-// handleCheckExistingAssetsRequest handles checkExistingAssets operation.
-//
-// Checks if multiple assets exist on the server and returns all existing - used by background backup.
-//
-// POST /assets/exist
-func (s *Server) handleCheckExistingAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("checkExistingAssets"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/assets/exist"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), CheckExistingAssetsOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code < 100 || code >= 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: CheckExistingAssetsOperation,
-			ID:   "checkExistingAssets",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securityBearer(ctx, CheckExistingAssetsOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Bearer",
-					Err:              err,
-				}
-				defer recordError("Security:Bearer", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityCookie(ctx, CheckExistingAssetsOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Cookie",
-					Err:              err,
-				}
-				defer recordError("Security:Cookie", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 1
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityAPIKey(ctx, CheckExistingAssetsOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "APIKey",
-					Err:              err,
-				}
-				defer recordError("Security:APIKey", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 2
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			defer recordError("Security", err)
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeCheckExistingAssetsRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *CheckExistingAssetsResponseDto
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    CheckExistingAssetsOperation,
-			OperationSummary: "checkExistingAssets",
-			OperationID:      "checkExistingAssets",
-			Body:             request,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = *CheckExistingAssetsDto
-			Params   = struct{}
-			Response = *CheckExistingAssetsResponseDto
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.CheckExistingAssets(ctx, request)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.CheckExistingAssets(ctx, request)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeCheckExistingAssetsResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleCopyAssetRequest handles copyAsset operation.
 //
-// This endpoint requires the `asset.copy` permission.
+// Copy asset information like albums, tags, etc. from one asset to another.
 //
 // PUT /assets/copy
 func (s *Server) handleCopyAssetRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2345,6 +2114,8 @@ func (s *Server) handleCopyAssetRequest(args [0]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/assets/copy"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CopyAssetOperation,
@@ -2368,7 +2139,7 @@ func (s *Server) handleCopyAssetRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2509,7 +2280,7 @@ func (s *Server) handleCopyAssetRequest(args [0]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CopyAssetOperation,
-			OperationSummary: "",
+			OperationSummary: "Copy asset",
 			OperationID:      "copyAsset",
 			Body:             request,
 			RawBody:          rawBody,
@@ -2555,7 +2326,7 @@ func (s *Server) handleCopyAssetRequest(args [0]string, argsEscaped bool, w http
 
 // handleCreateActivityRequest handles createActivity operation.
 //
-// This endpoint requires the `activity.create` permission.
+// Create a like or a comment for an album, or an asset in an album.
 //
 // POST /activities
 func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2566,6 +2337,8 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/activities"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateActivityOperation,
@@ -2589,7 +2362,7 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2730,7 +2503,7 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateActivityOperation,
-			OperationSummary: "",
+			OperationSummary: "Create an activity",
 			OperationID:      "createActivity",
 			Body:             request,
 			RawBody:          rawBody,
@@ -2776,7 +2549,7 @@ func (s *Server) handleCreateActivityRequest(args [0]string, argsEscaped bool, w
 
 // handleCreateAlbumRequest handles createAlbum operation.
 //
-// This endpoint requires the `album.create` permission.
+// Create a new album. The album can also be created with initial users and assets.
 //
 // POST /albums
 func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2787,6 +2560,8 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/albums"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateAlbumOperation,
@@ -2810,7 +2585,7 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -2951,7 +2726,7 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateAlbumOperation,
-			OperationSummary: "",
+			OperationSummary: "Create an album",
 			OperationID:      "createAlbum",
 			Body:             request,
 			RawBody:          rawBody,
@@ -2997,7 +2772,7 @@ func (s *Server) handleCreateAlbumRequest(args [0]string, argsEscaped bool, w ht
 
 // handleCreateApiKeyRequest handles createApiKey operation.
 //
-// This endpoint requires the `apiKey.create` permission.
+// Creates a new API key. It will be limited to the permissions specified.
 //
 // POST /api-keys
 func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3008,6 +2783,8 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/api-keys"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateApiKeyOperation,
@@ -3031,7 +2808,7 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3167,12 +2944,12 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 		}
 	}()
 
-	var response *APIKeyCreateResponseDto
+	var response *ApiKeyCreateResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateApiKeyOperation,
-			OperationSummary: "",
+			OperationSummary: "Create an API key",
 			OperationID:      "createApiKey",
 			Body:             request,
 			RawBody:          rawBody,
@@ -3181,9 +2958,9 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 		}
 
 		type (
-			Request  = *APIKeyCreateDto
+			Request  = *ApiKeyCreateDto
 			Params   = struct{}
-			Response = *APIKeyCreateResponseDto
+			Response = *ApiKeyCreateResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -3218,7 +2995,8 @@ func (s *Server) handleCreateApiKeyRequest(args [0]string, argsEscaped bool, w h
 
 // handleCreateFaceRequest handles createFace operation.
 //
-// This endpoint requires the `face.create` permission.
+// Create a new face that has not been discovered by facial recognition. The content of the bounding
+// box is considered a face.
 //
 // POST /faces
 func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3229,6 +3007,8 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/faces"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateFaceOperation,
@@ -3252,7 +3032,7 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3393,7 +3173,7 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateFaceOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a face",
 			OperationID:      "createFace",
 			Body:             request,
 			RawBody:          rawBody,
@@ -3439,7 +3219,8 @@ func (s *Server) handleCreateFaceRequest(args [0]string, argsEscaped bool, w htt
 
 // handleCreateJobRequest handles createJob operation.
 //
-// This endpoint is an admin-only route, and requires the `job.create` permission.
+// Run a specific job. Most jobs are queued automatically, but this endpoint allows for manual creation
+// of a handful of jobs, including various cleanup tasks, as well as creating a new database backup.
 //
 // POST /jobs
 func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3450,6 +3231,8 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/jobs"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateJobOperation,
@@ -3473,7 +3256,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3614,7 +3397,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateJobOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a manual job",
 			OperationID:      "createJob",
 			Body:             request,
 			RawBody:          rawBody,
@@ -3660,7 +3443,7 @@ func (s *Server) handleCreateJobRequest(args [0]string, argsEscaped bool, w http
 
 // handleCreateLibraryRequest handles createLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.create` permission.
+// Create a new external library.
 //
 // POST /libraries
 func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3671,6 +3454,8 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/libraries"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateLibraryOperation,
@@ -3694,7 +3479,7 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -3835,7 +3620,7 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateLibraryOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a library",
 			OperationID:      "createLibrary",
 			Body:             request,
 			RawBody:          rawBody,
@@ -3881,7 +3666,8 @@ func (s *Server) handleCreateLibraryRequest(args [0]string, argsEscaped bool, w 
 
 // handleCreateMemoryRequest handles createMemory operation.
 //
-// This endpoint requires the `memory.create` permission.
+// Create a new memory by providing a name, description, and a list of asset IDs to include in the
+// memory.
 //
 // POST /memories
 func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3892,6 +3678,8 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/memories"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateMemoryOperation,
@@ -3915,7 +3703,7 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4056,7 +3844,7 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateMemoryOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a memory",
 			OperationID:      "createMemory",
 			Body:             request,
 			RawBody:          rawBody,
@@ -4102,6 +3890,8 @@ func (s *Server) handleCreateMemoryRequest(args [0]string, argsEscaped bool, w h
 
 // handleCreateNotificationRequest handles createNotification operation.
 //
+// Create a new notification for a specific user.
+//
 // POST /admin/notifications
 func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -4111,6 +3901,8 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/admin/notifications"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateNotificationOperation,
@@ -4134,7 +3926,7 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4275,7 +4067,7 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateNotificationOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a notification",
 			OperationID:      "createNotification",
 			Body:             request,
 			RawBody:          rawBody,
@@ -4321,7 +4113,7 @@ func (s *Server) handleCreateNotificationRequest(args [0]string, argsEscaped boo
 
 // handleCreatePartnerRequest handles createPartner operation.
 //
-// This endpoint requires the `partner.create` permission.
+// Create a new partner to share assets with.
 //
 // POST /partners
 func (s *Server) handleCreatePartnerRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4332,6 +4124,8 @@ func (s *Server) handleCreatePartnerRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/partners"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreatePartnerOperation,
@@ -4355,7 +4149,7 @@ func (s *Server) handleCreatePartnerRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4496,7 +4290,7 @@ func (s *Server) handleCreatePartnerRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreatePartnerOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a partner",
 			OperationID:      "createPartner",
 			Body:             request,
 			RawBody:          rawBody,
@@ -4542,7 +4336,7 @@ func (s *Server) handleCreatePartnerRequest(args [0]string, argsEscaped bool, w 
 
 // handleCreatePartnerDeprecatedRequest handles createPartnerDeprecated operation.
 //
-// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+// Create a new partner to share assets with.
 //
 // Deprecated: schema marks this operation as deprecated.
 //
@@ -4555,6 +4349,8 @@ func (s *Server) handleCreatePartnerDeprecatedRequest(args [1]string, argsEscape
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/partners/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreatePartnerDeprecatedOperation,
@@ -4578,7 +4374,7 @@ func (s *Server) handleCreatePartnerDeprecatedRequest(args [1]string, argsEscape
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4714,7 +4510,7 @@ func (s *Server) handleCreatePartnerDeprecatedRequest(args [1]string, argsEscape
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreatePartnerDeprecatedOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a partner",
 			OperationID:      "createPartnerDeprecated",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -4765,7 +4561,7 @@ func (s *Server) handleCreatePartnerDeprecatedRequest(args [1]string, argsEscape
 
 // handleCreatePersonRequest handles createPerson operation.
 //
-// This endpoint requires the `person.create` permission.
+// Create a new person that can have multiple faces assigned to them.
 //
 // POST /people
 func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4776,6 +4572,8 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/people"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreatePersonOperation,
@@ -4799,7 +4597,7 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -4940,7 +4738,7 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreatePersonOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a person",
 			OperationID:      "createPerson",
 			Body:             request,
 			RawBody:          rawBody,
@@ -4986,7 +4784,7 @@ func (s *Server) handleCreatePersonRequest(args [0]string, argsEscaped bool, w h
 
 // handleCreateProfileImageRequest handles createProfileImage operation.
 //
-// This endpoint requires the `userProfileImage.update` permission.
+// Upload and set a new profile image for the current user.
 //
 // POST /users/profile-image
 func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4997,6 +4795,8 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/users/profile-image"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateProfileImageOperation,
@@ -5020,7 +4820,7 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5161,7 +4961,7 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateProfileImageOperation,
-			OperationSummary: "",
+			OperationSummary: "Create user profile image",
 			OperationID:      "createProfileImage",
 			Body:             request,
 			RawBody:          rawBody,
@@ -5207,7 +5007,7 @@ func (s *Server) handleCreateProfileImageRequest(args [0]string, argsEscaped boo
 
 // handleCreateSessionRequest handles createSession operation.
 //
-// This endpoint requires the `session.create` permission.
+// Create a session as a child to the current session. This endpoint is used for casting.
 //
 // POST /sessions
 func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5218,6 +5018,8 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/sessions"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateSessionOperation,
@@ -5241,7 +5043,7 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5382,7 +5184,7 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateSessionOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a session",
 			OperationID:      "createSession",
 			Body:             request,
 			RawBody:          rawBody,
@@ -5428,7 +5230,7 @@ func (s *Server) handleCreateSessionRequest(args [0]string, argsEscaped bool, w 
 
 // handleCreateSharedLinkRequest handles createSharedLink operation.
 //
-// This endpoint requires the `sharedLink.create` permission.
+// Create a new shared link.
 //
 // POST /shared-links
 func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5439,6 +5241,8 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/shared-links"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateSharedLinkOperation,
@@ -5462,7 +5266,7 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5603,7 +5407,7 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateSharedLinkOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a shared link",
 			OperationID:      "createSharedLink",
 			Body:             request,
 			RawBody:          rawBody,
@@ -5649,7 +5453,9 @@ func (s *Server) handleCreateSharedLinkRequest(args [0]string, argsEscaped bool,
 
 // handleCreateStackRequest handles createStack operation.
 //
-// This endpoint requires the `stack.create` permission.
+// Create a new stack by providing a name and a list of asset IDs to include in the stack. If any of
+// the provided asset IDs are primary assets of an existing stack, the existing stack will be merged
+// into the newly created stack.
 //
 // POST /stacks
 func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5660,6 +5466,8 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/stacks"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateStackOperation,
@@ -5683,7 +5491,7 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -5824,7 +5632,7 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateStackOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a stack",
 			OperationID:      "createStack",
 			Body:             request,
 			RawBody:          rawBody,
@@ -5870,7 +5678,7 @@ func (s *Server) handleCreateStackRequest(args [0]string, argsEscaped bool, w ht
 
 // handleCreateTagRequest handles createTag operation.
 //
-// This endpoint requires the `tag.create` permission.
+// Create a new tag by providing a name and optional color.
 //
 // POST /tags
 func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5881,6 +5689,8 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/tags"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateTagOperation,
@@ -5904,7 +5714,7 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6045,7 +5855,7 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateTagOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a tag",
 			OperationID:      "createTag",
 			Body:             request,
 			RawBody:          rawBody,
@@ -6091,7 +5901,7 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 
 // handleCreateUserAdminRequest handles createUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
+// Create a new user.
 //
 // POST /admin/users
 func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6102,6 +5912,8 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/admin/users"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateUserAdminOperation,
@@ -6125,7 +5937,7 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6266,7 +6078,7 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CreateUserAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Create a user",
 			OperationID:      "createUserAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -6310,9 +6122,232 @@ func (s *Server) handleCreateUserAdminRequest(args [0]string, argsEscaped bool, 
 	}
 }
 
+// handleCreateWorkflowRequest handles createWorkflow operation.
+//
+// Create a new workflow, the workflow can also be created with empty filters and actions.
+//
+// POST /workflows
+func (s *Server) handleCreateWorkflowRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("createWorkflow"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/workflows"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), CreateWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateWorkflowOperation,
+			ID:   "createWorkflow",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, CreateWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, CreateWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, CreateWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateWorkflowRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *WorkflowResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateWorkflowOperation,
+			OperationSummary: "Create a workflow",
+			OperationID:      "createWorkflow",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *WorkflowCreateDto
+			Params   = struct{}
+			Response = *WorkflowResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateWorkflow(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateWorkflow(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateWorkflowResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteActivityRequest handles deleteActivity operation.
 //
-// This endpoint requires the `activity.delete` permission.
+// Removes a like or comment from a given album or asset in an album.
 //
 // DELETE /activities/{id}
 func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6323,6 +6358,8 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/activities/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteActivityOperation,
@@ -6346,7 +6383,7 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6482,7 +6519,7 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteActivityOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete an activity",
 			OperationID:      "deleteActivity",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -6533,7 +6570,8 @@ func (s *Server) handleDeleteActivityRequest(args [1]string, argsEscaped bool, w
 
 // handleDeleteAlbumRequest handles deleteAlbum operation.
 //
-// This endpoint requires the `album.delete` permission.
+// Delete a specific album by its ID. Note the album is initially trashed and then immediately
+// scheduled for deletion, but relies on a background job to complete the process.
 //
 // DELETE /albums/{id}
 func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6544,6 +6582,8 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/albums/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteAlbumOperation,
@@ -6567,7 +6607,7 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6703,7 +6743,7 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteAlbumOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete an album",
 			OperationID:      "deleteAlbum",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -6754,7 +6794,7 @@ func (s *Server) handleDeleteAlbumRequest(args [1]string, argsEscaped bool, w ht
 
 // handleDeleteAllSessionsRequest handles deleteAllSessions operation.
 //
-// This endpoint requires the `session.delete` permission.
+// Delete all sessions for the user. This will not delete the current session.
 //
 // DELETE /sessions
 func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6765,6 +6805,8 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/sessions"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteAllSessionsOperation,
@@ -6788,7 +6830,7 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -6914,7 +6956,7 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteAllSessionsOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete all sessions",
 			OperationID:      "deleteAllSessions",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -6960,7 +7002,7 @@ func (s *Server) handleDeleteAllSessionsRequest(args [0]string, argsEscaped bool
 
 // handleDeleteApiKeyRequest handles deleteApiKey operation.
 //
-// This endpoint requires the `apiKey.delete` permission.
+// Deletes an API key identified by its ID. The current user must own this API key.
 //
 // DELETE /api-keys/{id}
 func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6971,6 +7013,8 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/api-keys/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteApiKeyOperation,
@@ -6994,7 +7038,7 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7130,7 +7174,7 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteApiKeyOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete an API key",
 			OperationID:      "deleteApiKey",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -7181,7 +7225,7 @@ func (s *Server) handleDeleteApiKeyRequest(args [1]string, argsEscaped bool, w h
 
 // handleDeleteAssetMetadataRequest handles deleteAssetMetadata operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Delete a specific metadata key-value pair associated with the specified asset.
 //
 // DELETE /assets/{id}/metadata/{key}
 func (s *Server) handleDeleteAssetMetadataRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7192,6 +7236,8 @@ func (s *Server) handleDeleteAssetMetadataRequest(args [2]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/assets/{id}/metadata/{key}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteAssetMetadataOperation,
@@ -7215,7 +7261,7 @@ func (s *Server) handleDeleteAssetMetadataRequest(args [2]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7351,7 +7397,7 @@ func (s *Server) handleDeleteAssetMetadataRequest(args [2]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteAssetMetadataOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete asset metadata by key",
 			OperationID:      "deleteAssetMetadata",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -7406,7 +7452,7 @@ func (s *Server) handleDeleteAssetMetadataRequest(args [2]string, argsEscaped bo
 
 // handleDeleteAssetsRequest handles deleteAssets operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Deletes multiple assets at the same time.
 //
 // DELETE /assets
 func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7417,6 +7463,8 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteAssetsOperation,
@@ -7440,7 +7488,7 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7581,7 +7629,7 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete assets",
 			OperationID:      "deleteAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -7625,9 +7673,455 @@ func (s *Server) handleDeleteAssetsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleDeleteBulkAssetMetadataRequest handles deleteBulkAssetMetadata operation.
+//
+// Delete metadata key-value pairs for multiple assets.
+//
+// DELETE /assets/metadata
+func (s *Server) handleDeleteBulkAssetMetadataRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteBulkAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/assets/metadata"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteBulkAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteBulkAssetMetadataOperation,
+			ID:   "deleteBulkAssetMetadata",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteBulkAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteBulkAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteBulkAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteBulkAssetMetadataRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *DeleteBulkAssetMetadataNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteBulkAssetMetadataOperation,
+			OperationSummary: "Delete asset metadata",
+			OperationID:      "deleteBulkAssetMetadata",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *AssetMetadataBulkDeleteDto
+			Params   = struct{}
+			Response = *DeleteBulkAssetMetadataNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteBulkAssetMetadata(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteBulkAssetMetadata(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteBulkAssetMetadataResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleDeleteDatabaseBackupRequest handles deleteDatabaseBackup operation.
+//
+// Delete a backup by its filename.
+//
+// DELETE /admin/database-backups
+func (s *Server) handleDeleteDatabaseBackupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteDatabaseBackup"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/admin/database-backups"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteDatabaseBackupOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteDatabaseBackupOperation,
+			ID:   "deleteDatabaseBackup",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteDatabaseBackupRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *DeleteDatabaseBackupOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteDatabaseBackupOperation,
+			OperationSummary: "Delete database backup",
+			OperationID:      "deleteDatabaseBackup",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *DatabaseBackupDeleteDto
+			Params   = struct{}
+			Response = *DeleteDatabaseBackupOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteDatabaseBackup(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteDatabaseBackup(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteDatabaseBackupResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteDuplicateRequest handles deleteDuplicate operation.
 //
-// This endpoint requires the `duplicate.delete` permission.
+// Dismiss a duplicate group by its ID, unlinking all assets in the group without deleting them.
 //
 // DELETE /duplicates/{id}
 func (s *Server) handleDeleteDuplicateRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7638,6 +8132,8 @@ func (s *Server) handleDeleteDuplicateRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/duplicates/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteDuplicateOperation,
@@ -7661,7 +8157,7 @@ func (s *Server) handleDeleteDuplicateRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -7797,7 +8293,7 @@ func (s *Server) handleDeleteDuplicateRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteDuplicateOperation,
-			OperationSummary: "",
+			OperationSummary: "Dismiss a duplicate group",
 			OperationID:      "deleteDuplicate",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -7848,7 +8344,7 @@ func (s *Server) handleDeleteDuplicateRequest(args [1]string, argsEscaped bool, 
 
 // handleDeleteDuplicatesRequest handles deleteDuplicates operation.
 //
-// This endpoint requires the `duplicate.delete` permission.
+// Delete multiple duplicate assets specified by their IDs.
 //
 // DELETE /duplicates
 func (s *Server) handleDeleteDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7859,6 +8355,8 @@ func (s *Server) handleDeleteDuplicatesRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/duplicates"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteDuplicatesOperation,
@@ -7882,7 +8380,7 @@ func (s *Server) handleDeleteDuplicatesRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8023,7 +8521,7 @@ func (s *Server) handleDeleteDuplicatesRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteDuplicatesOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete duplicates",
 			OperationID:      "deleteDuplicates",
 			Body:             request,
 			RawBody:          rawBody,
@@ -8069,7 +8567,7 @@ func (s *Server) handleDeleteDuplicatesRequest(args [0]string, argsEscaped bool,
 
 // handleDeleteFaceRequest handles deleteFace operation.
 //
-// This endpoint requires the `face.delete` permission.
+// Delete a face identified by the id. Optionally can be force deleted.
 //
 // DELETE /faces/{id}
 func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8080,6 +8578,8 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/faces/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteFaceOperation,
@@ -8103,7 +8603,7 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8254,7 +8754,7 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteFaceOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a face",
 			OperationID:      "deleteFace",
 			Body:             request,
 			RawBody:          rawBody,
@@ -8303,9 +8803,232 @@ func (s *Server) handleDeleteFaceRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleDeleteIntegrityReportRequest handles deleteIntegrityReport operation.
+//
+// Delete a given report item and perform corresponding deletion (e.g. trash asset, delete file).
+//
+// DELETE /admin/integrity/report/{id}
+func (s *Server) handleDeleteIntegrityReportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteIntegrityReport"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/admin/integrity/report/{id}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteIntegrityReportOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteIntegrityReportOperation,
+			ID:   "deleteIntegrityReport",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteIntegrityReportOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteIntegrityReportOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteIntegrityReportOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeDeleteIntegrityReportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *DeleteIntegrityReportOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteIntegrityReportOperation,
+			OperationSummary: "Delete integrity report item",
+			OperationID:      "deleteIntegrityReport",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeleteIntegrityReportParams
+			Response = *DeleteIntegrityReportOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteIntegrityReportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteIntegrityReport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteIntegrityReport(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteIntegrityReportResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteLibraryRequest handles deleteLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.delete` permission.
+// Delete an external library by its ID.
 //
 // DELETE /libraries/{id}
 func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8316,6 +9039,8 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/libraries/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteLibraryOperation,
@@ -8339,7 +9064,7 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8475,7 +9200,7 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteLibraryOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a library",
 			OperationID:      "deleteLibrary",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -8526,7 +9251,7 @@ func (s *Server) handleDeleteLibraryRequest(args [1]string, argsEscaped bool, w 
 
 // handleDeleteMemoryRequest handles deleteMemory operation.
 //
-// This endpoint requires the `memory.delete` permission.
+// Delete a specific memory by its ID.
 //
 // DELETE /memories/{id}
 func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8537,6 +9262,8 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/memories/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteMemoryOperation,
@@ -8560,7 +9287,7 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8696,7 +9423,7 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteMemoryOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a memory",
 			OperationID:      "deleteMemory",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -8747,7 +9474,7 @@ func (s *Server) handleDeleteMemoryRequest(args [1]string, argsEscaped bool, w h
 
 // handleDeleteNotificationRequest handles deleteNotification operation.
 //
-// This endpoint requires the `notification.delete` permission.
+// Delete a specific notification.
 //
 // DELETE /notifications/{id}
 func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8758,6 +9485,8 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/notifications/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteNotificationOperation,
@@ -8781,7 +9510,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -8917,7 +9646,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteNotificationOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a notification",
 			OperationID:      "deleteNotification",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -8968,7 +9697,7 @@ func (s *Server) handleDeleteNotificationRequest(args [1]string, argsEscaped boo
 
 // handleDeleteNotificationsRequest handles deleteNotifications operation.
 //
-// This endpoint requires the `notification.delete` permission.
+// Delete a list of notifications at once.
 //
 // DELETE /notifications
 func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8979,6 +9708,8 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/notifications"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteNotificationsOperation,
@@ -9002,7 +9733,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9143,7 +9874,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteNotificationsOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete notifications",
 			OperationID:      "deleteNotifications",
 			Body:             request,
 			RawBody:          rawBody,
@@ -9189,7 +9920,7 @@ func (s *Server) handleDeleteNotificationsRequest(args [0]string, argsEscaped bo
 
 // handleDeletePeopleRequest handles deletePeople operation.
 //
-// This endpoint requires the `person.delete` permission.
+// Bulk delete a list of people at once.
 //
 // DELETE /people
 func (s *Server) handleDeletePeopleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9200,6 +9931,8 @@ func (s *Server) handleDeletePeopleRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/people"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeletePeopleOperation,
@@ -9223,7 +9956,7 @@ func (s *Server) handleDeletePeopleRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9364,7 +10097,7 @@ func (s *Server) handleDeletePeopleRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeletePeopleOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete people",
 			OperationID:      "deletePeople",
 			Body:             request,
 			RawBody:          rawBody,
@@ -9410,7 +10143,7 @@ func (s *Server) handleDeletePeopleRequest(args [0]string, argsEscaped bool, w h
 
 // handleDeletePersonRequest handles deletePerson operation.
 //
-// This endpoint requires the `person.delete` permission.
+// Delete an individual person.
 //
 // DELETE /people/{id}
 func (s *Server) handleDeletePersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9421,6 +10154,8 @@ func (s *Server) handleDeletePersonRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/people/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeletePersonOperation,
@@ -9444,7 +10179,7 @@ func (s *Server) handleDeletePersonRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9580,7 +10315,7 @@ func (s *Server) handleDeletePersonRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeletePersonOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete person",
 			OperationID:      "deletePerson",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -9631,7 +10366,7 @@ func (s *Server) handleDeletePersonRequest(args [1]string, argsEscaped bool, w h
 
 // handleDeleteProfileImageRequest handles deleteProfileImage operation.
 //
-// This endpoint requires the `userProfileImage.delete` permission.
+// Delete the profile image of the current user.
 //
 // DELETE /users/profile-image
 func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9642,6 +10377,8 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/users/profile-image"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteProfileImageOperation,
@@ -9665,7 +10402,7 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9791,7 +10528,7 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteProfileImageOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete user profile image",
 			OperationID:      "deleteProfileImage",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -9837,7 +10574,7 @@ func (s *Server) handleDeleteProfileImageRequest(args [0]string, argsEscaped boo
 
 // handleDeleteServerLicenseRequest handles deleteServerLicense operation.
 //
-// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+// Delete the currently set server product key.
 //
 // DELETE /server/license
 func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9848,6 +10585,8 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/server/license"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteServerLicenseOperation,
@@ -9871,7 +10610,7 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -9997,7 +10736,7 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteServerLicenseOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete server product key",
 			OperationID:      "deleteServerLicense",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -10043,7 +10782,7 @@ func (s *Server) handleDeleteServerLicenseRequest(args [0]string, argsEscaped bo
 
 // handleDeleteSessionRequest handles deleteSession operation.
 //
-// This endpoint requires the `session.delete` permission.
+// Delete a specific session by id.
 //
 // DELETE /sessions/{id}
 func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10054,6 +10793,8 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/sessions/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteSessionOperation,
@@ -10077,7 +10818,7 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10213,7 +10954,7 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteSessionOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a session",
 			OperationID:      "deleteSession",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -10264,7 +11005,7 @@ func (s *Server) handleDeleteSessionRequest(args [1]string, argsEscaped bool, w 
 
 // handleDeleteStackRequest handles deleteStack operation.
 //
-// This endpoint requires the `stack.delete` permission.
+// Delete a specific stack by its ID.
 //
 // DELETE /stacks/{id}
 func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10275,6 +11016,8 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/stacks/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteStackOperation,
@@ -10298,7 +11041,7 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10434,7 +11177,7 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteStackOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a stack",
 			OperationID:      "deleteStack",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -10485,7 +11228,7 @@ func (s *Server) handleDeleteStackRequest(args [1]string, argsEscaped bool, w ht
 
 // handleDeleteStacksRequest handles deleteStacks operation.
 //
-// This endpoint requires the `stack.delete` permission.
+// Delete multiple stacks by providing a list of stack IDs.
 //
 // DELETE /stacks
 func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10496,6 +11239,8 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/stacks"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteStacksOperation,
@@ -10519,7 +11264,7 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10660,7 +11405,7 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteStacksOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete stacks",
 			OperationID:      "deleteStacks",
 			Body:             request,
 			RawBody:          rawBody,
@@ -10706,7 +11451,7 @@ func (s *Server) handleDeleteStacksRequest(args [0]string, argsEscaped bool, w h
 
 // handleDeleteSyncAckRequest handles deleteSyncAck operation.
 //
-// This endpoint requires the `syncCheckpoint.delete` permission.
+// Delete specific synchronization acknowledgments.
 //
 // DELETE /sync/ack
 func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10717,6 +11462,8 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/sync/ack"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteSyncAckOperation,
@@ -10740,7 +11487,7 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -10881,7 +11628,7 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteSyncAckOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete acknowledgements",
 			OperationID:      "deleteSyncAck",
 			Body:             request,
 			RawBody:          rawBody,
@@ -10927,7 +11674,7 @@ func (s *Server) handleDeleteSyncAckRequest(args [0]string, argsEscaped bool, w 
 
 // handleDeleteTagRequest handles deleteTag operation.
 //
-// This endpoint requires the `tag.delete` permission.
+// Delete a specific tag by its ID.
 //
 // DELETE /tags/{id}
 func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10938,6 +11685,8 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/tags/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteTagOperation,
@@ -10961,7 +11710,7 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11097,7 +11846,7 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteTagOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a tag",
 			OperationID:      "deleteTag",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -11148,7 +11897,7 @@ func (s *Server) handleDeleteTagRequest(args [1]string, argsEscaped bool, w http
 
 // handleDeleteUserAdminRequest handles deleteUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+// Delete a user.
 //
 // DELETE /admin/users/{id}
 func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11159,6 +11908,8 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteUserAdminOperation,
@@ -11182,7 +11933,7 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11333,7 +12084,7 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteUserAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a user",
 			OperationID:      "deleteUserAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -11384,7 +12135,7 @@ func (s *Server) handleDeleteUserAdminRequest(args [1]string, argsEscaped bool, 
 
 // handleDeleteUserLicenseRequest handles deleteUserLicense operation.
 //
-// This endpoint requires the `userLicense.delete` permission.
+// Delete the registered product key for the current user.
 //
 // DELETE /users/me/license
 func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11395,6 +12146,8 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/users/me/license"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteUserLicenseOperation,
@@ -11418,7 +12171,7 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11544,7 +12297,7 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteUserLicenseOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete user product key",
 			OperationID:      "deleteUserLicense",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -11590,7 +12343,7 @@ func (s *Server) handleDeleteUserLicenseRequest(args [0]string, argsEscaped bool
 
 // handleDeleteUserOnboardingRequest handles deleteUserOnboarding operation.
 //
-// This endpoint requires the `userOnboarding.delete` permission.
+// Delete the onboarding status of the current user.
 //
 // DELETE /users/me/onboarding
 func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11601,6 +12354,8 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/users/me/onboarding"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteUserOnboardingOperation,
@@ -11624,7 +12379,7 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11750,7 +12505,7 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DeleteUserOnboardingOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete user onboarding",
 			OperationID:      "deleteUserOnboarding",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -11794,9 +12549,441 @@ func (s *Server) handleDeleteUserOnboardingRequest(args [0]string, argsEscaped b
 	}
 }
 
+// handleDeleteWorkflowRequest handles deleteWorkflow operation.
+//
+// Delete a workflow by its ID.
+//
+// DELETE /workflows/{id}
+func (s *Server) handleDeleteWorkflowRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteWorkflow"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/workflows/{id}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DeleteWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteWorkflowOperation,
+			ID:   "deleteWorkflow",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DeleteWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DeleteWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DeleteWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeDeleteWorkflowParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *DeleteWorkflowNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteWorkflowOperation,
+			OperationSummary: "Delete a workflow",
+			OperationID:      "deleteWorkflow",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeleteWorkflowParams
+			Response = *DeleteWorkflowNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteWorkflowParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.DeleteWorkflow(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.DeleteWorkflow(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteWorkflowResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleDetectPriorInstallRequest handles detectPriorInstall operation.
+//
+// Collect integrity checks and other heuristics about local data.
+//
+// GET /admin/maintenance/detect-install
+func (s *Server) handleDetectPriorInstallRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("detectPriorInstall"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/maintenance/detect-install"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DetectPriorInstallOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DetectPriorInstallOperation,
+			ID:   "detectPriorInstall",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DetectPriorInstallOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DetectPriorInstallOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DetectPriorInstallOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *MaintenanceDetectInstallResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DetectPriorInstallOperation,
+			OperationSummary: "Detect existing install",
+			OperationID:      "detectPriorInstall",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *MaintenanceDetectInstallResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.DetectPriorInstall(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.DetectPriorInstall(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDetectPriorInstallResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDownloadArchiveRequest handles downloadArchive operation.
 //
-// This endpoint requires the `asset.download` permission.
+// Download a ZIP archive containing the specified assets. The assets must have been previously
+// requested via the "getDownloadInfo" endpoint.
 //
 // POST /download/archive
 func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11807,6 +12994,8 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/download/archive"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DownloadArchiveOperation,
@@ -11830,7 +13019,7 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -11981,7 +13170,7 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DownloadArchiveOperation,
-			OperationSummary: "",
+			OperationSummary: "Download asset archive",
 			OperationID:      "downloadArchive",
 			Body:             request,
 			RawBody:          rawBody,
@@ -11999,7 +13188,7 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 		}
 
 		type (
-			Request  = *AssetIdsDto
+			Request  = *DownloadArchiveDto
 			Params   = DownloadArchiveParams
 			Response = DownloadArchiveOK
 		)
@@ -12036,7 +13225,7 @@ func (s *Server) handleDownloadArchiveRequest(args [0]string, argsEscaped bool, 
 
 // handleDownloadAssetRequest handles downloadAsset operation.
 //
-// This endpoint requires the `asset.download` permission.
+// Downloads the original file of the specified asset.
 //
 // GET /assets/{id}/original
 func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12047,6 +13236,8 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}/original"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), DownloadAssetOperation,
@@ -12070,7 +13261,7 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12206,11 +13397,15 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    DownloadAssetOperation,
-			OperationSummary: "",
+			OperationSummary: "Download original asset",
 			OperationID:      "downloadAsset",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
+				{
+					Name: "edited",
+					In:   "query",
+				}: params.Edited,
 				{
 					Name: "id",
 					In:   "path",
@@ -12263,9 +13458,470 @@ func (s *Server) handleDownloadAssetRequest(args [1]string, argsEscaped bool, w 
 	}
 }
 
+// handleDownloadDatabaseBackupRequest handles downloadDatabaseBackup operation.
+//
+// Downloads the database backup file.
+//
+// GET /admin/database-backups/{filename}
+func (s *Server) handleDownloadDatabaseBackupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("downloadDatabaseBackup"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/database-backups/{filename}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), DownloadDatabaseBackupOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DownloadDatabaseBackupOperation,
+			ID:   "downloadDatabaseBackup",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, DownloadDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, DownloadDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, DownloadDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeDownloadDatabaseBackupParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response DownloadDatabaseBackupOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DownloadDatabaseBackupOperation,
+			OperationSummary: "Download database backup",
+			OperationID:      "downloadDatabaseBackup",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "filename",
+					In:   "path",
+				}: params.Filename,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DownloadDatabaseBackupParams
+			Response = DownloadDatabaseBackupOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDownloadDatabaseBackupParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.DownloadDatabaseBackup(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.DownloadDatabaseBackup(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDownloadDatabaseBackupResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleEmptyQueueRequest handles emptyQueue operation.
+//
+// Removes all jobs from the specified queue.
+//
+// DELETE /queues/{name}/jobs
+func (s *Server) handleEmptyQueueRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("emptyQueue"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/queues/{name}/jobs"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), EmptyQueueOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: EmptyQueueOperation,
+			ID:   "emptyQueue",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, EmptyQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, EmptyQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, EmptyQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeEmptyQueueParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeEmptyQueueRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *EmptyQueueNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    EmptyQueueOperation,
+			OperationSummary: "Empty a queue",
+			OperationID:      "emptyQueue",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "name",
+					In:   "path",
+				}: params.Name,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *QueueDeleteDto
+			Params   = EmptyQueueParams
+			Response = *EmptyQueueNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackEmptyQueueParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.EmptyQueue(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.EmptyQueue(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeEmptyQueueResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleEmptyTrashRequest handles emptyTrash operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Permanently delete all items in the trash.
 //
 // POST /trash/empty
 func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12276,6 +13932,8 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/trash/empty"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), EmptyTrashOperation,
@@ -12299,7 +13957,7 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12425,7 +14083,7 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    EmptyTrashOperation,
-			OperationSummary: "",
+			OperationSummary: "Empty trash",
 			OperationID:      "emptyTrash",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -12469,7 +14127,244 @@ func (s *Server) handleEmptyTrashRequest(args [0]string, argsEscaped bool, w htt
 	}
 }
 
+// handleEndSessionRequest handles endSession operation.
+//
+// Releases server resources for the streaming session.
+//
+// DELETE /assets/{id}/video/stream/{sessionId}
+func (s *Server) handleEndSessionRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("endSession"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/assets/{id}/video/stream/{sessionId}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), EndSessionOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: EndSessionOperation,
+			ID:   "endSession",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, EndSessionOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, EndSessionOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, EndSessionOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeEndSessionParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *EndSessionNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    EndSessionOperation,
+			OperationSummary: "End HLS streaming session",
+			OperationID:      "endSession",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "sessionId",
+					In:   "path",
+				}: params.SessionId,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = EndSessionParams
+			Response = *EndSessionNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackEndSessionParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.EndSession(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.EndSession(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeEndSessionResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleFinishOAuthRequest handles finishOAuth operation.
+//
+// Complete the OAuth authorization process by exchanging the authorization code for a session token.
 //
 // POST /oauth/callback
 func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12480,6 +14375,8 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/oauth/callback"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), FinishOAuthOperation,
@@ -12503,7 +14400,7 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12564,7 +14461,7 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FinishOAuthOperation,
-			OperationSummary: "",
+			OperationSummary: "Finish OAuth",
 			OperationID:      "finishOAuth",
 			Body:             request,
 			RawBody:          rawBody,
@@ -12610,7 +14507,7 @@ func (s *Server) handleFinishOAuthRequest(args [0]string, argsEscaped bool, w ht
 
 // handleGetAboutInfoRequest handles getAboutInfo operation.
 //
-// This endpoint requires the `server.about` permission.
+// Retrieve a list of information about the server.
 //
 // GET /server/about
 func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12621,6 +14518,8 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/about"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAboutInfoOperation,
@@ -12644,7 +14543,7 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12770,7 +14669,7 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAboutInfoOperation,
-			OperationSummary: "",
+			OperationSummary: "Get server information",
 			OperationID:      "getAboutInfo",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -12816,7 +14715,8 @@ func (s *Server) handleGetAboutInfoRequest(args [0]string, argsEscaped bool, w h
 
 // handleGetActivitiesRequest handles getActivities operation.
 //
-// This endpoint requires the `activity.read` permission.
+// Returns a list of activities for the selected asset or album. The activities are returned in sorted
+// order, with the oldest activities appearing first.
 //
 // GET /activities
 func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -12827,6 +14727,8 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/activities"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetActivitiesOperation,
@@ -12850,7 +14752,7 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -12986,7 +14888,7 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetActivitiesOperation,
-			OperationSummary: "",
+			OperationSummary: "List all activities",
 			OperationID:      "getActivities",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -13053,7 +14955,7 @@ func (s *Server) handleGetActivitiesRequest(args [0]string, argsEscaped bool, w 
 
 // handleGetActivityStatisticsRequest handles getActivityStatistics operation.
 //
-// This endpoint requires the `activity.statistics` permission.
+// Returns the number of likes and comments for a given album or asset in an album.
 //
 // GET /activities/statistics
 func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13064,6 +14966,8 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/activities/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetActivityStatisticsOperation,
@@ -13087,7 +14991,7 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13223,7 +15127,7 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetActivityStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve activity statistics",
 			OperationID:      "getActivityStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -13278,7 +15182,7 @@ func (s *Server) handleGetActivityStatisticsRequest(args [0]string, argsEscaped 
 
 // handleGetAdminOnboardingRequest handles getAdminOnboarding operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+// Retrieve the current admin onboarding status.
 //
 // GET /system-metadata/admin-onboarding
 func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13289,6 +15193,8 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/system-metadata/admin-onboarding"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAdminOnboardingOperation,
@@ -13312,7 +15218,7 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13438,7 +15344,7 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAdminOnboardingOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve admin onboarding",
 			OperationID:      "getAdminOnboarding",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -13484,7 +15390,7 @@ func (s *Server) handleGetAdminOnboardingRequest(args [0]string, argsEscaped boo
 
 // handleGetAlbumInfoRequest handles getAlbumInfo operation.
 //
-// This endpoint requires the `album.read` permission.
+// Retrieve information about a specific album by its ID.
 //
 // GET /albums/{id}
 func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13495,6 +15401,8 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/albums/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAlbumInfoOperation,
@@ -13518,7 +15426,7 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13654,7 +15562,7 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAlbumInfoOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve an album",
 			OperationID:      "getAlbumInfo",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -13671,10 +15579,6 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 					Name: "slug",
 					In:   "query",
 				}: params.Slug,
-				{
-					Name: "withoutAssets",
-					In:   "query",
-				}: params.WithoutAssets,
 			},
 			Raw: r,
 		}
@@ -13715,9 +15619,240 @@ func (s *Server) handleGetAlbumInfoRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleGetAlbumMapMarkersRequest handles getAlbumMapMarkers operation.
+//
+// Retrieve map marker information for a specific album by its ID.
+//
+// GET /albums/{id}/map-markers
+func (s *Server) handleGetAlbumMapMarkersRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAlbumMapMarkers"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/albums/{id}/map-markers"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAlbumMapMarkersOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetAlbumMapMarkersOperation,
+			ID:   "getAlbumMapMarkers",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetAlbumMapMarkersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetAlbumMapMarkersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetAlbumMapMarkersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetAlbumMapMarkersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []MapMarkerResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetAlbumMapMarkersOperation,
+			OperationSummary: "Retrieve album map markers",
+			OperationID:      "getAlbumMapMarkers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetAlbumMapMarkersParams
+			Response = []MapMarkerResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetAlbumMapMarkersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetAlbumMapMarkers(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetAlbumMapMarkers(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetAlbumMapMarkersResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetAlbumStatisticsRequest handles getAlbumStatistics operation.
 //
-// This endpoint requires the `album.statistics` permission.
+// Returns statistics about the albums available to the authenticated user.
 //
 // GET /albums/statistics
 func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13728,6 +15863,8 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/albums/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAlbumStatisticsOperation,
@@ -13751,7 +15888,7 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -13877,7 +16014,7 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAlbumStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve album statistics",
 			OperationID:      "getAlbumStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -13923,7 +16060,7 @@ func (s *Server) handleGetAlbumStatisticsRequest(args [0]string, argsEscaped boo
 
 // handleGetAllAlbumsRequest handles getAllAlbums operation.
 //
-// This endpoint requires the `album.read` permission.
+// Retrieve a list of albums available to the authenticated user.
 //
 // GET /albums
 func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13934,6 +16071,8 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/albums"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllAlbumsOperation,
@@ -13957,7 +16096,7 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14093,7 +16232,7 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAllAlbumsOperation,
-			OperationSummary: "",
+			OperationSummary: "List all albums",
 			OperationID:      "getAllAlbums",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -14103,9 +16242,21 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 					In:   "query",
 				}: params.AssetId,
 				{
-					Name: "shared",
+					Name: "id",
 					In:   "query",
-				}: params.Shared,
+				}: params.ID,
+				{
+					Name: "isOwned",
+					In:   "query",
+				}: params.IsOwned,
+				{
+					Name: "isShared",
+					In:   "query",
+				}: params.IsShared,
+				{
+					Name: "name",
+					In:   "query",
+				}: params.Name,
 			},
 			Raw: r,
 		}
@@ -14146,215 +16297,9 @@ func (s *Server) handleGetAllAlbumsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
-// handleGetAllJobsStatusRequest handles getAllJobsStatus operation.
-//
-// This endpoint is an admin-only route, and requires the `job.read` permission.
-//
-// GET /jobs
-func (s *Server) handleGetAllJobsStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAllJobsStatus"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/jobs"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllJobsStatusOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code < 100 || code >= 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: GetAllJobsStatusOperation,
-			ID:   "getAllJobsStatus",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securityBearer(ctx, GetAllJobsStatusOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Bearer",
-					Err:              err,
-				}
-				defer recordError("Security:Bearer", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityCookie(ctx, GetAllJobsStatusOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Cookie",
-					Err:              err,
-				}
-				defer recordError("Security:Cookie", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 1
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityAPIKey(ctx, GetAllJobsStatusOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "APIKey",
-					Err:              err,
-				}
-				defer recordError("Security:APIKey", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 2
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			defer recordError("Security", err)
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-	}
-
-	var rawBody []byte
-
-	var response *AllJobStatusResponseDto
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    GetAllJobsStatusOperation,
-			OperationSummary: "",
-			OperationID:      "getAllJobsStatus",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = struct{}
-			Response = *AllJobStatusResponseDto
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetAllJobsStatus(ctx)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.GetAllJobsStatus(ctx)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeGetAllJobsStatusResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleGetAllLibrariesRequest handles getAllLibraries operation.
 //
-// This endpoint is an admin-only route, and requires the `library.read` permission.
+// Retrieve a list of external libraries.
 //
 // GET /libraries
 func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14365,6 +16310,8 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/libraries"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllLibrariesOperation,
@@ -14388,7 +16335,7 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14514,7 +16461,7 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAllLibrariesOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve libraries",
 			OperationID:      "getAllLibraries",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -14560,7 +16507,7 @@ func (s *Server) handleGetAllLibrariesRequest(args [0]string, argsEscaped bool, 
 
 // handleGetAllPeopleRequest handles getAllPeople operation.
 //
-// This endpoint requires the `person.read` permission.
+// Retrieve a list of all people.
 //
 // GET /people
 func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14571,6 +16518,8 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/people"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllPeopleOperation,
@@ -14594,7 +16543,7 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14730,7 +16679,7 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAllPeopleOperation,
-			OperationSummary: "",
+			OperationSummary: "Get all people",
 			OperationID:      "getAllPeople",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -14797,7 +16746,7 @@ func (s *Server) handleGetAllPeopleRequest(args [0]string, argsEscaped bool, w h
 
 // handleGetAllSharedLinksRequest handles getAllSharedLinks operation.
 //
-// This endpoint requires the `sharedLink.read` permission.
+// Retrieve a list of all shared links.
 //
 // GET /shared-links
 func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14808,6 +16757,8 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/shared-links"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllSharedLinksOperation,
@@ -14831,7 +16782,7 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -14967,7 +16918,7 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAllSharedLinksOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve all shared links",
 			OperationID:      "getAllSharedLinks",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -14976,6 +16927,10 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 					Name: "albumId",
 					In:   "query",
 				}: params.AlbumId,
+				{
+					Name: "id",
+					In:   "query",
+				}: params.ID,
 			},
 			Raw: r,
 		}
@@ -15018,7 +16973,7 @@ func (s *Server) handleGetAllSharedLinksRequest(args [0]string, argsEscaped bool
 
 // handleGetAllTagsRequest handles getAllTags operation.
 //
-// This endpoint requires the `tag.read` permission.
+// Retrieve a list of all tags.
 //
 // GET /tags
 func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15029,6 +16984,8 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/tags"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllTagsOperation,
@@ -15052,7 +17009,7 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -15178,7 +17135,7 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAllTagsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve tags",
 			OperationID:      "getAllTags",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -15222,230 +17179,9 @@ func (s *Server) handleGetAllTagsRequest(args [0]string, argsEscaped bool, w htt
 	}
 }
 
-// handleGetAllUserAssetsByDeviceIdRequest handles getAllUserAssetsByDeviceId operation.
-//
-// Get all asset of a device that are in the database, ID only.
-//
-// GET /assets/device/{deviceId}
-func (s *Server) handleGetAllUserAssetsByDeviceIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAllUserAssetsByDeviceId"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/device/{deviceId}"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAllUserAssetsByDeviceIdOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code < 100 || code >= 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: GetAllUserAssetsByDeviceIdOperation,
-			ID:   "getAllUserAssetsByDeviceId",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securityBearer(ctx, GetAllUserAssetsByDeviceIdOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Bearer",
-					Err:              err,
-				}
-				defer recordError("Security:Bearer", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityCookie(ctx, GetAllUserAssetsByDeviceIdOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Cookie",
-					Err:              err,
-				}
-				defer recordError("Security:Cookie", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 1
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityAPIKey(ctx, GetAllUserAssetsByDeviceIdOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "APIKey",
-					Err:              err,
-				}
-				defer recordError("Security:APIKey", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 2
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			defer recordError("Security", err)
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-	}
-	params, err := decodeGetAllUserAssetsByDeviceIdParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-
-	var response []string
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    GetAllUserAssetsByDeviceIdOperation,
-			OperationSummary: "getAllUserAssetsByDeviceId",
-			OperationID:      "getAllUserAssetsByDeviceId",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "deviceId",
-					In:   "path",
-				}: params.DeviceId,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = GetAllUserAssetsByDeviceIdParams
-			Response = []string
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackGetAllUserAssetsByDeviceIdParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetAllUserAssetsByDeviceId(ctx, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.GetAllUserAssetsByDeviceId(ctx, params)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeGetAllUserAssetsByDeviceIdResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleGetApiKeyRequest handles getApiKey operation.
 //
-// This endpoint requires the `apiKey.read` permission.
+// Retrieve an API key by its ID. The current user must own this API key.
 //
 // GET /api-keys/{id}
 func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15456,6 +17192,8 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/api-keys/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetApiKeyOperation,
@@ -15479,7 +17217,7 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -15610,12 +17348,12 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 
 	var rawBody []byte
 
-	var response *APIKeyResponseDto
+	var response *ApiKeyResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetApiKeyOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve an API key",
 			OperationID:      "getApiKey",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -15631,7 +17369,7 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 		type (
 			Request  = struct{}
 			Params   = GetApiKeyParams
-			Response = *APIKeyResponseDto
+			Response = *ApiKeyResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -15666,7 +17404,7 @@ func (s *Server) handleGetApiKeyRequest(args [1]string, argsEscaped bool, w http
 
 // handleGetApiKeysRequest handles getApiKeys operation.
 //
-// This endpoint requires the `apiKey.read` permission.
+// Retrieve all API keys of the current user.
 //
 // GET /api-keys
 func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15677,6 +17415,8 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/api-keys"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetApiKeysOperation,
@@ -15700,7 +17440,7 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -15821,12 +17561,12 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 
 	var rawBody []byte
 
-	var response []APIKeyResponseDto
+	var response []ApiKeyResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetApiKeysOperation,
-			OperationSummary: "",
+			OperationSummary: "List all API keys",
 			OperationID:      "getApiKeys",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -15837,7 +17577,7 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = []APIKeyResponseDto
+			Response = []ApiKeyResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -15872,7 +17612,7 @@ func (s *Server) handleGetApiKeysRequest(args [0]string, argsEscaped bool, w htt
 
 // handleGetApkLinksRequest handles getApkLinks operation.
 //
-// This endpoint requires the `server.apkLinks` permission.
+// Retrieve links to the APKs for the current server version.
 //
 // GET /server/apk-links
 func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -15883,6 +17623,8 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/apk-links"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetApkLinksOperation,
@@ -15906,7 +17648,7 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -16032,7 +17774,7 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetApkLinksOperation,
-			OperationSummary: "",
+			OperationSummary: "Get APK links",
 			OperationID:      "getApkLinks",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16078,7 +17820,7 @@ func (s *Server) handleGetApkLinksRequest(args [0]string, argsEscaped bool, w ht
 
 // handleGetAssetDuplicatesRequest handles getAssetDuplicates operation.
 //
-// This endpoint requires the `duplicate.read` permission.
+// Retrieve a list of duplicate assets available to the authenticated user.
 //
 // GET /duplicates
 func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16089,6 +17831,8 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/duplicates"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetDuplicatesOperation,
@@ -16112,7 +17856,7 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -16238,7 +17982,7 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetDuplicatesOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve duplicates",
 			OperationID:      "getAssetDuplicates",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16284,7 +18028,7 @@ func (s *Server) handleGetAssetDuplicatesRequest(args [0]string, argsEscaped boo
 
 // handleGetAssetInfoRequest handles getAssetInfo operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve detailed information about a specific asset.
 //
 // GET /assets/{id}
 func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16295,6 +18039,8 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetInfoOperation,
@@ -16318,7 +18064,7 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -16454,7 +18200,7 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetInfoOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve an asset",
 			OperationID:      "getAssetInfo",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16513,7 +18259,7 @@ func (s *Server) handleGetAssetInfoRequest(args [1]string, argsEscaped bool, w h
 
 // handleGetAssetMetadataRequest handles getAssetMetadata operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve all metadata key-value pairs associated with the specified asset.
 //
 // GET /assets/{id}/metadata
 func (s *Server) handleGetAssetMetadataRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16524,6 +18270,8 @@ func (s *Server) handleGetAssetMetadataRequest(args [1]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}/metadata"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetMetadataOperation,
@@ -16547,7 +18295,7 @@ func (s *Server) handleGetAssetMetadataRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -16683,7 +18431,7 @@ func (s *Server) handleGetAssetMetadataRequest(args [1]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetMetadataOperation,
-			OperationSummary: "",
+			OperationSummary: "Get asset metadata",
 			OperationID:      "getAssetMetadata",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16734,7 +18482,7 @@ func (s *Server) handleGetAssetMetadataRequest(args [1]string, argsEscaped bool,
 
 // handleGetAssetMetadataByKeyRequest handles getAssetMetadataByKey operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve the value of a specific metadata key associated with the specified asset.
 //
 // GET /assets/{id}/metadata/{key}
 func (s *Server) handleGetAssetMetadataByKeyRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16745,6 +18493,8 @@ func (s *Server) handleGetAssetMetadataByKeyRequest(args [2]string, argsEscaped 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}/metadata/{key}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetMetadataByKeyOperation,
@@ -16768,7 +18518,7 @@ func (s *Server) handleGetAssetMetadataByKeyRequest(args [2]string, argsEscaped 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -16904,7 +18654,7 @@ func (s *Server) handleGetAssetMetadataByKeyRequest(args [2]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetMetadataByKeyOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve asset metadata by key",
 			OperationID:      "getAssetMetadataByKey",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -16959,7 +18709,7 @@ func (s *Server) handleGetAssetMetadataByKeyRequest(args [2]string, argsEscaped 
 
 // handleGetAssetOcrRequest handles getAssetOcr operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve all OCR (Optical Character Recognition) data associated with the specified asset.
 //
 // GET /assets/{id}/ocr
 func (s *Server) handleGetAssetOcrRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -16970,6 +18720,8 @@ func (s *Server) handleGetAssetOcrRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}/ocr"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetOcrOperation,
@@ -16993,7 +18745,7 @@ func (s *Server) handleGetAssetOcrRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -17129,7 +18881,7 @@ func (s *Server) handleGetAssetOcrRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetOcrOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve asset OCR data",
 			OperationID:      "getAssetOcr",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17180,7 +18932,7 @@ func (s *Server) handleGetAssetOcrRequest(args [1]string, argsEscaped bool, w ht
 
 // handleGetAssetStatisticsRequest handles getAssetStatistics operation.
 //
-// This endpoint requires the `asset.statistics` permission.
+// Retrieve various statistics about the assets owned by the authenticated user.
 //
 // GET /assets/statistics
 func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17191,6 +18943,8 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetStatisticsOperation,
@@ -17214,7 +18968,7 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -17350,7 +19104,7 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Get asset statistics",
 			OperationID:      "getAssetStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17409,7 +19163,8 @@ func (s *Server) handleGetAssetStatisticsRequest(args [0]string, argsEscaped boo
 
 // handleGetAssetsByCityRequest handles getAssetsByCity operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a list of assets with each asset belonging to a different city. This endpoint is used on
+// the places pages to show a single thumbnail for each city the user has assets in.
 //
 // GET /search/cities
 func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17420,6 +19175,8 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/search/cities"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetsByCityOperation,
@@ -17443,7 +19200,7 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -17569,7 +19326,7 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetsByCityOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve assets by city",
 			OperationID:      "getAssetsByCity",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17615,6 +19372,8 @@ func (s *Server) handleGetAssetsByCityRequest(args [0]string, argsEscaped bool, 
 
 // handleGetAssetsByOriginalPathRequest handles getAssetsByOriginalPath operation.
 //
+// Retrieve assets that are children of a specific folder.
+//
 // GET /view/folder
 func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -17624,6 +19383,8 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/view/folder"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAssetsByOriginalPathOperation,
@@ -17647,7 +19408,7 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -17783,7 +19544,7 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAssetsByOriginalPathOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve assets by original path",
 			OperationID:      "getAssetsByOriginalPath",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17834,6 +19595,9 @@ func (s *Server) handleGetAssetsByOriginalPathRequest(args [0]string, argsEscape
 
 // handleGetAuthStatusRequest handles getAuthStatus operation.
 //
+// Get information about the current session, including whether the user has a password, and if the
+// session can access locked assets.
+//
 // GET /auth/status
 func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -17843,6 +19607,8 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/auth/status"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetAuthStatusOperation,
@@ -17866,7 +19632,7 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -17992,7 +19758,7 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetAuthStatusOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve auth status",
 			OperationID:      "getAuthStatus",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -18038,7 +19804,7 @@ func (s *Server) handleGetAuthStatusRequest(args [0]string, argsEscaped bool, w 
 
 // handleGetConfigRequest handles getConfig operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+// Retrieve the current system configuration.
 //
 // GET /system-config
 func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18049,6 +19815,8 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/system-config"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetConfigOperation,
@@ -18072,7 +19840,7 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -18198,7 +19966,7 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetConfigOperation,
-			OperationSummary: "",
+			OperationSummary: "Get system configuration",
 			OperationID:      "getConfig",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -18244,7 +20012,7 @@ func (s *Server) handleGetConfigRequest(args [0]string, argsEscaped bool, w http
 
 // handleGetConfigDefaultsRequest handles getConfigDefaults operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+// Retrieve the default values for the system configuration.
 //
 // GET /system-config/defaults
 func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18255,6 +20023,8 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/system-config/defaults"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetConfigDefaultsOperation,
@@ -18278,7 +20048,7 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -18404,7 +20174,7 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetConfigDefaultsOperation,
-			OperationSummary: "",
+			OperationSummary: "Get system configuration defaults",
 			OperationID:      "getConfigDefaults",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -18448,228 +20218,10 @@ func (s *Server) handleGetConfigDefaultsRequest(args [0]string, argsEscaped bool
 	}
 }
 
-// handleGetDeltaSyncRequest handles getDeltaSync operation.
-//
-// POST /sync/delta-sync
-func (s *Server) handleGetDeltaSyncRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getDeltaSync"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sync/delta-sync"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetDeltaSyncOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code < 100 || code >= 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: GetDeltaSyncOperation,
-			ID:   "getDeltaSync",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securityBearer(ctx, GetDeltaSyncOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Bearer",
-					Err:              err,
-				}
-				defer recordError("Security:Bearer", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityCookie(ctx, GetDeltaSyncOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Cookie",
-					Err:              err,
-				}
-				defer recordError("Security:Cookie", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 1
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityAPIKey(ctx, GetDeltaSyncOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "APIKey",
-					Err:              err,
-				}
-				defer recordError("Security:APIKey", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 2
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			defer recordError("Security", err)
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeGetDeltaSyncRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *AssetDeltaSyncResponseDto
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    GetDeltaSyncOperation,
-			OperationSummary: "",
-			OperationID:      "getDeltaSync",
-			Body:             request,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = *AssetDeltaSyncDto
-			Params   = struct{}
-			Response = *AssetDeltaSyncResponseDto
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetDeltaSync(ctx, request)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.GetDeltaSync(ctx, request)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeGetDeltaSyncResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleGetDownloadInfoRequest handles getDownloadInfo operation.
 //
-// This endpoint requires the `asset.download` permission.
+// Retrieve information about how to request a download for the specified assets or album. The response
+// includes groups of assets that can be downloaded together.
 //
 // POST /download/info
 func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18680,6 +20232,8 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/download/info"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetDownloadInfoOperation,
@@ -18703,7 +20257,7 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -18854,7 +20408,7 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetDownloadInfoOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve download information",
 			OperationID:      "getDownloadInfo",
 			Body:             request,
 			RawBody:          rawBody,
@@ -18909,7 +20463,7 @@ func (s *Server) handleGetDownloadInfoRequest(args [0]string, argsEscaped bool, 
 
 // handleGetExploreDataRequest handles getExploreData operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve data for the explore section, such as popular people and places.
 //
 // GET /search/explore
 func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18920,6 +20474,8 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/search/explore"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetExploreDataOperation,
@@ -18943,7 +20499,7 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -19069,7 +20625,7 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetExploreDataOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve explore data",
 			OperationID:      "getExploreData",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -19115,7 +20671,7 @@ func (s *Server) handleGetExploreDataRequest(args [0]string, argsEscaped bool, w
 
 // handleGetFacesRequest handles getFaces operation.
 //
-// This endpoint requires the `face.read` permission.
+// Retrieve all faces belonging to an asset.
 //
 // GET /faces
 func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19126,6 +20682,8 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/faces"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetFacesOperation,
@@ -19149,7 +20707,7 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -19285,7 +20843,7 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetFacesOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve faces for asset",
 			OperationID:      "getFaces",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -19334,20 +20892,24 @@ func (s *Server) handleGetFacesRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
-// handleGetFullSyncForUserRequest handles getFullSyncForUser operation.
+// handleGetIntegrityReportRequest handles getIntegrityReport operation.
 //
-// POST /sync/full-sync
-func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// Get all flagged items by integrity report type.
+//
+// GET /admin/integrity/report
+func (s *Server) handleGetIntegrityReportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getFullSyncForUser"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/sync/full-sync"),
+		otelogen.OperationID("getIntegrityReport"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/integrity/report"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetFullSyncForUserOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetIntegrityReportOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -19368,7 +20930,7 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -19402,15 +20964,15 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: GetFullSyncForUserOperation,
-			ID:   "getFullSyncForUser",
+			Name: GetIntegrityReportOperation,
+			ID:   "getIntegrityReport",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityBearer(ctx, GetFullSyncForUserOperation, r)
+			sctx, ok, err := s.securityBearer(ctx, GetIntegrityReportOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -19427,7 +20989,7 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 			}
 		}
 		{
-			sctx, ok, err := s.securityCookie(ctx, GetFullSyncForUserOperation, r)
+			sctx, ok, err := s.securityCookie(ctx, GetIntegrityReportOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -19444,7 +21006,684 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 			}
 		}
 		{
-			sctx, ok, err := s.securityAPIKey(ctx, GetFullSyncForUserOperation, r)
+			sctx, ok, err := s.securityAPIKey(ctx, GetIntegrityReportOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetIntegrityReportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *IntegrityReportResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetIntegrityReportOperation,
+			OperationSummary: "Get integrity report by type",
+			OperationID:      "getIntegrityReport",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetIntegrityReportParams
+			Response = *IntegrityReportResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetIntegrityReportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetIntegrityReport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetIntegrityReport(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetIntegrityReportResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetIntegrityReportCsvRequest handles getIntegrityReportCsv operation.
+//
+// Get all integrity report entries for a given type as a CSV.
+//
+// GET /admin/integrity/report/{type}/csv
+func (s *Server) handleGetIntegrityReportCsvRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getIntegrityReportCsv"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/integrity/report/{type}/csv"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetIntegrityReportCsvOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetIntegrityReportCsvOperation,
+			ID:   "getIntegrityReportCsv",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetIntegrityReportCsvOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetIntegrityReportCsvOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetIntegrityReportCsvOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetIntegrityReportCsvParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetIntegrityReportCsvOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetIntegrityReportCsvOperation,
+			OperationSummary: "Export integrity report by type as CSV",
+			OperationID:      "getIntegrityReportCsv",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "type",
+					In:   "path",
+				}: params.Type,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetIntegrityReportCsvParams
+			Response = GetIntegrityReportCsvOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetIntegrityReportCsvParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetIntegrityReportCsv(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetIntegrityReportCsv(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetIntegrityReportCsvResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetIntegrityReportFileRequest handles getIntegrityReportFile operation.
+//
+// Download the untracked/broken file if one exists.
+//
+// GET /admin/integrity/report/{id}/file
+func (s *Server) handleGetIntegrityReportFileRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getIntegrityReportFile"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/integrity/report/{id}/file"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetIntegrityReportFileOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetIntegrityReportFileOperation,
+			ID:   "getIntegrityReportFile",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetIntegrityReportFileOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetIntegrityReportFileOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetIntegrityReportFileOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetIntegrityReportFileParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetIntegrityReportFileOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetIntegrityReportFileOperation,
+			OperationSummary: "Download flagged file",
+			OperationID:      "getIntegrityReportFile",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetIntegrityReportFileParams
+			Response = GetIntegrityReportFileOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetIntegrityReportFileParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetIntegrityReportFile(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetIntegrityReportFile(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetIntegrityReportFileResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetIntegrityReportSummaryRequest handles getIntegrityReportSummary operation.
+//
+// Get a count of the items flagged in each integrity report.
+//
+// GET /admin/integrity/summary
+func (s *Server) handleGetIntegrityReportSummaryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getIntegrityReportSummary"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/integrity/summary"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetIntegrityReportSummaryOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetIntegrityReportSummaryOperation,
+			ID:   "getIntegrityReportSummary",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetIntegrityReportSummaryOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetIntegrityReportSummaryOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetIntegrityReportSummaryOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -19488,39 +21727,24 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 	}
 
 	var rawBody []byte
-	request, rawBody, close, err := s.decodeGetFullSyncForUserRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
 
-	var response []AssetResponseDto
+	var response *IntegrityReportSummaryResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    GetFullSyncForUserOperation,
-			OperationSummary: "",
-			OperationID:      "getFullSyncForUser",
-			Body:             request,
+			OperationName:    GetIntegrityReportSummaryOperation,
+			OperationSummary: "Get integrity report summary",
+			OperationID:      "getIntegrityReportSummary",
+			Body:             nil,
 			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
 			Raw:              r,
 		}
 
 		type (
-			Request  = *AssetFullSyncDto
+			Request  = struct{}
 			Params   = struct{}
-			Response = []AssetResponseDto
+			Response = *IntegrityReportSummaryResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -19531,12 +21755,12 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 			mreq,
 			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetFullSyncForUser(ctx, request)
+				response, err = s.h.GetIntegrityReportSummary(ctx)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetFullSyncForUser(ctx, request)
+		response, err = s.h.GetIntegrityReportSummary(ctx)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -19544,7 +21768,7 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 		return
 	}
 
-	if err := encodeGetFullSyncForUserResponse(response, w, span); err != nil {
+	if err := encodeGetIntegrityReportSummaryResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -19555,7 +21779,7 @@ func (s *Server) handleGetFullSyncForUserRequest(args [0]string, argsEscaped boo
 
 // handleGetLibraryRequest handles getLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.read` permission.
+// Retrieve an external library by its ID.
 //
 // GET /libraries/{id}
 func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19566,6 +21790,8 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/libraries/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetLibraryOperation,
@@ -19589,7 +21815,7 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -19725,7 +21951,7 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetLibraryOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a library",
 			OperationID:      "getLibrary",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -19776,7 +22002,8 @@ func (s *Server) handleGetLibraryRequest(args [1]string, argsEscaped bool, w htt
 
 // handleGetLibraryStatisticsRequest handles getLibraryStatistics operation.
 //
-// This endpoint is an admin-only route, and requires the `library.statistics` permission.
+// Retrieve statistics for a specific external library, including number of videos, images, and storage
+// usage.
 //
 // GET /libraries/{id}/statistics
 func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19787,6 +22014,8 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/libraries/{id}/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetLibraryStatisticsOperation,
@@ -19810,7 +22039,7 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -19946,7 +22175,7 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetLibraryStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve library statistics",
 			OperationID:      "getLibraryStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -19995,7 +22224,364 @@ func (s *Server) handleGetLibraryStatisticsRequest(args [1]string, argsEscaped b
 	}
 }
 
+// handleGetMainPlaylistRequest handles getMainPlaylist operation.
+//
+// Returns an HLS main playlist with all available variants for the asset.
+//
+// GET /assets/{id}/video/stream/main.m3u8
+func (s *Server) handleGetMainPlaylistRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMainPlaylist"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/assets/{id}/video/stream/main.m3u8"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMainPlaylistOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetMainPlaylistOperation,
+			ID:   "getMainPlaylist",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetMainPlaylistOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetMainPlaylistOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetMainPlaylistOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetMainPlaylistParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetMainPlaylistOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetMainPlaylistOperation,
+			OperationSummary: "Get HLS main playlist",
+			OperationID:      "getMainPlaylist",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetMainPlaylistParams
+			Response = GetMainPlaylistOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetMainPlaylistParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetMainPlaylist(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetMainPlaylist(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetMainPlaylistResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetMaintenanceStatusRequest handles getMaintenanceStatus operation.
+//
+// Fetch information about the currently running maintenance action.
+//
+// GET /admin/maintenance/status
+func (s *Server) handleGetMaintenanceStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMaintenanceStatus"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/maintenance/status"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMaintenanceStatusOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err error
+	)
+
+	var rawBody []byte
+
+	var response *MaintenanceStatusResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetMaintenanceStatusOperation,
+			OperationSummary: "Get maintenance mode status",
+			OperationID:      "getMaintenanceStatus",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *MaintenanceStatusResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetMaintenanceStatus(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetMaintenanceStatus(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetMaintenanceStatusResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetMapMarkersRequest handles getMapMarkers operation.
+//
+// Retrieve a list of latitude and longitude coordinates for every asset with location data.
 //
 // GET /map/markers
 func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20006,6 +22592,8 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/map/markers"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMapMarkersOperation,
@@ -20029,7 +22617,7 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -20165,19 +22753,11 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetMapMarkersOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve map markers",
 			OperationID:      "getMapMarkers",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
-				{
-					Name: "isArchived",
-					In:   "query",
-				}: params.IsArchived,
-				{
-					Name: "isFavorite",
-					In:   "query",
-				}: params.IsFavorite,
 				{
 					Name: "fileCreatedAfter",
 					In:   "query",
@@ -20186,6 +22766,14 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 					Name: "fileCreatedBefore",
 					In:   "query",
 				}: params.FileCreatedBefore,
+				{
+					Name: "isArchived",
+					In:   "query",
+				}: params.IsArchived,
+				{
+					Name: "isFavorite",
+					In:   "query",
+				}: params.IsFavorite,
 				{
 					Name: "withPartners",
 					In:   "query",
@@ -20234,9 +22822,252 @@ func (s *Server) handleGetMapMarkersRequest(args [0]string, argsEscaped bool, w 
 	}
 }
 
+// handleGetMediaPlaylistRequest handles getMediaPlaylist operation.
+//
+// Returns an HLS media playlist for one variant of the streaming session.
+//
+// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8
+func (s *Server) handleGetMediaPlaylistRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMediaPlaylist"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMediaPlaylistOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetMediaPlaylistOperation,
+			ID:   "getMediaPlaylist",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetMediaPlaylistOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetMediaPlaylistOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetMediaPlaylistOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetMediaPlaylistParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetMediaPlaylistOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetMediaPlaylistOperation,
+			OperationSummary: "Get HLS media playlist",
+			OperationID:      "getMediaPlaylist",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "sessionId",
+					In:   "path",
+				}: params.SessionId,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+				{
+					Name: "variantIndex",
+					In:   "path",
+				}: params.VariantIndex,
+				{
+					Name: "x-immich-hls-pos",
+					In:   "header",
+				}: params.XImmichHlsPos,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetMediaPlaylistParams
+			Response = GetMediaPlaylistOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetMediaPlaylistParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetMediaPlaylist(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetMediaPlaylist(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetMediaPlaylistResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetMemoryRequest handles getMemory operation.
 //
-// This endpoint requires the `memory.read` permission.
+// Retrieve a specific memory by its ID.
 //
 // GET /memories/{id}
 func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20247,6 +23078,8 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/memories/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMemoryOperation,
@@ -20270,7 +23103,7 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -20406,7 +23239,7 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetMemoryOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a memory",
 			OperationID:      "getMemory",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -20457,6 +23290,8 @@ func (s *Server) handleGetMemoryRequest(args [1]string, argsEscaped bool, w http
 
 // handleGetMyApiKeyRequest handles getMyApiKey operation.
 //
+// Retrieve the API key that is used to access this endpoint.
+//
 // GET /api-keys/me
 func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -20466,6 +23301,8 @@ func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/api-keys/me"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMyApiKeyOperation,
@@ -20489,7 +23326,7 @@ func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -20610,12 +23447,12 @@ func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w ht
 
 	var rawBody []byte
 
-	var response *APIKeyResponseDto
+	var response *ApiKeyResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetMyApiKeyOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve the current API key",
 			OperationID:      "getMyApiKey",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -20626,7 +23463,7 @@ func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w ht
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *APIKeyResponseDto
+			Response = *ApiKeyResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -20659,9 +23496,240 @@ func (s *Server) handleGetMyApiKeyRequest(args [0]string, argsEscaped bool, w ht
 	}
 }
 
+// handleGetMyCalendarHeatmapRequest handles getMyCalendarHeatmap operation.
+//
+// Retrieve activity counts for a specified period, in a calendar heatmap format.
+//
+// GET /users/me/calendar-heatmap
+func (s *Server) handleGetMyCalendarHeatmapRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMyCalendarHeatmap"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/users/me/calendar-heatmap"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMyCalendarHeatmapOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetMyCalendarHeatmapOperation,
+			ID:   "getMyCalendarHeatmap",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetMyCalendarHeatmapOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetMyCalendarHeatmapOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetMyCalendarHeatmapOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetMyCalendarHeatmapParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *CalendarHeatmapResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetMyCalendarHeatmapOperation,
+			OperationSummary: "Retrieve calendar heatmap activity",
+			OperationID:      "getMyCalendarHeatmap",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetMyCalendarHeatmapParams
+			Response = *CalendarHeatmapResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetMyCalendarHeatmapParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetMyCalendarHeatmap(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetMyCalendarHeatmap(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetMyCalendarHeatmapResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetMyPreferencesRequest handles getMyPreferences operation.
 //
-// This endpoint requires the `userPreference.read` permission.
+// Retrieve the preferences for the current user.
 //
 // GET /users/me/preferences
 func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20672,6 +23740,8 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users/me/preferences"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMyPreferencesOperation,
@@ -20695,7 +23765,7 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -20821,7 +23891,7 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetMyPreferencesOperation,
-			OperationSummary: "",
+			OperationSummary: "Get my preferences",
 			OperationID:      "getMyPreferences",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -20867,6 +23937,8 @@ func (s *Server) handleGetMyPreferencesRequest(args [0]string, argsEscaped bool,
 
 // handleGetMySharedLinkRequest handles getMySharedLink operation.
 //
+// Retrieve the current shared link associated with authentication method.
+//
 // GET /shared-links/me
 func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -20876,6 +23948,8 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/shared-links/me"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMySharedLinkOperation,
@@ -20899,7 +23973,7 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -21035,19 +24109,11 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetMySharedLinkOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve current shared link",
 			OperationID:      "getMySharedLink",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
-				{
-					Name: "password",
-					In:   "query",
-				}: params.Password,
-				{
-					Name: "token",
-					In:   "query",
-				}: params.Token,
 				{
 					Name: "key",
 					In:   "query",
@@ -21098,7 +24164,7 @@ func (s *Server) handleGetMySharedLinkRequest(args [0]string, argsEscaped bool, 
 
 // handleGetMyUserRequest handles getMyUser operation.
 //
-// This endpoint requires the `user.read` permission.
+// Retrieve information about the user making the API request.
 //
 // GET /users/me
 func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21109,6 +24175,8 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users/me"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetMyUserOperation,
@@ -21132,7 +24200,7 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -21258,7 +24326,7 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetMyUserOperation,
-			OperationSummary: "",
+			OperationSummary: "Get current user",
 			OperationID:      "getMyUser",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -21304,7 +24372,7 @@ func (s *Server) handleGetMyUserRequest(args [0]string, argsEscaped bool, w http
 
 // handleGetNotificationRequest handles getNotification operation.
 //
-// This endpoint requires the `notification.read` permission.
+// Retrieve a specific notification identified by id.
 //
 // GET /notifications/{id}
 func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21315,6 +24383,8 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/notifications/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetNotificationOperation,
@@ -21338,7 +24408,7 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -21474,7 +24544,7 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetNotificationOperation,
-			OperationSummary: "",
+			OperationSummary: "Get a notification",
 			OperationID:      "getNotification",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -21525,6 +24595,8 @@ func (s *Server) handleGetNotificationRequest(args [1]string, argsEscaped bool, 
 
 // handleGetNotificationTemplateAdminRequest handles getNotificationTemplateAdmin operation.
 //
+// Retrieve a preview of the provided email template.
+//
 // POST /admin/notifications/templates/{name}
 func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -21534,6 +24606,8 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/admin/notifications/templates/{name}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetNotificationTemplateAdminOperation,
@@ -21557,7 +24631,7 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -21708,7 +24782,7 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetNotificationTemplateAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Render email template",
 			OperationID:      "getNotificationTemplateAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -21759,7 +24833,7 @@ func (s *Server) handleGetNotificationTemplateAdminRequest(args [1]string, argsE
 
 // handleGetNotificationsRequest handles getNotifications operation.
 //
-// This endpoint requires the `notification.read` permission.
+// Retrieve a list of notifications.
 //
 // GET /notifications
 func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21770,6 +24844,8 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/notifications"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetNotificationsOperation,
@@ -21793,7 +24869,7 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -21929,7 +25005,7 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetNotificationsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve notifications",
 			OperationID:      "getNotifications",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -21992,7 +25068,7 @@ func (s *Server) handleGetNotificationsRequest(args [0]string, argsEscaped bool,
 
 // handleGetPartnersRequest handles getPartners operation.
 //
-// This endpoint requires the `partner.read` permission.
+// Retrieve a list of partners with whom assets are shared.
 //
 // GET /partners
 func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22003,6 +25079,8 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/partners"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetPartnersOperation,
@@ -22026,7 +25104,7 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -22162,7 +25240,7 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetPartnersOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve partners",
 			OperationID:      "getPartners",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -22213,7 +25291,7 @@ func (s *Server) handleGetPartnersRequest(args [0]string, argsEscaped bool, w ht
 
 // handleGetPersonRequest handles getPerson operation.
 //
-// This endpoint requires the `person.read` permission.
+// Retrieve a person by id.
 //
 // GET /people/{id}
 func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22224,6 +25302,8 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/people/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetPersonOperation,
@@ -22247,7 +25327,7 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -22383,7 +25463,7 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetPersonOperation,
-			OperationSummary: "",
+			OperationSummary: "Get a person",
 			OperationID:      "getPerson",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -22434,7 +25514,7 @@ func (s *Server) handleGetPersonRequest(args [1]string, argsEscaped bool, w http
 
 // handleGetPersonStatisticsRequest handles getPersonStatistics operation.
 //
-// This endpoint requires the `person.statistics` permission.
+// Retrieve statistics about a specific person.
 //
 // GET /people/{id}/statistics
 func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22445,6 +25525,8 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/people/{id}/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetPersonStatisticsOperation,
@@ -22468,7 +25550,7 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -22604,7 +25686,7 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetPersonStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Get person statistics",
 			OperationID:      "getPersonStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -22655,7 +25737,7 @@ func (s *Server) handleGetPersonStatisticsRequest(args [1]string, argsEscaped bo
 
 // handleGetPersonThumbnailRequest handles getPersonThumbnail operation.
 //
-// This endpoint requires the `person.read` permission.
+// Retrieve the thumbnail file for a person.
 //
 // GET /people/{id}/thumbnail
 func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22666,6 +25748,8 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/people/{id}/thumbnail"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetPersonThumbnailOperation,
@@ -22689,7 +25773,7 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -22825,7 +25909,7 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetPersonThumbnailOperation,
-			OperationSummary: "",
+			OperationSummary: "Get person thumbnail",
 			OperationID:      "getPersonThumbnail",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -22874,9 +25958,232 @@ func (s *Server) handleGetPersonThumbnailRequest(args [1]string, argsEscaped boo
 	}
 }
 
+// handleGetPluginRequest handles getPlugin operation.
+//
+// Retrieve information about a specific plugin by its ID.
+//
+// GET /plugins/{id}
+func (s *Server) handleGetPluginRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getPlugin"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/plugins/{id}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetPluginOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetPluginOperation,
+			ID:   "getPlugin",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetPluginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetPluginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetPluginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetPluginParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *PluginResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetPluginOperation,
+			OperationSummary: "Retrieve a plugin",
+			OperationID:      "getPlugin",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetPluginParams
+			Response = *PluginResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetPluginParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetPlugin(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetPlugin(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetPluginResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetProfileImageRequest handles getProfileImage operation.
 //
-// This endpoint requires the `userProfileImage.read` permission.
+// Retrieve the profile image file for a user.
 //
 // GET /users/{id}/profile-image
 func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22887,6 +26194,8 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users/{id}/profile-image"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetProfileImageOperation,
@@ -22910,7 +26219,7 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -23046,7 +26355,7 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetProfileImageOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve user profile image",
 			OperationID:      "getProfileImage",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23095,24 +26404,24 @@ func (s *Server) handleGetProfileImageRequest(args [1]string, argsEscaped bool, 
 	}
 }
 
-// handleGetRandomRequest handles getRandom operation.
+// handleGetQueueRequest handles getQueue operation.
 //
-// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
+// Retrieves a specific queue by its name.
 //
-// Deprecated: schema marks this operation as deprecated.
-//
-// GET /assets/random
-func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /queues/{name}
+func (s *Server) handleGetQueueRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getRandom"),
+		otelogen.OperationID("getQueue"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/assets/random"),
+		semconv.HTTPRouteKey.String("/queues/{name}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetRandomOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetQueueOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -23133,7 +26442,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -23167,15 +26476,15 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: GetRandomOperation,
-			ID:   "getRandom",
+			Name: GetQueueOperation,
+			ID:   "getQueue",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityBearer(ctx, GetRandomOperation, r)
+			sctx, ok, err := s.securityBearer(ctx, GetQueueOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -23192,7 +26501,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 			}
 		}
 		{
-			sctx, ok, err := s.securityCookie(ctx, GetRandomOperation, r)
+			sctx, ok, err := s.securityCookie(ctx, GetQueueOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -23209,7 +26518,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 			}
 		}
 		{
-			sctx, ok, err := s.securityAPIKey(ctx, GetRandomOperation, r)
+			sctx, ok, err := s.securityAPIKey(ctx, GetQueueOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -23251,7 +26560,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 			return
 		}
 	}
-	params, err := decodeGetRandomParams(args, argsEscaped, r)
+	params, err := decodeGetQueueParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -23264,28 +26573,28 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 
 	var rawBody []byte
 
-	var response []AssetResponseDto
+	var response *QueueResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    GetRandomOperation,
-			OperationSummary: "",
-			OperationID:      "getRandom",
+			OperationName:    GetQueueOperation,
+			OperationSummary: "Retrieve a queue",
+			OperationID:      "getQueue",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
-					Name: "count",
-					In:   "query",
-				}: params.Count,
+					Name: "name",
+					In:   "path",
+				}: params.Name,
 			},
 			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = GetRandomParams
-			Response = []AssetResponseDto
+			Params   = GetQueueParams
+			Response = *QueueResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -23294,14 +26603,14 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 		](
 			m,
 			mreq,
-			unpackGetRandomParams,
+			unpackGetQueueParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetRandom(ctx, params)
+				response, err = s.h.GetQueue(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.GetRandom(ctx, params)
+		response, err = s.h.GetQueue(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -23309,7 +26618,652 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 		return
 	}
 
-	if err := encodeGetRandomResponse(response, w, span); err != nil {
+	if err := encodeGetQueueResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetQueueJobsRequest handles getQueueJobs operation.
+//
+// Retrieves a list of queue jobs from the specified queue.
+//
+// GET /queues/{name}/jobs
+func (s *Server) handleGetQueueJobsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getQueueJobs"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/queues/{name}/jobs"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetQueueJobsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetQueueJobsOperation,
+			ID:   "getQueueJobs",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetQueueJobsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetQueueJobsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetQueueJobsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetQueueJobsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []QueueJobResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetQueueJobsOperation,
+			OperationSummary: "Retrieve queue jobs",
+			OperationID:      "getQueueJobs",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "name",
+					In:   "path",
+				}: params.Name,
+				{
+					Name: "status",
+					In:   "query",
+				}: params.Status,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetQueueJobsParams
+			Response = []QueueJobResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetQueueJobsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetQueueJobs(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetQueueJobs(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetQueueJobsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetQueuesRequest handles getQueues operation.
+//
+// Retrieves a list of queues.
+//
+// GET /queues
+func (s *Server) handleGetQueuesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getQueues"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/queues"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetQueuesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetQueuesOperation,
+			ID:   "getQueues",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetQueuesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetQueuesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetQueuesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response []QueueResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetQueuesOperation,
+			OperationSummary: "List all queues",
+			OperationID:      "getQueues",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = []QueueResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetQueues(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetQueues(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetQueuesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetQueuesLegacyRequest handles getQueuesLegacy operation.
+//
+// Retrieve the counts of the current queue, as well as the current status.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// GET /jobs
+func (s *Server) handleGetQueuesLegacyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getQueuesLegacy"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/jobs"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetQueuesLegacyOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetQueuesLegacyOperation,
+			ID:   "getQueuesLegacy",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetQueuesLegacyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetQueuesLegacyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetQueuesLegacyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *QueuesResponseLegacyDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetQueuesLegacyOperation,
+			OperationSummary: "Retrieve queue counts and status",
+			OperationID:      "getQueuesLegacy",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *QueuesResponseLegacyDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetQueuesLegacy(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetQueuesLegacy(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetQueuesLegacyResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -23320,7 +27274,7 @@ func (s *Server) handleGetRandomRequest(args [0]string, argsEscaped bool, w http
 
 // handleGetReverseGeocodingStateRequest handles getReverseGeocodingState operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+// Retrieve the current state of the reverse geocoding import.
 //
 // GET /system-metadata/reverse-geocoding-state
 func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23331,6 +27285,8 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/system-metadata/reverse-geocoding-state"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetReverseGeocodingStateOperation,
@@ -23354,7 +27310,7 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -23480,7 +27436,7 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetReverseGeocodingStateOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve reverse geocoding state",
 			OperationID:      "getReverseGeocodingState",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23526,7 +27482,8 @@ func (s *Server) handleGetReverseGeocodingStateRequest(args [0]string, argsEscap
 
 // handleGetSearchSuggestionsRequest handles getSearchSuggestions operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve search suggestions based on partial input. This endpoint is used for typeahead search
+// features.
 //
 // GET /search/suggestions
 func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23537,6 +27494,8 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/search/suggestions"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSearchSuggestionsOperation,
@@ -23560,7 +27519,7 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -23696,7 +27655,7 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetSearchSuggestionsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve search suggestions",
 			OperationID:      "getSearchSuggestions",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23769,7 +27728,256 @@ func (s *Server) handleGetSearchSuggestionsRequest(args [0]string, argsEscaped b
 	}
 }
 
+// handleGetSegmentRequest handles getSegment operation.
+//
+// Streams an HLS init segment (init.mp4) or media segment (seg_N.m4s).
+//
+// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}
+func (s *Server) handleGetSegmentRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getSegment"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSegmentOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetSegmentOperation,
+			ID:   "getSegment",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetSegmentOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetSegmentOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetSegmentOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetSegmentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetSegmentOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetSegmentOperation,
+			OperationSummary: "Get HLS segment or init file",
+			OperationID:      "getSegment",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "filename",
+					In:   "path",
+				}: params.Filename,
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "sessionId",
+					In:   "path",
+				}: params.SessionId,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+				{
+					Name: "variantIndex",
+					In:   "path",
+				}: params.VariantIndex,
+				{
+					Name: "x-immich-hls-msn",
+					In:   "header",
+				}: params.XImmichHlsMsn,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetSegmentParams
+			Response = GetSegmentOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetSegmentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetSegment(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetSegment(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetSegmentResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetServerConfigRequest handles getServerConfig operation.
+//
+// Retrieve the current server configuration.
 //
 // GET /server/config
 func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23780,6 +27988,8 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/config"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerConfigOperation,
@@ -23803,7 +28013,7 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -23845,7 +28055,7 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetServerConfigOperation,
-			OperationSummary: "",
+			OperationSummary: "Get config",
 			OperationID:      "getServerConfig",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23891,6 +28101,8 @@ func (s *Server) handleGetServerConfigRequest(args [0]string, argsEscaped bool, 
 
 // handleGetServerFeaturesRequest handles getServerFeatures operation.
 //
+// Retrieve available features supported by this server.
+//
 // GET /server/features
 func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -23900,6 +28112,8 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/features"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerFeaturesOperation,
@@ -23923,7 +28137,7 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -23965,7 +28179,7 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetServerFeaturesOperation,
-			OperationSummary: "",
+			OperationSummary: "Get features",
 			OperationID:      "getServerFeatures",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -24011,7 +28225,7 @@ func (s *Server) handleGetServerFeaturesRequest(args [0]string, argsEscaped bool
 
 // handleGetServerLicenseRequest handles getServerLicense operation.
 //
-// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+// Retrieve information about whether the server currently has a product key registered.
 //
 // GET /server/license
 func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24022,6 +28236,8 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/license"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerLicenseOperation,
@@ -24045,7 +28261,7 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -24171,7 +28387,7 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetServerLicenseOperation,
-			OperationSummary: "",
+			OperationSummary: "Get product key",
 			OperationID:      "getServerLicense",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -24217,7 +28433,7 @@ func (s *Server) handleGetServerLicenseRequest(args [0]string, argsEscaped bool,
 
 // handleGetServerStatisticsRequest handles getServerStatistics operation.
 //
-// This endpoint is an admin-only route, and requires the `server.statistics` permission.
+// Retrieve statistics about the entire Immich instance such as asset counts.
 //
 // GET /server/statistics
 func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24228,6 +28444,8 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerStatisticsOperation,
@@ -24251,7 +28469,7 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -24377,7 +28595,7 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetServerStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Get statistics",
 			OperationID:      "getServerStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -24423,6 +28641,8 @@ func (s *Server) handleGetServerStatisticsRequest(args [0]string, argsEscaped bo
 
 // handleGetServerVersionRequest handles getServerVersion operation.
 //
+// Retrieve the current server version in semantic versioning (semver) format.
+//
 // GET /server/version
 func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -24432,6 +28652,8 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/version"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetServerVersionOperation,
@@ -24455,7 +28677,7 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -24497,7 +28719,7 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetServerVersionOperation,
-			OperationSummary: "",
+			OperationSummary: "Get server version",
 			OperationID:      "getServerVersion",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -24543,7 +28765,7 @@ func (s *Server) handleGetServerVersionRequest(args [0]string, argsEscaped bool,
 
 // handleGetSessionsRequest handles getSessions operation.
 //
-// This endpoint requires the `session.read` permission.
+// Retrieve a list of sessions for the user.
 //
 // GET /sessions
 func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24554,6 +28776,8 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/sessions"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSessionsOperation,
@@ -24577,7 +28801,7 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -24703,7 +28927,7 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetSessionsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve sessions",
 			OperationID:      "getSessions",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -24749,7 +28973,7 @@ func (s *Server) handleGetSessionsRequest(args [0]string, argsEscaped bool, w ht
 
 // handleGetSharedLinkByIdRequest handles getSharedLinkById operation.
 //
-// This endpoint requires the `sharedLink.read` permission.
+// Retrieve a specific shared link by its ID.
 //
 // GET /shared-links/{id}
 func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24760,6 +28984,8 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/shared-links/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSharedLinkByIdOperation,
@@ -24783,7 +29009,7 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -24919,7 +29145,7 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetSharedLinkByIdOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a shared link",
 			OperationID:      "getSharedLinkById",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -24970,7 +29196,7 @@ func (s *Server) handleGetSharedLinkByIdRequest(args [1]string, argsEscaped bool
 
 // handleGetStackRequest handles getStack operation.
 //
-// This endpoint requires the `stack.read` permission.
+// Retrieve a specific stack by its ID.
 //
 // GET /stacks/{id}
 func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24981,6 +29207,8 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/stacks/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetStackOperation,
@@ -25004,7 +29232,7 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -25140,7 +29368,7 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetStackOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a stack",
 			OperationID:      "getStack",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -25191,7 +29419,7 @@ func (s *Server) handleGetStackRequest(args [1]string, argsEscaped bool, w http.
 
 // handleGetStorageRequest handles getStorage operation.
 //
-// This endpoint requires the `server.storage` permission.
+// Retrieve the current storage utilization information of the server.
 //
 // GET /server/storage
 func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25202,6 +29430,8 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/storage"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetStorageOperation,
@@ -25225,7 +29455,7 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -25351,7 +29581,7 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetStorageOperation,
-			OperationSummary: "",
+			OperationSummary: "Get storage",
 			OperationID:      "getStorage",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -25397,7 +29627,7 @@ func (s *Server) handleGetStorageRequest(args [0]string, argsEscaped bool, w htt
 
 // handleGetStorageTemplateOptionsRequest handles getStorageTemplateOptions operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+// Retrieve exemplary storage template options.
 //
 // GET /system-config/storage-template-options
 func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25408,6 +29638,8 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/system-config/storage-template-options"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetStorageTemplateOptionsOperation,
@@ -25431,7 +29663,7 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -25557,7 +29789,7 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetStorageTemplateOptionsOperation,
-			OperationSummary: "",
+			OperationSummary: "Get storage template options",
 			OperationID:      "getStorageTemplateOptions",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -25603,6 +29835,8 @@ func (s *Server) handleGetStorageTemplateOptionsRequest(args [0]string, argsEsca
 
 // handleGetSupportedMediaTypesRequest handles getSupportedMediaTypes operation.
 //
+// Retrieve all media types supported by the server.
+//
 // GET /server/media-types
 func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -25612,6 +29846,8 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/media-types"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSupportedMediaTypesOperation,
@@ -25635,7 +29871,7 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -25677,7 +29913,7 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetSupportedMediaTypesOperation,
-			OperationSummary: "",
+			OperationSummary: "Get supported media types",
 			OperationID:      "getSupportedMediaTypes",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -25723,7 +29959,7 @@ func (s *Server) handleGetSupportedMediaTypesRequest(args [0]string, argsEscaped
 
 // handleGetSyncAckRequest handles getSyncAck operation.
 //
-// This endpoint requires the `syncCheckpoint.read` permission.
+// Retrieve the synchronization acknowledgments for the current session.
 //
 // GET /sync/ack
 func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25734,6 +29970,8 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/sync/ack"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSyncAckOperation,
@@ -25757,7 +29995,7 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -25883,7 +30121,7 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetSyncAckOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve acknowledgements",
 			OperationID:      "getSyncAck",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -25929,7 +30167,8 @@ func (s *Server) handleGetSyncAckRequest(args [0]string, argsEscaped bool, w htt
 
 // handleGetSyncStreamRequest handles getSyncStream operation.
 //
-// This endpoint requires the `sync.stream` permission.
+// Retrieve a JSON lines streamed response of changes for synchronization. This endpoint is used by the
+// mobile app to efficiently stay up to date with changes.
 //
 // POST /sync/stream
 func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -25940,6 +30179,8 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/sync/stream"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetSyncStreamOperation,
@@ -25963,7 +30204,7 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -26104,7 +30345,7 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetSyncStreamOperation,
-			OperationSummary: "",
+			OperationSummary: "Stream sync changes",
 			OperationID:      "getSyncStream",
 			Body:             request,
 			RawBody:          rawBody,
@@ -26150,7 +30391,7 @@ func (s *Server) handleGetSyncStreamRequest(args [0]string, argsEscaped bool, w 
 
 // handleGetTagByIdRequest handles getTagById operation.
 //
-// This endpoint requires the `tag.read` permission.
+// Retrieve a specific tag by its ID.
 //
 // GET /tags/{id}
 func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26161,6 +30402,8 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/tags/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetTagByIdOperation,
@@ -26184,7 +30427,7 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -26320,7 +30563,7 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetTagByIdOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a tag",
 			OperationID:      "getTagById",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -26369,129 +30612,9 @@ func (s *Server) handleGetTagByIdRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
-// handleGetThemeRequest handles getTheme operation.
-//
-// GET /server/theme
-func (s *Server) handleGetThemeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getTheme"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/server/theme"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), GetThemeOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code < 100 || code >= 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err error
-	)
-
-	var rawBody []byte
-
-	var response *ServerThemeDto
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    GetThemeOperation,
-			OperationSummary: "",
-			OperationID:      "getTheme",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = struct{}
-			Response = *ServerThemeDto
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.GetTheme(ctx)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.GetTheme(ctx)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeGetThemeResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleGetTimeBucketRequest handles getTimeBucket operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a string of all asset ids in a given time bucket.
 //
 // GET /timeline/bucket
 func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26502,6 +30625,8 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/timeline/bucket"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetTimeBucketOperation,
@@ -26525,7 +30650,7 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -26661,7 +30786,7 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetTimeBucketOperation,
-			OperationSummary: "",
+			OperationSummary: "Get time bucket",
 			OperationID:      "getTimeBucket",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -26670,6 +30795,10 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 					Name: "albumId",
 					In:   "query",
 				}: params.AlbumId,
+				{
+					Name: "bbox",
+					In:   "query",
+				}: params.Bbox,
 				{
 					Name: "isFavorite",
 					In:   "query",
@@ -26686,6 +30815,10 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 					Name: "order",
 					In:   "query",
 				}: params.Order,
+				{
+					Name: "orderBy",
+					In:   "query",
+				}: params.OrderBy,
 				{
 					Name: "personId",
 					In:   "query",
@@ -26764,7 +30897,7 @@ func (s *Server) handleGetTimeBucketRequest(args [0]string, argsEscaped bool, w 
 
 // handleGetTimeBucketsRequest handles getTimeBuckets operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a list of all minimal time buckets.
 //
 // GET /timeline/buckets
 func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26775,6 +30908,8 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/timeline/buckets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetTimeBucketsOperation,
@@ -26798,7 +30933,7 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -26934,7 +31069,7 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetTimeBucketsOperation,
-			OperationSummary: "",
+			OperationSummary: "Get time buckets",
 			OperationID:      "getTimeBuckets",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -26943,6 +31078,10 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 					Name: "albumId",
 					In:   "query",
 				}: params.AlbumId,
+				{
+					Name: "bbox",
+					In:   "query",
+				}: params.Bbox,
 				{
 					Name: "isFavorite",
 					In:   "query",
@@ -26959,6 +31098,10 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 					Name: "order",
 					In:   "query",
 				}: params.Order,
+				{
+					Name: "orderBy",
+					In:   "query",
+				}: params.OrderBy,
 				{
 					Name: "personId",
 					In:   "query",
@@ -27033,6 +31176,8 @@ func (s *Server) handleGetTimeBucketsRequest(args [0]string, argsEscaped bool, w
 
 // handleGetUniqueOriginalPathsRequest handles getUniqueOriginalPaths operation.
 //
+// Retrieve a list of unique folder paths from asset original paths.
+//
 // GET /view/folder/unique-paths
 func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -27042,6 +31187,8 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/view/folder/unique-paths"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUniqueOriginalPathsOperation,
@@ -27065,7 +31212,7 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -27191,7 +31338,7 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUniqueOriginalPathsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve unique paths",
 			OperationID:      "getUniqueOriginalPaths",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27237,7 +31384,7 @@ func (s *Server) handleGetUniqueOriginalPathsRequest(args [0]string, argsEscaped
 
 // handleGetUserRequest handles getUser operation.
 //
-// This endpoint requires the `user.read` permission.
+// Retrieve a specific user by their ID.
 //
 // GET /users/{id}
 func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27248,6 +31395,8 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserOperation,
@@ -27271,7 +31420,7 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -27407,7 +31556,7 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a user",
 			OperationID:      "getUser",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27458,7 +31607,7 @@ func (s *Server) handleGetUserRequest(args [1]string, argsEscaped bool, w http.R
 
 // handleGetUserAdminRequest handles getUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Retrieve a specific user by their ID.
 //
 // GET /admin/users/{id}
 func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27469,6 +31618,8 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserAdminOperation,
@@ -27492,7 +31643,7 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -27628,7 +31779,7 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve a user",
 			OperationID:      "getUserAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27677,9 +31828,244 @@ func (s *Server) handleGetUserAdminRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleGetUserCalendarHeatmapAdminRequest handles getUserCalendarHeatmapAdmin operation.
+//
+// Retrieve activity counts for a specified period, in a calendar heatmap format.
+//
+// GET /admin/users/{id}/calendar-heatmap
+func (s *Server) handleGetUserCalendarHeatmapAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getUserCalendarHeatmapAdmin"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/users/{id}/calendar-heatmap"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserCalendarHeatmapAdminOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetUserCalendarHeatmapAdminOperation,
+			ID:   "getUserCalendarHeatmapAdmin",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetUserCalendarHeatmapAdminOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetUserCalendarHeatmapAdminOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetUserCalendarHeatmapAdminOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetUserCalendarHeatmapAdminParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *CalendarHeatmapResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetUserCalendarHeatmapAdminOperation,
+			OperationSummary: "Retrieve calendar heatmap activity",
+			OperationID:      "getUserCalendarHeatmapAdmin",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetUserCalendarHeatmapAdminParams
+			Response = *CalendarHeatmapResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetUserCalendarHeatmapAdminParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetUserCalendarHeatmapAdmin(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetUserCalendarHeatmapAdmin(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetUserCalendarHeatmapAdminResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetUserLicenseRequest handles getUserLicense operation.
 //
-// This endpoint requires the `userLicense.read` permission.
+// Retrieve information about whether the current user has a registered product key.
 //
 // GET /users/me/license
 func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27690,6 +32076,8 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users/me/license"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserLicenseOperation,
@@ -27713,7 +32101,7 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -27834,12 +32222,12 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 
 	var rawBody []byte
 
-	var response *LicenseResponseDto
+	var response *UserLicense
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserLicenseOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve user product key",
 			OperationID:      "getUserLicense",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -27850,7 +32238,7 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		type (
 			Request  = struct{}
 			Params   = struct{}
-			Response = *LicenseResponseDto
+			Response = *UserLicense
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -27885,7 +32273,7 @@ func (s *Server) handleGetUserLicenseRequest(args [0]string, argsEscaped bool, w
 
 // handleGetUserOnboardingRequest handles getUserOnboarding operation.
 //
-// This endpoint requires the `userOnboarding.read` permission.
+// Retrieve the onboarding status of the current user.
 //
 // GET /users/me/onboarding
 func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -27896,6 +32284,8 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users/me/onboarding"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserOnboardingOperation,
@@ -27919,7 +32309,7 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -28045,7 +32435,7 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserOnboardingOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve user onboarding",
 			OperationID:      "getUserOnboarding",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -28091,7 +32481,7 @@ func (s *Server) handleGetUserOnboardingRequest(args [0]string, argsEscaped bool
 
 // handleGetUserPreferencesAdminRequest handles getUserPreferencesAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Retrieve the preferences of a specific user.
 //
 // GET /admin/users/{id}/preferences
 func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28102,6 +32492,8 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}/preferences"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserPreferencesAdminOperation,
@@ -28125,7 +32517,7 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -28261,7 +32653,7 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserPreferencesAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve user preferences",
 			OperationID:      "getUserPreferencesAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -28312,7 +32704,7 @@ func (s *Server) handleGetUserPreferencesAdminRequest(args [1]string, argsEscape
 
 // handleGetUserSessionsAdminRequest handles getUserSessionsAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+// Retrieve all sessions for a specific user.
 //
 // GET /admin/users/{id}/sessions
 func (s *Server) handleGetUserSessionsAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28323,6 +32715,8 @@ func (s *Server) handleGetUserSessionsAdminRequest(args [1]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}/sessions"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserSessionsAdminOperation,
@@ -28346,7 +32740,7 @@ func (s *Server) handleGetUserSessionsAdminRequest(args [1]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -28482,7 +32876,7 @@ func (s *Server) handleGetUserSessionsAdminRequest(args [1]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserSessionsAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve user sessions",
 			OperationID:      "getUserSessionsAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -28533,7 +32927,7 @@ func (s *Server) handleGetUserSessionsAdminRequest(args [1]string, argsEscaped b
 
 // handleGetUserStatisticsAdminRequest handles getUserStatisticsAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Retrieve asset statistics for a specific user.
 //
 // GET /admin/users/{id}/statistics
 func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28544,6 +32938,8 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetUserStatisticsAdminOperation,
@@ -28567,7 +32963,7 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -28703,7 +33099,7 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetUserStatisticsAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve user statistics",
 			OperationID:      "getUserStatisticsAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -28766,7 +33162,7 @@ func (s *Server) handleGetUserStatisticsAdminRequest(args [1]string, argsEscaped
 
 // handleGetVersionCheckRequest handles getVersionCheck operation.
 //
-// This endpoint requires the `server.versionCheck` permission.
+// Retrieve information about the last time the version check ran.
 //
 // GET /server/version-check
 func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28777,6 +33173,8 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/version-check"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetVersionCheckOperation,
@@ -28800,7 +33198,7 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -28926,7 +33324,7 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetVersionCheckOperation,
-			OperationSummary: "",
+			OperationSummary: "Get version check status",
 			OperationID:      "getVersionCheck",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -28972,7 +33370,7 @@ func (s *Server) handleGetVersionCheckRequest(args [0]string, argsEscaped bool, 
 
 // handleGetVersionCheckStateRequest handles getVersionCheckState operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+// Retrieve the current state of the version check process.
 //
 // GET /system-metadata/version-check-state
 func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28983,6 +33381,8 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/system-metadata/version-check-state"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetVersionCheckStateOperation,
@@ -29006,7 +33406,7 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -29132,7 +33532,7 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetVersionCheckStateOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve version check state",
 			OperationID:      "getVersionCheckState",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29178,6 +33578,8 @@ func (s *Server) handleGetVersionCheckStateRequest(args [0]string, argsEscaped b
 
 // handleGetVersionHistoryRequest handles getVersionHistory operation.
 //
+// Retrieve a list of past versions the server has been on.
+//
 // GET /server/version-history
 func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -29187,6 +33589,8 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/version-history"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), GetVersionHistoryOperation,
@@ -29210,7 +33614,7 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -29252,7 +33656,7 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetVersionHistoryOperation,
-			OperationSummary: "",
+			OperationSummary: "Get version history",
 			OperationID:      "getVersionHistory",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29296,7 +33700,898 @@ func (s *Server) handleGetVersionHistoryRequest(args [0]string, argsEscaped bool
 	}
 }
 
+// handleGetWorkflowRequest handles getWorkflow operation.
+//
+// Retrieve information about a specific workflow by its ID.
+//
+// GET /workflows/{id}
+func (s *Server) handleGetWorkflowRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflow"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/workflows/{id}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetWorkflowOperation,
+			ID:   "getWorkflow",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetWorkflowParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *WorkflowResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWorkflowOperation,
+			OperationSummary: "Retrieve a workflow",
+			OperationID:      "getWorkflow",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetWorkflowParams
+			Response = *WorkflowResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetWorkflowParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWorkflow(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWorkflow(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWorkflowResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetWorkflowForShareRequest handles getWorkflowForShare operation.
+//
+// Retrieve a workflow details without ids, default values, etc.
+//
+// GET /workflows/{id}/share
+func (s *Server) handleGetWorkflowForShareRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflowForShare"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/workflows/{id}/share"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetWorkflowForShareOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetWorkflowForShareOperation,
+			ID:   "getWorkflowForShare",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetWorkflowForShareOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetWorkflowForShareOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetWorkflowForShareOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetWorkflowForShareParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *WorkflowShareResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWorkflowForShareOperation,
+			OperationSummary: "Retrieve a workflow",
+			OperationID:      "getWorkflowForShare",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetWorkflowForShareParams
+			Response = *WorkflowShareResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetWorkflowForShareParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWorkflowForShare(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWorkflowForShare(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWorkflowForShareResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetWorkflowLogsRequest handles getWorkflowLogs operation.
+//
+// Retrieve logs of a workflows runs by ID.
+//
+// GET /workflows/{id}/logs
+func (s *Server) handleGetWorkflowLogsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflowLogs"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/workflows/{id}/logs"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetWorkflowLogsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetWorkflowLogsOperation,
+			ID:   "getWorkflowLogs",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetWorkflowLogsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetWorkflowLogsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetWorkflowLogsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeGetWorkflowLogsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []WorkflowLogEntryDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWorkflowLogsOperation,
+			OperationSummary: "Retrieve workflow logs",
+			OperationID:      "getWorkflowLogs",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "before",
+					In:   "query",
+				}: params.Before,
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+				{
+					Name: "result",
+					In:   "query",
+				}: params.Result,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetWorkflowLogsParams
+			Response = []WorkflowLogEntryDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetWorkflowLogsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWorkflowLogs(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWorkflowLogs(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWorkflowLogsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetWorkflowTriggersRequest handles getWorkflowTriggers operation.
+//
+// Retrieve a list of all available workflow triggers.
+//
+// GET /workflows/triggers
+func (s *Server) handleGetWorkflowTriggersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflowTriggers"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/workflows/triggers"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), GetWorkflowTriggersOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetWorkflowTriggersOperation,
+			ID:   "getWorkflowTriggers",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, GetWorkflowTriggersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, GetWorkflowTriggersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, GetWorkflowTriggersOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response []WorkflowTriggerResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWorkflowTriggersOperation,
+			OperationSummary: "List all workflow triggers",
+			OperationID:      "getWorkflowTriggers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = []WorkflowTriggerResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWorkflowTriggers(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWorkflowTriggers(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWorkflowTriggersResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleLinkOAuthAccountRequest handles linkOAuthAccount operation.
+//
+// Link an OAuth account to the authenticated user.
 //
 // POST /oauth/link
 func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29307,6 +34602,8 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/oauth/link"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), LinkOAuthAccountOperation,
@@ -29330,7 +34627,7 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -29471,7 +34768,7 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    LinkOAuthAccountOperation,
-			OperationSummary: "",
+			OperationSummary: "Link OAuth account",
 			OperationID:      "linkOAuthAccount",
 			Body:             request,
 			RawBody:          rawBody,
@@ -29515,7 +34812,217 @@ func (s *Server) handleLinkOAuthAccountRequest(args [0]string, argsEscaped bool,
 	}
 }
 
+// handleListDatabaseBackupsRequest handles listDatabaseBackups operation.
+//
+// Get the list of the successful and failed backups.
+//
+// GET /admin/database-backups
+func (s *Server) handleListDatabaseBackupsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listDatabaseBackups"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/admin/database-backups"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ListDatabaseBackupsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListDatabaseBackupsOperation,
+			ID:   "listDatabaseBackups",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, ListDatabaseBackupsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, ListDatabaseBackupsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, ListDatabaseBackupsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *DatabaseBackupListResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListDatabaseBackupsOperation,
+			OperationSummary: "List database backups",
+			OperationID:      "listDatabaseBackups",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *DatabaseBackupListResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListDatabaseBackups(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListDatabaseBackups(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListDatabaseBackupsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleLockAuthSessionRequest handles lockAuthSession operation.
+//
+// Remove elevated access to locked assets from the current session.
 //
 // POST /auth/session/lock
 func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29526,6 +35033,8 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/session/lock"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), LockAuthSessionOperation,
@@ -29549,7 +35058,7 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -29675,7 +35184,7 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    LockAuthSessionOperation,
-			OperationSummary: "",
+			OperationSummary: "Lock auth session",
 			OperationID:      "lockAuthSession",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29721,7 +35230,7 @@ func (s *Server) handleLockAuthSessionRequest(args [0]string, argsEscaped bool, 
 
 // handleLockSessionRequest handles lockSession operation.
 //
-// This endpoint requires the `session.lock` permission.
+// Lock a specific session by id.
 //
 // POST /sessions/{id}/lock
 func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29732,6 +35241,8 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/sessions/{id}/lock"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), LockSessionOperation,
@@ -29755,7 +35266,7 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -29891,7 +35402,7 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    LockSessionOperation,
-			OperationSummary: "",
+			OperationSummary: "Lock a session",
 			OperationID:      "lockSession",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29942,6 +35453,8 @@ func (s *Server) handleLockSessionRequest(args [1]string, argsEscaped bool, w ht
 
 // handleLoginRequest handles login operation.
 //
+// Login with username and password and receive a session token.
+//
 // POST /auth/login
 func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -29951,6 +35464,8 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/login"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), LoginOperation,
@@ -29974,7 +35489,7 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -30035,7 +35550,7 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    LoginOperation,
-			OperationSummary: "",
+			OperationSummary: "Login",
 			OperationID:      "login",
 			Body:             request,
 			RawBody:          rawBody,
@@ -30081,6 +35596,8 @@ func (s *Server) handleLoginRequest(args [0]string, argsEscaped bool, w http.Res
 
 // handleLogoutRequest handles logout operation.
 //
+// Logout the current user and invalidate the session token.
+//
 // POST /auth/logout
 func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -30090,6 +35607,8 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/logout"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), LogoutOperation,
@@ -30113,7 +35632,7 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -30239,7 +35758,7 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    LogoutOperation,
-			OperationSummary: "",
+			OperationSummary: "Logout",
 			OperationID:      "logout",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -30283,9 +35802,296 @@ func (s *Server) handleLogoutRequest(args [0]string, argsEscaped bool, w http.Re
 	}
 }
 
+// handleLogoutOAuthRequest handles logoutOAuth operation.
+//
+// Logout the OAuth account and invalidate the session specified by the sid claim or all sessions if
+// the sid claim is not present.
+//
+// POST /oauth/backchannel-logout
+func (s *Server) handleLogoutOAuthRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("logoutOAuth"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/oauth/backchannel-logout"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), LogoutOAuthOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: LogoutOAuthOperation,
+			ID:   "logoutOAuth",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeLogoutOAuthRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *LogoutOAuthOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    LogoutOAuthOperation,
+			OperationSummary: "Backchannel OAuth logout",
+			OperationID:      "logoutOAuth",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *OAuthBackchannelLogoutDto
+			Params   = struct{}
+			Response = *LogoutOAuthOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.LogoutOAuth(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.LogoutOAuth(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeLogoutOAuthResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleMaintenanceLoginRequest handles maintenanceLogin operation.
+//
+// Login with maintenance token or cookie to receive current information and perform further actions.
+//
+// POST /admin/maintenance/login
+func (s *Server) handleMaintenanceLoginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("maintenanceLogin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/admin/maintenance/login"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), MaintenanceLoginOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: MaintenanceLoginOperation,
+			ID:   "maintenanceLogin",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeMaintenanceLoginRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *MaintenanceAuthDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    MaintenanceLoginOperation,
+			OperationSummary: "Log into maintenance mode",
+			OperationID:      "maintenanceLogin",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *MaintenanceLoginDto
+			Params   = struct{}
+			Response = *MaintenanceAuthDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.MaintenanceLogin(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.MaintenanceLogin(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeMaintenanceLoginResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleMemoriesStatisticsRequest handles memoriesStatistics operation.
 //
-// This endpoint requires the `memory.statistics` permission.
+// Retrieve statistics about memories, such as total count and other relevant metrics.
 //
 // GET /memories/statistics
 func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30296,6 +36102,8 @@ func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/memories/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), MemoriesStatisticsOperation,
@@ -30319,7 +36127,7 @@ func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -30455,7 +36263,7 @@ func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    MemoriesStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve memories statistics",
 			OperationID:      "memoriesStatistics",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -30472,6 +36280,14 @@ func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped boo
 					Name: "isTrashed",
 					In:   "query",
 				}: params.IsTrashed,
+				{
+					Name: "order",
+					In:   "query",
+				}: params.Order,
+				{
+					Name: "size",
+					In:   "query",
+				}: params.Size,
 				{
 					Name: "type",
 					In:   "query",
@@ -30518,7 +36334,7 @@ func (s *Server) handleMemoriesStatisticsRequest(args [0]string, argsEscaped boo
 
 // handleMergePersonRequest handles mergePerson operation.
 //
-// This endpoint requires the `person.merge` permission.
+// Merge a list of people into the person specified in the path parameter.
 //
 // POST /people/{id}/merge
 func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30529,6 +36345,8 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/people/{id}/merge"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), MergePersonOperation,
@@ -30552,7 +36370,7 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -30703,7 +36521,7 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    MergePersonOperation,
-			OperationSummary: "",
+			OperationSummary: "Merge people",
 			OperationID:      "mergePerson",
 			Body:             request,
 			RawBody:          rawBody,
@@ -30754,6 +36572,8 @@ func (s *Server) handleMergePersonRequest(args [1]string, argsEscaped bool, w ht
 
 // handlePingServerRequest handles pingServer operation.
 //
+// Pong.
+//
 // GET /server/ping
 func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -30763,6 +36583,8 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/server/ping"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), PingServerOperation,
@@ -30786,7 +36608,7 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -30828,7 +36650,7 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    PingServerOperation,
-			OperationSummary: "",
+			OperationSummary: "Ping",
 			OperationID:      "pingServer",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -30874,7 +36696,7 @@ func (s *Server) handlePingServerRequest(args [0]string, argsEscaped bool, w htt
 
 // handlePlayAssetVideoRequest handles playAssetVideo operation.
 //
-// This endpoint requires the `asset.view` permission.
+// Streams the video file for the specified asset. This endpoint also supports byte range requests.
 //
 // GET /assets/{id}/video/playback
 func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30885,6 +36707,8 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}/video/playback"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), PlayAssetVideoOperation,
@@ -30908,7 +36732,7 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -31044,7 +36868,7 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    PlayAssetVideoOperation,
-			OperationSummary: "",
+			OperationSummary: "Play asset video",
 			OperationID:      "playAssetVideo",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -31103,7 +36927,7 @@ func (s *Server) handlePlayAssetVideoRequest(args [1]string, argsEscaped bool, w
 
 // handleReassignFacesRequest handles reassignFaces operation.
 //
-// This endpoint requires the `person.reassign` permission.
+// Bulk reassign a list of faces to a different person.
 //
 // PUT /people/{id}/reassign
 func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31114,6 +36938,8 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/people/{id}/reassign"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ReassignFacesOperation,
@@ -31137,7 +36963,7 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -31288,7 +37114,7 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReassignFacesOperation,
-			OperationSummary: "",
+			OperationSummary: "Reassign faces",
 			OperationID:      "reassignFaces",
 			Body:             request,
 			RawBody:          rawBody,
@@ -31339,7 +37165,7 @@ func (s *Server) handleReassignFacesRequest(args [1]string, argsEscaped bool, w 
 
 // handleReassignFacesByIdRequest handles reassignFacesById operation.
 //
-// This endpoint requires the `face.update` permission.
+// Re-assign the face provided in the body to the person identified by the id in the path parameter.
 //
 // PUT /faces/{id}
 func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31350,6 +37176,8 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/faces/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ReassignFacesByIdOperation,
@@ -31373,7 +37201,7 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -31524,7 +37352,7 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReassignFacesByIdOperation,
-			OperationSummary: "",
+			OperationSummary: "Re-assign a face to another person",
 			OperationID:      "reassignFacesById",
 			Body:             request,
 			RawBody:          rawBody,
@@ -31575,6 +37403,9 @@ func (s *Server) handleReassignFacesByIdRequest(args [1]string, argsEscaped bool
 
 // handleRedirectOAuthToMobileRequest handles redirectOAuthToMobile operation.
 //
+// Requests to this URL are automatically forwarded to the mobile app, and is used in some cases for
+// OAuth redirecting.
+//
 // GET /oauth/mobile-redirect
 func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -31584,6 +37415,8 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/oauth/mobile-redirect"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RedirectOAuthToMobileOperation,
@@ -31607,7 +37440,7 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -31649,7 +37482,7 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RedirectOAuthToMobileOperation,
-			OperationSummary: "",
+			OperationSummary: "Redirect OAuth to mobile",
 			OperationID:      "redirectOAuthToMobile",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -31693,9 +37526,232 @@ func (s *Server) handleRedirectOAuthToMobileRequest(args [0]string, argsEscaped 
 	}
 }
 
+// handleRemoveAssetEditsRequest handles removeAssetEdits operation.
+//
+// Removes all edit actions (crop, rotate, mirror) associated with the specified asset.
+//
+// DELETE /assets/{id}/edits
+func (s *Server) handleRemoveAssetEditsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("removeAssetEdits"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/assets/{id}/edits"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveAssetEditsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RemoveAssetEditsOperation,
+			ID:   "removeAssetEdits",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, RemoveAssetEditsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, RemoveAssetEditsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, RemoveAssetEditsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeRemoveAssetEditsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *RemoveAssetEditsNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RemoveAssetEditsOperation,
+			OperationSummary: "Remove edits from an existing asset",
+			OperationID:      "removeAssetEdits",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = RemoveAssetEditsParams
+			Response = *RemoveAssetEditsNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRemoveAssetEditsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.RemoveAssetEdits(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.RemoveAssetEdits(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRemoveAssetEditsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleRemoveAssetFromAlbumRequest handles removeAssetFromAlbum operation.
 //
-// This endpoint requires the `albumAsset.delete` permission.
+// Remove multiple assets from a specific album by its ID.
 //
 // DELETE /albums/{id}/assets
 func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31706,6 +37762,8 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/albums/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveAssetFromAlbumOperation,
@@ -31729,7 +37787,7 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -31880,7 +37938,7 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemoveAssetFromAlbumOperation,
-			OperationSummary: "",
+			OperationSummary: "Remove assets from an album",
 			OperationID:      "removeAssetFromAlbum",
 			Body:             request,
 			RawBody:          rawBody,
@@ -31931,7 +37989,7 @@ func (s *Server) handleRemoveAssetFromAlbumRequest(args [1]string, argsEscaped b
 
 // handleRemoveAssetFromStackRequest handles removeAssetFromStack operation.
 //
-// This endpoint requires the `stack.update` permission.
+// Remove a specific asset from a stack by providing the stack ID and asset ID.
 //
 // DELETE /stacks/{id}/assets/{assetId}
 func (s *Server) handleRemoveAssetFromStackRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -31942,6 +38000,8 @@ func (s *Server) handleRemoveAssetFromStackRequest(args [2]string, argsEscaped b
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/stacks/{id}/assets/{assetId}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveAssetFromStackOperation,
@@ -31965,7 +38025,7 @@ func (s *Server) handleRemoveAssetFromStackRequest(args [2]string, argsEscaped b
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -32101,7 +38161,7 @@ func (s *Server) handleRemoveAssetFromStackRequest(args [2]string, argsEscaped b
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemoveAssetFromStackOperation,
-			OperationSummary: "",
+			OperationSummary: "Remove an asset from a stack",
 			OperationID:      "removeAssetFromStack",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -32156,7 +38216,7 @@ func (s *Server) handleRemoveAssetFromStackRequest(args [2]string, argsEscaped b
 
 // handleRemoveMemoryAssetsRequest handles removeMemoryAssets operation.
 //
-// This endpoint requires the `memoryAsset.delete` permission.
+// Remove a list of asset IDs from a specific memory.
 //
 // DELETE /memories/{id}/assets
 func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32167,6 +38227,8 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/memories/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveMemoryAssetsOperation,
@@ -32190,7 +38252,7 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -32341,7 +38403,7 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemoveMemoryAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Remove assets from a memory",
 			OperationID:      "removeMemoryAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -32392,7 +38454,7 @@ func (s *Server) handleRemoveMemoryAssetsRequest(args [1]string, argsEscaped boo
 
 // handleRemovePartnerRequest handles removePartner operation.
 //
-// This endpoint requires the `partner.delete` permission.
+// Stop sharing assets with a partner.
 //
 // DELETE /partners/{id}
 func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32403,6 +38465,8 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/partners/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemovePartnerOperation,
@@ -32426,7 +38490,7 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -32562,7 +38626,7 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemovePartnerOperation,
-			OperationSummary: "",
+			OperationSummary: "Remove a partner",
 			OperationID:      "removePartner",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -32613,7 +38677,7 @@ func (s *Server) handleRemovePartnerRequest(args [1]string, argsEscaped bool, w 
 
 // handleRemoveSharedLinkRequest handles removeSharedLink operation.
 //
-// This endpoint requires the `sharedLink.delete` permission.
+// Delete a specific shared link by its ID.
 //
 // DELETE /shared-links/{id}
 func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -32624,6 +38688,8 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/shared-links/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveSharedLinkOperation,
@@ -32647,7 +38713,7 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -32783,7 +38849,7 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemoveSharedLinkOperation,
-			OperationSummary: "",
+			OperationSummary: "Delete a shared link",
 			OperationID:      "removeSharedLink",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -32834,6 +38900,9 @@ func (s *Server) handleRemoveSharedLinkRequest(args [1]string, argsEscaped bool,
 
 // handleRemoveSharedLinkAssetsRequest handles removeSharedLinkAssets operation.
 //
+// Remove assets from a specific shared link by its ID. This endpoint is only relevant for shared link
+// of type individual.
+//
 // DELETE /shared-links/{id}/assets
 func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -32843,6 +38912,8 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/shared-links/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveSharedLinkAssetsOperation,
@@ -32866,7 +38937,7 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -33017,7 +39088,7 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemoveSharedLinkAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Remove assets from a shared link",
 			OperationID:      "removeSharedLinkAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -33026,14 +39097,6 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 					Name: "id",
 					In:   "path",
 				}: params.ID,
-				{
-					Name: "key",
-					In:   "query",
-				}: params.Key,
-				{
-					Name: "slug",
-					In:   "query",
-				}: params.Slug,
 			},
 			Raw: r,
 		}
@@ -33076,7 +39139,7 @@ func (s *Server) handleRemoveSharedLinkAssetsRequest(args [1]string, argsEscaped
 
 // handleRemoveUserFromAlbumRequest handles removeUserFromAlbum operation.
 //
-// This endpoint requires the `albumUser.delete` permission.
+// Remove a user from an album. Use an ID of "me" to leave a shared album.
 //
 // DELETE /albums/{id}/user/{userId}
 func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33087,6 +39150,8 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/albums/{id}/user/{userId}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RemoveUserFromAlbumOperation,
@@ -33110,7 +39175,7 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -33246,7 +39311,7 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RemoveUserFromAlbumOperation,
-			OperationSummary: "",
+			OperationSummary: "Remove user from album",
 			OperationID:      "removeUserFromAlbum",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -33299,257 +39364,9 @@ func (s *Server) handleRemoveUserFromAlbumRequest(args [2]string, argsEscaped bo
 	}
 }
 
-// handleReplaceAssetRequest handles replaceAsset operation.
-//
-// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
-//
-//	This endpoint requires the `asset.replace` permission.
-//
-// Deprecated: schema marks this operation as deprecated.
-//
-// PUT /assets/{id}/original
-func (s *Server) handleReplaceAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("replaceAsset"),
-		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/assets/{id}/original"),
-	}
-
-	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), ReplaceAssetOperation,
-		trace.WithAttributes(otelAttrs...),
-		serverSpanKind,
-	)
-	defer span.End()
-
-	// Add Labeler to context.
-	labeler := &Labeler{attrs: otelAttrs}
-	ctx = contextWithLabeler(ctx, labeler)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		elapsedDuration := time.Since(startTime)
-
-		attrSet := labeler.AttributeSet()
-		attrs := attrSet.ToSlice()
-		code := statusWriter.status
-		if code != 0 {
-			codeAttr := semconv.HTTPResponseStatusCode(code)
-			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
-		}
-		attrOpt := metric.WithAttributes(attrs...)
-
-		// Increment request counter.
-		s.requests.Add(ctx, 1, attrOpt)
-
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
-	}()
-
-	var (
-		recordError = func(stage string, err error) {
-			span.RecordError(err)
-
-			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
-			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
-			// max redirects exceeded), in which case status MUST be set to Error.
-			code := statusWriter.status
-			if code < 100 || code >= 500 {
-				span.SetStatus(codes.Error, stage)
-			}
-
-			attrSet := labeler.AttributeSet()
-			attrs := attrSet.ToSlice()
-			if code != 0 {
-				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
-			}
-
-			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
-		}
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: ReplaceAssetOperation,
-			ID:   "replaceAsset",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securityBearer(ctx, ReplaceAssetOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Bearer",
-					Err:              err,
-				}
-				defer recordError("Security:Bearer", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityCookie(ctx, ReplaceAssetOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Cookie",
-					Err:              err,
-				}
-				defer recordError("Security:Cookie", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 1
-				ctx = sctx
-			}
-		}
-		{
-			sctx, ok, err := s.securityAPIKey(ctx, ReplaceAssetOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "APIKey",
-					Err:              err,
-				}
-				defer recordError("Security:APIKey", err)
-				s.cfg.ErrorHandler(ctx, w, r, err)
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 2
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			defer recordError("Security", err)
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-	}
-	params, err := decodeReplaceAssetParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeReplaceAssetRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *AssetMediaResponseDto
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    ReplaceAssetOperation,
-			OperationSummary: "Replace the asset with new file, without changing its id",
-			OperationID:      "replaceAsset",
-			Body:             request,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-				{
-					Name: "key",
-					In:   "query",
-				}: params.Key,
-				{
-					Name: "slug",
-					In:   "query",
-				}: params.Slug,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = *AssetMediaReplaceDtoMultipart
-			Params   = ReplaceAssetParams
-			Response = *AssetMediaResponseDto
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackReplaceAssetParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ReplaceAsset(ctx, request, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.ReplaceAsset(ctx, request, params)
-	}
-	if err != nil {
-		defer recordError("Internal", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	if err := encodeReplaceAssetResponse(response, w, span); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleResetPinCodeRequest handles resetPinCode operation.
 //
-// This endpoint requires the `pinCode.delete` permission.
+// Reset the pin code for the current user by providing the account password.
 //
 // DELETE /auth/pin-code
 func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33560,6 +39377,8 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/auth/pin-code"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ResetPinCodeOperation,
@@ -33583,7 +39402,7 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -33724,7 +39543,7 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ResetPinCodeOperation,
-			OperationSummary: "",
+			OperationSummary: "Reset pin code",
 			OperationID:      "resetPinCode",
 			Body:             request,
 			RawBody:          rawBody,
@@ -33768,9 +39587,232 @@ func (s *Server) handleResetPinCodeRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleResolveDuplicatesRequest handles resolveDuplicates operation.
+//
+// Resolve duplicate groups by synchronizing metadata across assets and deleting/trashing duplicates.
+//
+// POST /duplicates/resolve
+func (s *Server) handleResolveDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("resolveDuplicates"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/duplicates/resolve"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), ResolveDuplicatesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ResolveDuplicatesOperation,
+			ID:   "resolveDuplicates",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, ResolveDuplicatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, ResolveDuplicatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, ResolveDuplicatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeResolveDuplicatesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response []BulkIdResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ResolveDuplicatesOperation,
+			OperationSummary: "Resolve duplicate groups",
+			OperationID:      "resolveDuplicates",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *DuplicateResolveDto
+			Params   = struct{}
+			Response = []BulkIdResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ResolveDuplicates(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ResolveDuplicates(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeResolveDuplicatesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleRestoreAssetsRequest handles restoreAssets operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Restore specific assets from the trash.
 //
 // POST /trash/restore/assets
 func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -33781,6 +39823,8 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/trash/restore/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RestoreAssetsOperation,
@@ -33804,7 +39848,7 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -33945,7 +39989,7 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RestoreAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Restore assets",
 			OperationID:      "restoreAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -33991,7 +40035,7 @@ func (s *Server) handleRestoreAssetsRequest(args [0]string, argsEscaped bool, w 
 
 // handleRestoreTrashRequest handles restoreTrash operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Restore all items in the trash.
 //
 // POST /trash/restore
 func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34002,6 +40046,8 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/trash/restore"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RestoreTrashOperation,
@@ -34025,7 +40071,7 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -34151,7 +40197,7 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RestoreTrashOperation,
-			OperationSummary: "",
+			OperationSummary: "Restore trash",
 			OperationID:      "restoreTrash",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -34197,7 +40243,7 @@ func (s *Server) handleRestoreTrashRequest(args [0]string, argsEscaped bool, w h
 
 // handleRestoreUserAdminRequest handles restoreUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+// Restore a previously deleted user.
 //
 // POST /admin/users/{id}/restore
 func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34208,6 +40254,8 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}/restore"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RestoreUserAdminOperation,
@@ -34231,7 +40279,7 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -34367,7 +40415,7 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RestoreUserAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Restore a deleted user",
 			OperationID:      "restoreUserAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -34418,6 +40466,8 @@ func (s *Server) handleRestoreUserAdminRequest(args [1]string, argsEscaped bool,
 
 // handleReverseGeocodeRequest handles reverseGeocode operation.
 //
+// Retrieve location information (e.g., city, country) for given latitude and longitude coordinates.
+//
 // GET /map/reverse-geocode
 func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -34427,6 +40477,8 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/map/reverse-geocode"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ReverseGeocodeOperation,
@@ -34450,7 +40502,7 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -34586,7 +40638,7 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ReverseGeocodeOperation,
-			OperationSummary: "",
+			OperationSummary: "Reverse geocode coordinates",
 			OperationID:      "reverseGeocode",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -34641,6 +40693,8 @@ func (s *Server) handleReverseGeocodeRequest(args [0]string, argsEscaped bool, w
 
 // handleRunAssetJobsRequest handles runAssetJobs operation.
 //
+// Run a specific job on a set of assets.
+//
 // POST /assets/jobs
 func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -34650,6 +40704,8 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/assets/jobs"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), RunAssetJobsOperation,
@@ -34673,7 +40729,7 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -34814,7 +40870,7 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    RunAssetJobsOperation,
-			OperationSummary: "",
+			OperationSummary: "Run an asset job",
 			OperationID:      "runAssetJobs",
 			Body:             request,
 			RawBody:          rawBody,
@@ -34858,9 +40914,250 @@ func (s *Server) handleRunAssetJobsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleRunQueueCommandLegacyRequest handles runQueueCommandLegacy operation.
+//
+// Queue all assets for a specific job type. Defaults to only queueing assets that have not yet been
+// processed, but the force command can be used to re-process all assets.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// PUT /jobs/{name}
+func (s *Server) handleRunQueueCommandLegacyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("runQueueCommandLegacy"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/jobs/{name}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), RunQueueCommandLegacyOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RunQueueCommandLegacyOperation,
+			ID:   "runQueueCommandLegacy",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, RunQueueCommandLegacyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, RunQueueCommandLegacyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, RunQueueCommandLegacyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeRunQueueCommandLegacyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRunQueueCommandLegacyRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *QueueResponseLegacyDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RunQueueCommandLegacyOperation,
+			OperationSummary: "Run jobs",
+			OperationID:      "runQueueCommandLegacy",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "name",
+					In:   "path",
+				}: params.Name,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *QueueCommandDto
+			Params   = RunQueueCommandLegacyParams
+			Response = *QueueResponseLegacyDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRunQueueCommandLegacyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RunQueueCommandLegacy(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RunQueueCommandLegacy(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRunQueueCommandLegacyResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleScanLibraryRequest handles scanLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.update` permission.
+// Queue a scan for the external library to find and import new assets.
 //
 // POST /libraries/{id}/scan
 func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -34871,6 +41168,8 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/libraries/{id}/scan"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ScanLibraryOperation,
@@ -34894,7 +41193,7 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -35030,7 +41329,7 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanLibraryOperation,
-			OperationSummary: "",
+			OperationSummary: "Scan a library",
 			OperationID:      "scanLibrary",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -35081,7 +41380,7 @@ func (s *Server) handleScanLibraryRequest(args [1]string, argsEscaped bool, w ht
 
 // handleSearchAssetStatisticsRequest handles searchAssetStatistics operation.
 //
-// This endpoint requires the `asset.statistics` permission.
+// Retrieve statistical data about assets based on search criteria, such as the total matching count.
 //
 // POST /search/statistics
 func (s *Server) handleSearchAssetStatisticsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35092,6 +41391,8 @@ func (s *Server) handleSearchAssetStatisticsRequest(args [0]string, argsEscaped 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/search/statistics"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchAssetStatisticsOperation,
@@ -35115,7 +41416,7 @@ func (s *Server) handleSearchAssetStatisticsRequest(args [0]string, argsEscaped 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -35256,7 +41557,7 @@ func (s *Server) handleSearchAssetStatisticsRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchAssetStatisticsOperation,
-			OperationSummary: "",
+			OperationSummary: "Search asset statistics",
 			OperationID:      "searchAssetStatistics",
 			Body:             request,
 			RawBody:          rawBody,
@@ -35302,7 +41603,7 @@ func (s *Server) handleSearchAssetStatisticsRequest(args [0]string, argsEscaped 
 
 // handleSearchAssetsRequest handles searchAssets operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Search for assets based on various metadata criteria.
 //
 // POST /search/metadata
 func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35313,6 +41614,8 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/search/metadata"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchAssetsOperation,
@@ -35336,7 +41639,7 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -35454,6 +41757,16 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 			return
 		}
 	}
+	params, err := decodeSearchAssetsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 	request, rawBody, close, err := s.decodeSearchAssetsRequest(r)
@@ -35477,17 +41790,26 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Search assets by metadata",
 			OperationID:      "searchAssets",
 			Body:             request,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = *MetadataSearchDto
-			Params   = struct{}
+			Params   = SearchAssetsParams
 			Response = *SearchResponseDto
 		)
 		response, err = middleware.HookMiddleware[
@@ -35497,14 +41819,14 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 		](
 			m,
 			mreq,
-			nil,
+			unpackSearchAssetsParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.SearchAssets(ctx, request)
+				response, err = s.h.SearchAssets(ctx, request, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.SearchAssets(ctx, request)
+		response, err = s.h.SearchAssets(ctx, request, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -35523,7 +41845,7 @@ func (s *Server) handleSearchAssetsRequest(args [0]string, argsEscaped bool, w h
 
 // handleSearchLargeAssetsRequest handles searchLargeAssets operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Search for assets that are considered large based on specified criteria.
 //
 // POST /search/large-assets
 func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35534,6 +41856,8 @@ func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/search/large-assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchLargeAssetsOperation,
@@ -35557,7 +41881,7 @@ func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -35693,7 +42017,7 @@ func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchLargeAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Search large assets",
 			OperationID:      "searchLargeAssets",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -35718,10 +42042,6 @@ func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool
 					Name: "createdBefore",
 					In:   "query",
 				}: params.CreatedBefore,
-				{
-					Name: "deviceId",
-					In:   "query",
-				}: params.DeviceId,
 				{
 					Name: "isEncoded",
 					In:   "query",
@@ -35868,7 +42188,8 @@ func (s *Server) handleSearchLargeAssetsRequest(args [0]string, argsEscaped bool
 
 // handleSearchMemoriesRequest handles searchMemories operation.
 //
-// This endpoint requires the `memory.read` permission.
+// Retrieve a list of memories. Memories are sorted descending by creation date by default, although
+// they can also be sorted in ascending order, or randomly.
 //
 // GET /memories
 func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -35879,6 +42200,8 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/memories"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchMemoriesOperation,
@@ -35902,7 +42225,7 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -36038,7 +42361,7 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchMemoriesOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve memories",
 			OperationID:      "searchMemories",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -36055,6 +42378,14 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 					Name: "isTrashed",
 					In:   "query",
 				}: params.IsTrashed,
+				{
+					Name: "order",
+					In:   "query",
+				}: params.Order,
+				{
+					Name: "size",
+					In:   "query",
+				}: params.Size,
 				{
 					Name: "type",
 					In:   "query",
@@ -36101,7 +42432,7 @@ func (s *Server) handleSearchMemoriesRequest(args [0]string, argsEscaped bool, w
 
 // handleSearchPersonRequest handles searchPerson operation.
 //
-// This endpoint requires the `person.read` permission.
+// Search for people by name.
 //
 // GET /search/person
 func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36112,6 +42443,8 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/search/person"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchPersonOperation,
@@ -36135,7 +42468,7 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -36271,7 +42604,7 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchPersonOperation,
-			OperationSummary: "",
+			OperationSummary: "Search people",
 			OperationID:      "searchPerson",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -36326,7 +42659,7 @@ func (s *Server) handleSearchPersonRequest(args [0]string, argsEscaped bool, w h
 
 // handleSearchPlacesRequest handles searchPlaces operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Search for places by name.
 //
 // GET /search/places
 func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36337,6 +42670,8 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/search/places"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchPlacesOperation,
@@ -36360,7 +42695,7 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -36496,7 +42831,7 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchPlacesOperation,
-			OperationSummary: "",
+			OperationSummary: "Search places",
 			OperationID:      "searchPlaces",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -36545,9 +42880,715 @@ func (s *Server) handleSearchPlacesRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleSearchPluginMethodsRequest handles searchPluginMethods operation.
+//
+// Retrieve a list of plugin methods.
+//
+// GET /plugins/methods
+func (s *Server) handleSearchPluginMethodsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchPluginMethods"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/plugins/methods"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchPluginMethodsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SearchPluginMethodsOperation,
+			ID:   "searchPluginMethods",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SearchPluginMethodsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SearchPluginMethodsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SearchPluginMethodsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeSearchPluginMethodsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []PluginMethodResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SearchPluginMethodsOperation,
+			OperationSummary: "Retrieve plugin methods",
+			OperationID:      "searchPluginMethods",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "description",
+					In:   "query",
+				}: params.Description,
+				{
+					Name: "enabled",
+					In:   "query",
+				}: params.Enabled,
+				{
+					Name: "id",
+					In:   "query",
+				}: params.ID,
+				{
+					Name: "name",
+					In:   "query",
+				}: params.Name,
+				{
+					Name: "pluginName",
+					In:   "query",
+				}: params.PluginName,
+				{
+					Name: "pluginVersion",
+					In:   "query",
+				}: params.PluginVersion,
+				{
+					Name: "title",
+					In:   "query",
+				}: params.Title,
+				{
+					Name: "trigger",
+					In:   "query",
+				}: params.Trigger,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = SearchPluginMethodsParams
+			Response = []PluginMethodResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSearchPluginMethodsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SearchPluginMethods(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SearchPluginMethods(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSearchPluginMethodsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSearchPluginTemplatesRequest handles searchPluginTemplates operation.
+//
+// Retrieve workflow templates provided by installed plugins.
+//
+// GET /plugins/templates
+func (s *Server) handleSearchPluginTemplatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchPluginTemplates"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/plugins/templates"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchPluginTemplatesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SearchPluginTemplatesOperation,
+			ID:   "searchPluginTemplates",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SearchPluginTemplatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SearchPluginTemplatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SearchPluginTemplatesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response []PluginTemplateResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SearchPluginTemplatesOperation,
+			OperationSummary: "Retrieve workflow templates",
+			OperationID:      "searchPluginTemplates",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = []PluginTemplateResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SearchPluginTemplates(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SearchPluginTemplates(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSearchPluginTemplatesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSearchPluginsRequest handles searchPlugins operation.
+//
+// Retrieve a list of plugins available to the authenticated user.
+//
+// GET /plugins
+func (s *Server) handleSearchPluginsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchPlugins"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/plugins"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchPluginsOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SearchPluginsOperation,
+			ID:   "searchPlugins",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SearchPluginsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SearchPluginsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SearchPluginsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeSearchPluginsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response []PluginResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SearchPluginsOperation,
+			OperationSummary: "List all plugins",
+			OperationID:      "searchPlugins",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "description",
+					In:   "query",
+				}: params.Description,
+				{
+					Name: "enabled",
+					In:   "query",
+				}: params.Enabled,
+				{
+					Name: "id",
+					In:   "query",
+				}: params.ID,
+				{
+					Name: "name",
+					In:   "query",
+				}: params.Name,
+				{
+					Name: "title",
+					In:   "query",
+				}: params.Title,
+				{
+					Name: "version",
+					In:   "query",
+				}: params.Version,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = SearchPluginsParams
+			Response = []PluginResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSearchPluginsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SearchPlugins(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SearchPlugins(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSearchPluginsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSearchRandomRequest handles searchRandom operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a random selection of assets based on the provided criteria.
 //
 // POST /search/random
 func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36558,6 +43599,8 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/search/random"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchRandomOperation,
@@ -36581,7 +43624,7 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -36722,7 +43765,7 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchRandomOperation,
-			OperationSummary: "",
+			OperationSummary: "Search random assets",
 			OperationID:      "searchRandom",
 			Body:             request,
 			RawBody:          rawBody,
@@ -36768,7 +43811,7 @@ func (s *Server) handleSearchRandomRequest(args [0]string, argsEscaped bool, w h
 
 // handleSearchSmartRequest handles searchSmart operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Perform a smart search for assets by using machine learning vectors to determine relevance.
 //
 // POST /search/smart
 func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -36779,6 +43822,8 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/search/smart"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchSmartOperation,
@@ -36802,7 +43847,7 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -36943,7 +43988,7 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchSmartOperation,
-			OperationSummary: "",
+			OperationSummary: "Smart asset search",
 			OperationID:      "searchSmart",
 			Body:             request,
 			RawBody:          rawBody,
@@ -36989,7 +44034,7 @@ func (s *Server) handleSearchSmartRequest(args [0]string, argsEscaped bool, w ht
 
 // handleSearchStacksRequest handles searchStacks operation.
 //
-// This endpoint requires the `stack.read` permission.
+// Retrieve a list of stacks.
 //
 // GET /stacks
 func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37000,6 +44045,8 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/stacks"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchStacksOperation,
@@ -37023,7 +44070,7 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -37159,7 +44206,7 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchStacksOperation,
-			OperationSummary: "",
+			OperationSummary: "Retrieve stacks",
 			OperationID:      "searchStacks",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -37210,7 +44257,7 @@ func (s *Server) handleSearchStacksRequest(args [0]string, argsEscaped bool, w h
 
 // handleSearchUsersRequest handles searchUsers operation.
 //
-// This endpoint requires the `user.read` permission.
+// Retrieve a list of all users on the server.
 //
 // GET /users
 func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37221,6 +44268,8 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/users"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchUsersOperation,
@@ -37244,7 +44293,7 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -37370,7 +44419,7 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchUsersOperation,
-			OperationSummary: "",
+			OperationSummary: "Get all users",
 			OperationID:      "searchUsers",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -37416,7 +44465,7 @@ func (s *Server) handleSearchUsersRequest(args [0]string, argsEscaped bool, w ht
 
 // handleSearchUsersAdminRequest handles searchUsersAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Search for users.
 //
 // GET /admin/users
 func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37427,6 +44476,8 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/admin/users"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchUsersAdminOperation,
@@ -37450,7 +44501,7 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -37586,7 +44637,7 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SearchUsersAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Search users",
 			OperationID:      "searchUsersAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -37639,22 +44690,24 @@ func (s *Server) handleSearchUsersAdminRequest(args [0]string, argsEscaped bool,
 	}
 }
 
-// handleSendJobCommandRequest handles sendJobCommand operation.
+// handleSearchWorkflowsRequest handles searchWorkflows operation.
 //
-// This endpoint is an admin-only route, and requires the `job.create` permission.
+// Retrieve a list of workflows available to the authenticated user.
 //
-// PUT /jobs/{id}
-func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /workflows
+func (s *Server) handleSearchWorkflowsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("sendJobCommand"),
-		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/jobs/{id}"),
+		otelogen.OperationID("searchWorkflows"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/workflows"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), SendJobCommandOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SearchWorkflowsOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -37675,7 +44728,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -37709,15 +44762,15 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: SendJobCommandOperation,
-			ID:   "sendJobCommand",
+			Name: SearchWorkflowsOperation,
+			ID:   "searchWorkflows",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securityBearer(ctx, SendJobCommandOperation, r)
+			sctx, ok, err := s.securityBearer(ctx, SearchWorkflowsOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -37734,7 +44787,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 			}
 		}
 		{
-			sctx, ok, err := s.securityCookie(ctx, SendJobCommandOperation, r)
+			sctx, ok, err := s.securityCookie(ctx, SearchWorkflowsOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -37751,7 +44804,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 			}
 		}
 		{
-			sctx, ok, err := s.securityAPIKey(ctx, SendJobCommandOperation, r)
+			sctx, ok, err := s.securityAPIKey(ctx, SearchWorkflowsOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -37793,7 +44846,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 			return
 		}
 	}
-	params, err := decodeSendJobCommandParams(args, argsEscaped, r)
+	params, err := decodeSearchWorkflowsParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -37805,44 +44858,49 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 	}
 
 	var rawBody []byte
-	request, rawBody, close, err := s.decodeSendJobCommandRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
 
-	var response *JobStatusDto
+	var response []WorkflowResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    SendJobCommandOperation,
-			OperationSummary: "",
-			OperationID:      "sendJobCommand",
-			Body:             request,
+			OperationName:    SearchWorkflowsOperation,
+			OperationSummary: "List all workflows",
+			OperationID:      "searchWorkflows",
+			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
+					Name: "description",
+					In:   "query",
+				}: params.Description,
+				{
+					Name: "enabled",
+					In:   "query",
+				}: params.Enabled,
+				{
 					Name: "id",
-					In:   "path",
+					In:   "query",
 				}: params.ID,
+				{
+					Name: "logging",
+					In:   "query",
+				}: params.Logging,
+				{
+					Name: "name",
+					In:   "query",
+				}: params.Name,
+				{
+					Name: "trigger",
+					In:   "query",
+				}: params.Trigger,
 			},
 			Raw: r,
 		}
 
 		type (
-			Request  = *JobCommandDto
-			Params   = SendJobCommandParams
-			Response = *JobStatusDto
+			Request  = struct{}
+			Params   = SearchWorkflowsParams
+			Response = []WorkflowResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -37851,14 +44909,14 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 		](
 			m,
 			mreq,
-			unpackSendJobCommandParams,
+			unpackSearchWorkflowsParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.SendJobCommand(ctx, request, params)
+				response, err = s.h.SearchWorkflows(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.SendJobCommand(ctx, request, params)
+		response, err = s.h.SearchWorkflows(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -37866,7 +44924,7 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 		return
 	}
 
-	if err := encodeSendJobCommandResponse(response, w, span); err != nil {
+	if err := encodeSearchWorkflowsResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -37877,7 +44935,8 @@ func (s *Server) handleSendJobCommandRequest(args [1]string, argsEscaped bool, w
 
 // handleSendSyncAckRequest handles sendSyncAck operation.
 //
-// This endpoint requires the `syncCheckpoint.update` permission.
+// Send a list of synchronization acknowledgements to confirm that the latest changes have been
+// received.
 //
 // POST /sync/ack
 func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37888,6 +44947,8 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/sync/ack"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SendSyncAckOperation,
@@ -37911,7 +44972,7 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -38052,7 +45113,7 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SendSyncAckOperation,
-			OperationSummary: "",
+			OperationSummary: "Acknowledge changes",
 			OperationID:      "sendSyncAck",
 			Body:             request,
 			RawBody:          rawBody,
@@ -38098,6 +45159,8 @@ func (s *Server) handleSendSyncAckRequest(args [0]string, argsEscaped bool, w ht
 
 // handleSendTestEmailAdminRequest handles sendTestEmailAdmin operation.
 //
+// Send a test email using the provided SMTP configuration.
+//
 // POST /admin/notifications/test-email
 func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -38107,6 +45170,8 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/admin/notifications/test-email"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SendTestEmailAdminOperation,
@@ -38130,7 +45195,7 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -38271,7 +45336,7 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SendTestEmailAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Send test email",
 			OperationID:      "sendTestEmailAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -38315,9 +45380,232 @@ func (s *Server) handleSendTestEmailAdminRequest(args [0]string, argsEscaped boo
 	}
 }
 
+// handleSetMaintenanceModeRequest handles setMaintenanceMode operation.
+//
+// Put Immich into or take it out of maintenance mode.
+//
+// POST /admin/maintenance
+func (s *Server) handleSetMaintenanceModeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("setMaintenanceMode"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/admin/maintenance"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SetMaintenanceModeOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetMaintenanceModeOperation,
+			ID:   "setMaintenanceMode",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SetMaintenanceModeOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SetMaintenanceModeOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SetMaintenanceModeOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetMaintenanceModeRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *SetMaintenanceModeCreated
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetMaintenanceModeOperation,
+			OperationSummary: "Set maintenance mode",
+			OperationID:      "setMaintenanceMode",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *SetMaintenanceModeDto
+			Params   = struct{}
+			Response = *SetMaintenanceModeCreated
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.SetMaintenanceMode(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.SetMaintenanceMode(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetMaintenanceModeResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSetServerLicenseRequest handles setServerLicense operation.
 //
-// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+// Validate and set the server product key if successful.
 //
 // PUT /server/license
 func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38328,6 +45616,8 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/server/license"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SetServerLicenseOperation,
@@ -38351,7 +45641,7 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -38487,12 +45777,12 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 		}
 	}()
 
-	var response *LicenseResponseDto
+	var response *UserLicense
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SetServerLicenseOperation,
-			OperationSummary: "",
+			OperationSummary: "Set server product key",
 			OperationID:      "setServerLicense",
 			Body:             request,
 			RawBody:          rawBody,
@@ -38503,7 +45793,7 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 		type (
 			Request  = *LicenseKeyDto
 			Params   = struct{}
-			Response = *LicenseResponseDto
+			Response = *UserLicense
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -38538,7 +45828,7 @@ func (s *Server) handleSetServerLicenseRequest(args [0]string, argsEscaped bool,
 
 // handleSetUserLicenseRequest handles setUserLicense operation.
 //
-// This endpoint requires the `userLicense.update` permission.
+// Register a product key for the current user.
 //
 // PUT /users/me/license
 func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38549,6 +45839,8 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/users/me/license"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SetUserLicenseOperation,
@@ -38572,7 +45864,7 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -38708,12 +46000,12 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		}
 	}()
 
-	var response *LicenseResponseDto
+	var response *UserLicense
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SetUserLicenseOperation,
-			OperationSummary: "",
+			OperationSummary: "Set user product key",
 			OperationID:      "setUserLicense",
 			Body:             request,
 			RawBody:          rawBody,
@@ -38724,7 +46016,7 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 		type (
 			Request  = *LicenseKeyDto
 			Params   = struct{}
-			Response = *LicenseResponseDto
+			Response = *UserLicense
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -38759,7 +46051,7 @@ func (s *Server) handleSetUserLicenseRequest(args [0]string, argsEscaped bool, w
 
 // handleSetUserOnboardingRequest handles setUserOnboarding operation.
 //
-// This endpoint requires the `userOnboarding.update` permission.
+// Update the onboarding status of the current user.
 //
 // PUT /users/me/onboarding
 func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38770,6 +46062,8 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/users/me/onboarding"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SetUserOnboardingOperation,
@@ -38793,7 +46087,7 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -38934,7 +46228,7 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SetUserOnboardingOperation,
-			OperationSummary: "",
+			OperationSummary: "Update user onboarding",
 			OperationID:      "setUserOnboarding",
 			Body:             request,
 			RawBody:          rawBody,
@@ -38980,7 +46274,7 @@ func (s *Server) handleSetUserOnboardingRequest(args [0]string, argsEscaped bool
 
 // handleSetupPinCodeRequest handles setupPinCode operation.
 //
-// This endpoint requires the `pinCode.create` permission.
+// Setup a new pin code for the current user.
 //
 // POST /auth/pin-code
 func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38991,6 +46285,8 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/pin-code"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SetupPinCodeOperation,
@@ -39014,7 +46310,7 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -39155,7 +46451,7 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SetupPinCodeOperation,
-			OperationSummary: "",
+			OperationSummary: "Setup pin code",
 			OperationID:      "setupPinCode",
 			Body:             request,
 			RawBody:          rawBody,
@@ -39199,7 +46495,251 @@ func (s *Server) handleSetupPinCodeRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleSharedLinkLoginRequest handles sharedLinkLogin operation.
+//
+// Login to a password protected shared link.
+//
+// POST /shared-links/login
+func (s *Server) handleSharedLinkLoginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("sharedLinkLogin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/shared-links/login"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), SharedLinkLoginOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SharedLinkLoginOperation,
+			ID:   "sharedLinkLogin",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, SharedLinkLoginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, SharedLinkLoginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, SharedLinkLoginOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeSharedLinkLoginParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSharedLinkLoginRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *SharedLinkResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SharedLinkLoginOperation,
+			OperationSummary: "Shared link login",
+			OperationID:      "sharedLinkLogin",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "key",
+					In:   "query",
+				}: params.Key,
+				{
+					Name: "slug",
+					In:   "query",
+				}: params.Slug,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SharedLinkLoginDto
+			Params   = SharedLinkLoginParams
+			Response = *SharedLinkResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSharedLinkLoginParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SharedLinkLogin(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SharedLinkLogin(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSharedLinkLoginResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSignUpAdminRequest handles signUpAdmin operation.
+//
+// Create the first admin user in the system.
 //
 // POST /auth/admin-sign-up
 func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39210,6 +46750,8 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/admin-sign-up"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), SignUpAdminOperation,
@@ -39233,7 +46775,7 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -39294,7 +46836,7 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    SignUpAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Register admin",
 			OperationID:      "signUpAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -39338,7 +46880,133 @@ func (s *Server) handleSignUpAdminRequest(args [0]string, argsEscaped bool, w ht
 	}
 }
 
+// handleStartDatabaseRestoreFlowRequest handles startDatabaseRestoreFlow operation.
+//
+// Put Immich into maintenance mode to restore a backup (Immich must not be configured).
+//
+// POST /admin/database-backups/start-restore
+func (s *Server) handleStartDatabaseRestoreFlowRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("startDatabaseRestoreFlow"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/admin/database-backups/start-restore"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), StartDatabaseRestoreFlowOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err error
+	)
+
+	var rawBody []byte
+
+	var response *StartDatabaseRestoreFlowCreated
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    StartDatabaseRestoreFlowOperation,
+			OperationSummary: "Start database backup restore flow",
+			OperationID:      "startDatabaseRestoreFlow",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *StartDatabaseRestoreFlowCreated
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.StartDatabaseRestoreFlow(ctx)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.StartDatabaseRestoreFlow(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeStartDatabaseRestoreFlowResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleStartOAuthRequest handles startOAuth operation.
+//
+// Initiate the OAuth authorization process.
 //
 // POST /oauth/authorize
 func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39349,6 +47017,8 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/oauth/authorize"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), StartOAuthOperation,
@@ -39372,7 +47042,7 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -39433,7 +47103,7 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    StartOAuthOperation,
-			OperationSummary: "",
+			OperationSummary: "Start OAuth",
 			OperationID:      "startOAuth",
 			Body:             request,
 			RawBody:          rawBody,
@@ -39479,7 +47149,7 @@ func (s *Server) handleStartOAuthRequest(args [0]string, argsEscaped bool, w htt
 
 // handleTagAssetsRequest handles tagAssets operation.
 //
-// This endpoint requires the `tag.asset` permission.
+// Add a tag to all the specified assets.
 //
 // PUT /tags/{id}/assets
 func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39490,6 +47160,8 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/tags/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), TagAssetsOperation,
@@ -39513,7 +47185,7 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -39664,7 +47336,7 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    TagAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Tag assets",
 			OperationID:      "tagAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -39715,7 +47387,7 @@ func (s *Server) handleTagAssetsRequest(args [1]string, argsEscaped bool, w http
 
 // handleUnlinkAllOAuthAccountsAdminRequest handles unlinkAllOAuthAccountsAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+// Unlinks all OAuth accounts associated with user accounts in the system.
 //
 // POST /admin/auth/unlink-all
 func (s *Server) handleUnlinkAllOAuthAccountsAdminRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -39726,6 +47398,8 @@ func (s *Server) handleUnlinkAllOAuthAccountsAdminRequest(args [0]string, argsEs
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/admin/auth/unlink-all"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UnlinkAllOAuthAccountsAdminOperation,
@@ -39749,7 +47423,7 @@ func (s *Server) handleUnlinkAllOAuthAccountsAdminRequest(args [0]string, argsEs
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -39875,7 +47549,7 @@ func (s *Server) handleUnlinkAllOAuthAccountsAdminRequest(args [0]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UnlinkAllOAuthAccountsAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Unlink all OAuth accounts",
 			OperationID:      "unlinkAllOAuthAccountsAdmin",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -39921,6 +47595,8 @@ func (s *Server) handleUnlinkAllOAuthAccountsAdminRequest(args [0]string, argsEs
 
 // handleUnlinkOAuthAccountRequest handles unlinkOAuthAccount operation.
 //
+// Unlink the OAuth account from the authenticated user.
+//
 // POST /oauth/unlink
 func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -39930,6 +47606,8 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/oauth/unlink"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UnlinkOAuthAccountOperation,
@@ -39953,7 +47631,7 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -40079,7 +47757,7 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UnlinkOAuthAccountOperation,
-			OperationSummary: "",
+			OperationSummary: "Unlink OAuth account",
 			OperationID:      "unlinkOAuthAccount",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -40125,6 +47803,8 @@ func (s *Server) handleUnlinkOAuthAccountRequest(args [0]string, argsEscaped boo
 
 // handleUnlockAuthSessionRequest handles unlockAuthSession operation.
 //
+// Temporarily grant the session elevated access to locked assets by providing the correct PIN code.
+//
 // POST /auth/session/unlock
 func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -40134,6 +47814,8 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/session/unlock"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UnlockAuthSessionOperation,
@@ -40157,7 +47839,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -40298,7 +47980,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UnlockAuthSessionOperation,
-			OperationSummary: "",
+			OperationSummary: "Unlock auth session",
 			OperationID:      "unlockAuthSession",
 			Body:             request,
 			RawBody:          rawBody,
@@ -40344,7 +48026,7 @@ func (s *Server) handleUnlockAuthSessionRequest(args [0]string, argsEscaped bool
 
 // handleUntagAssetsRequest handles untagAssets operation.
 //
-// This endpoint requires the `tag.asset` permission.
+// Remove a tag from all the specified assets.
 //
 // DELETE /tags/{id}/assets
 func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -40355,6 +48037,8 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("DELETE"),
 		semconv.HTTPRouteKey.String("/tags/{id}/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UntagAssetsOperation,
@@ -40378,7 +48062,7 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -40529,7 +48213,7 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UntagAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Untag assets",
 			OperationID:      "untagAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -40580,7 +48264,7 @@ func (s *Server) handleUntagAssetsRequest(args [1]string, argsEscaped bool, w ht
 
 // handleUpdateAdminOnboardingRequest handles updateAdminOnboarding operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
+// Update the admin onboarding status.
 //
 // POST /system-metadata/admin-onboarding
 func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -40591,6 +48275,8 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/system-metadata/admin-onboarding"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAdminOnboardingOperation,
@@ -40614,7 +48300,7 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -40755,7 +48441,7 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateAdminOnboardingOperation,
-			OperationSummary: "",
+			OperationSummary: "Update admin onboarding",
 			OperationID:      "updateAdminOnboarding",
 			Body:             request,
 			RawBody:          rawBody,
@@ -40801,7 +48487,9 @@ func (s *Server) handleUpdateAdminOnboardingRequest(args [0]string, argsEscaped 
 
 // handleUpdateAlbumInfoRequest handles updateAlbumInfo operation.
 //
-// This endpoint requires the `album.update` permission.
+// Update the information of a specific album by its ID. This endpoint can be used to update the album
+// name, description, sort order, etc. However, it is not used to add or remove assets or users from
+// the album.
 //
 // PATCH /albums/{id}
 func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -40812,6 +48500,8 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("PATCH"),
 		semconv.HTTPRouteKey.String("/albums/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAlbumInfoOperation,
@@ -40835,7 +48525,7 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -40986,7 +48676,7 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateAlbumInfoOperation,
-			OperationSummary: "",
+			OperationSummary: "Update an album",
 			OperationID:      "updateAlbumInfo",
 			Body:             request,
 			RawBody:          rawBody,
@@ -41037,7 +48727,7 @@ func (s *Server) handleUpdateAlbumInfoRequest(args [1]string, argsEscaped bool, 
 
 // handleUpdateAlbumUserRequest handles updateAlbumUser operation.
 //
-// This endpoint requires the `albumUser.update` permission.
+// Change the role for a specific user in a specific album.
 //
 // PUT /albums/{id}/user/{userId}
 func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -41048,6 +48738,8 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/albums/{id}/user/{userId}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAlbumUserOperation,
@@ -41071,7 +48763,7 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -41222,7 +48914,7 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateAlbumUserOperation,
-			OperationSummary: "",
+			OperationSummary: "Update user role",
 			OperationID:      "updateAlbumUser",
 			Body:             request,
 			RawBody:          rawBody,
@@ -41277,7 +48969,9 @@ func (s *Server) handleUpdateAlbumUserRequest(args [2]string, argsEscaped bool, 
 
 // handleUpdateApiKeyRequest handles updateApiKey operation.
 //
-// This endpoint requires the `apiKey.update` permission.
+// Updates the name and permissions of an API key by its ID. The current user must own this API key.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /api-keys/{id}
 func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -41288,6 +48982,8 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/api-keys/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateApiKeyOperation,
@@ -41311,7 +49007,7 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -41457,12 +49153,12 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 		}
 	}()
 
-	var response *APIKeyResponseDto
+	var response *ApiKeyResponseDto
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateApiKeyOperation,
-			OperationSummary: "",
+			OperationSummary: "Update an API key",
 			OperationID:      "updateApiKey",
 			Body:             request,
 			RawBody:          rawBody,
@@ -41476,9 +49172,9 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 		}
 
 		type (
-			Request  = *APIKeyUpdateDto
+			Request  = *ApiKeyUpdateDto
 			Params   = UpdateApiKeyParams
-			Response = *APIKeyResponseDto
+			Response = *ApiKeyResponseDto
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -41513,7 +49209,9 @@ func (s *Server) handleUpdateApiKeyRequest(args [1]string, argsEscaped bool, w h
 
 // handleUpdateAssetRequest handles updateAsset operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Update information of a specific asset.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets/{id}
 func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -41524,6 +49222,8 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/assets/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAssetOperation,
@@ -41547,7 +49247,7 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -41698,7 +49398,7 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateAssetOperation,
-			OperationSummary: "",
+			OperationSummary: "Update an asset",
 			OperationID:      "updateAsset",
 			Body:             request,
 			RawBody:          rawBody,
@@ -41749,7 +49449,7 @@ func (s *Server) handleUpdateAssetRequest(args [1]string, argsEscaped bool, w ht
 
 // handleUpdateAssetMetadataRequest handles updateAssetMetadata operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Update or add metadata key-value pairs for the specified asset.
 //
 // PUT /assets/{id}/metadata
 func (s *Server) handleUpdateAssetMetadataRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -41760,6 +49460,8 @@ func (s *Server) handleUpdateAssetMetadataRequest(args [1]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/assets/{id}/metadata"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAssetMetadataOperation,
@@ -41783,7 +49485,7 @@ func (s *Server) handleUpdateAssetMetadataRequest(args [1]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -41934,7 +49636,7 @@ func (s *Server) handleUpdateAssetMetadataRequest(args [1]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateAssetMetadataOperation,
-			OperationSummary: "",
+			OperationSummary: "Update asset metadata",
 			OperationID:      "updateAssetMetadata",
 			Body:             request,
 			RawBody:          rawBody,
@@ -41985,7 +49687,9 @@ func (s *Server) handleUpdateAssetMetadataRequest(args [1]string, argsEscaped bo
 
 // handleUpdateAssetsRequest handles updateAssets operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Updates multiple assets at the same time.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets
 func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -41996,6 +49700,8 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateAssetsOperation,
@@ -42019,7 +49725,7 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -42155,12 +49861,12 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 		}
 	}()
 
-	var response *UpdateAssetsOK
+	var response *UpdateAssetsNoContent
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateAssetsOperation,
-			OperationSummary: "",
+			OperationSummary: "Update assets",
 			OperationID:      "updateAssets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -42171,7 +49877,7 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 		type (
 			Request  = *AssetBulkUpdateDto
 			Params   = struct{}
-			Response = *UpdateAssetsOK
+			Response = *UpdateAssetsNoContent
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -42204,9 +49910,232 @@ func (s *Server) handleUpdateAssetsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleUpdateBulkAssetMetadataRequest handles updateBulkAssetMetadata operation.
+//
+// Upsert metadata key-value pairs for multiple assets.
+//
+// PUT /assets/metadata
+func (s *Server) handleUpdateBulkAssetMetadataRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateBulkAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/assets/metadata"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateBulkAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateBulkAssetMetadataOperation,
+			ID:   "updateBulkAssetMetadata",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UpdateBulkAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UpdateBulkAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UpdateBulkAssetMetadataOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateBulkAssetMetadataRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response []AssetMetadataBulkResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateBulkAssetMetadataOperation,
+			OperationSummary: "Upsert asset metadata",
+			OperationID:      "updateBulkAssetMetadata",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *AssetMetadataBulkUpsertDto
+			Params   = struct{}
+			Response = []AssetMetadataBulkResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateBulkAssetMetadata(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateBulkAssetMetadata(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateBulkAssetMetadataResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUpdateConfigRequest handles updateConfig operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+// Update the system configuration with a new system configuration.
 //
 // PUT /system-config
 func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -42217,6 +50146,8 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/system-config"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateConfigOperation,
@@ -42240,7 +50171,7 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -42381,7 +50312,7 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateConfigOperation,
-			OperationSummary: "",
+			OperationSummary: "Update system configuration",
 			OperationID:      "updateConfig",
 			Body:             request,
 			RawBody:          rawBody,
@@ -42427,7 +50358,9 @@ func (s *Server) handleUpdateConfigRequest(args [0]string, argsEscaped bool, w h
 
 // handleUpdateLibraryRequest handles updateLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.update` permission.
+// Update an existing external library.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /libraries/{id}
 func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -42438,6 +50371,8 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/libraries/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateLibraryOperation,
@@ -42461,7 +50396,7 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -42612,7 +50547,7 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateLibraryOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a library",
 			OperationID:      "updateLibrary",
 			Body:             request,
 			RawBody:          rawBody,
@@ -42663,7 +50598,9 @@ func (s *Server) handleUpdateLibraryRequest(args [1]string, argsEscaped bool, w 
 
 // handleUpdateMemoryRequest handles updateMemory operation.
 //
-// This endpoint requires the `memory.update` permission.
+// Update an existing memory by its ID.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /memories/{id}
 func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -42674,6 +50611,8 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/memories/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateMemoryOperation,
@@ -42697,7 +50636,7 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -42848,7 +50787,7 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateMemoryOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a memory",
 			OperationID:      "updateMemory",
 			Body:             request,
 			RawBody:          rawBody,
@@ -42899,7 +50838,9 @@ func (s *Server) handleUpdateMemoryRequest(args [1]string, argsEscaped bool, w h
 
 // handleUpdateMyPreferencesRequest handles updateMyPreferences operation.
 //
-// This endpoint requires the `userPreference.update` permission.
+// Update the preferences of the current user.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /users/me/preferences
 func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -42910,6 +50851,8 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/users/me/preferences"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateMyPreferencesOperation,
@@ -42933,7 +50876,7 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -43074,7 +51017,7 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateMyPreferencesOperation,
-			OperationSummary: "",
+			OperationSummary: "Update my preferences",
 			OperationID:      "updateMyPreferences",
 			Body:             request,
 			RawBody:          rawBody,
@@ -43120,7 +51063,9 @@ func (s *Server) handleUpdateMyPreferencesRequest(args [0]string, argsEscaped bo
 
 // handleUpdateMyUserRequest handles updateMyUser operation.
 //
-// This endpoint requires the `user.update` permission.
+// Update the current user making the API request.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /users/me
 func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -43131,6 +51076,8 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/users/me"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateMyUserOperation,
@@ -43154,7 +51101,7 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -43295,7 +51242,7 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateMyUserOperation,
-			OperationSummary: "",
+			OperationSummary: "Update current user",
 			OperationID:      "updateMyUser",
 			Body:             request,
 			RawBody:          rawBody,
@@ -43341,7 +51288,7 @@ func (s *Server) handleUpdateMyUserRequest(args [0]string, argsEscaped bool, w h
 
 // handleUpdateNotificationRequest handles updateNotification operation.
 //
-// This endpoint requires the `notification.update` permission.
+// Update a specific notification to set its read status.
 //
 // PUT /notifications/{id}
 func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -43352,6 +51299,8 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/notifications/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateNotificationOperation,
@@ -43375,7 +51324,7 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -43526,7 +51475,7 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateNotificationOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a notification",
 			OperationID:      "updateNotification",
 			Body:             request,
 			RawBody:          rawBody,
@@ -43577,7 +51526,7 @@ func (s *Server) handleUpdateNotificationRequest(args [1]string, argsEscaped boo
 
 // handleUpdateNotificationsRequest handles updateNotifications operation.
 //
-// This endpoint requires the `notification.update` permission.
+// Update a list of notifications. Allows to bulk-set the read status of notifications.
 //
 // PUT /notifications
 func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -43588,6 +51537,8 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/notifications"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateNotificationsOperation,
@@ -43611,7 +51562,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -43752,7 +51703,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateNotificationsOperation,
-			OperationSummary: "",
+			OperationSummary: "Update notifications",
 			OperationID:      "updateNotifications",
 			Body:             request,
 			RawBody:          rawBody,
@@ -43798,7 +51749,7 @@ func (s *Server) handleUpdateNotificationsRequest(args [0]string, argsEscaped bo
 
 // handleUpdatePartnerRequest handles updatePartner operation.
 //
-// This endpoint requires the `partner.update` permission.
+// Specify whether a partner's assets should appear in the user's timeline.
 //
 // PUT /partners/{id}
 func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -43809,6 +51760,8 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/partners/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdatePartnerOperation,
@@ -43832,7 +51785,7 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -43983,7 +51936,7 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdatePartnerOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a partner",
 			OperationID:      "updatePartner",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44034,7 +51987,7 @@ func (s *Server) handleUpdatePartnerRequest(args [1]string, argsEscaped bool, w 
 
 // handleUpdatePeopleRequest handles updatePeople operation.
 //
-// This endpoint requires the `person.update` permission.
+// Bulk update multiple people at once.
 //
 // PUT /people
 func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44045,6 +51998,8 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/people"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdatePeopleOperation,
@@ -44068,7 +52023,7 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -44209,7 +52164,7 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdatePeopleOperation,
-			OperationSummary: "",
+			OperationSummary: "Update people",
 			OperationID:      "updatePeople",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44255,7 +52210,9 @@ func (s *Server) handleUpdatePeopleRequest(args [0]string, argsEscaped bool, w h
 
 // handleUpdatePersonRequest handles updatePerson operation.
 //
-// This endpoint requires the `person.update` permission.
+// Update an individual person.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /people/{id}
 func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44266,6 +52223,8 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/people/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdatePersonOperation,
@@ -44289,7 +52248,7 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -44440,7 +52399,7 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdatePersonOperation,
-			OperationSummary: "",
+			OperationSummary: "Update person",
 			OperationID:      "updatePerson",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44489,9 +52448,249 @@ func (s *Server) handleUpdatePersonRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleUpdateQueueRequest handles updateQueue operation.
+//
+// Change the paused status of a specific queue.
+//
+// PUT /queues/{name}
+func (s *Server) handleUpdateQueueRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateQueue"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/queues/{name}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateQueueOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateQueueOperation,
+			ID:   "updateQueue",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UpdateQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UpdateQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UpdateQueueOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeUpdateQueueParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateQueueRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *QueueResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateQueueOperation,
+			OperationSummary: "Update a queue",
+			OperationID:      "updateQueue",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "name",
+					In:   "path",
+				}: params.Name,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *QueueUpdateDto
+			Params   = UpdateQueueParams
+			Response = *QueueResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUpdateQueueParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateQueue(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateQueue(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateQueueResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUpdateSessionRequest handles updateSession operation.
 //
-// This endpoint requires the `session.update` permission.
+// Update a specific session identified by id.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /sessions/{id}
 func (s *Server) handleUpdateSessionRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44502,6 +52701,8 @@ func (s *Server) handleUpdateSessionRequest(args [1]string, argsEscaped bool, w 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/sessions/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateSessionOperation,
@@ -44525,7 +52726,7 @@ func (s *Server) handleUpdateSessionRequest(args [1]string, argsEscaped bool, w 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -44676,7 +52877,7 @@ func (s *Server) handleUpdateSessionRequest(args [1]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateSessionOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a session",
 			OperationID:      "updateSession",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44727,7 +52928,7 @@ func (s *Server) handleUpdateSessionRequest(args [1]string, argsEscaped bool, w 
 
 // handleUpdateSharedLinkRequest handles updateSharedLink operation.
 //
-// This endpoint requires the `sharedLink.update` permission.
+// Update an existing shared link by its ID.
 //
 // PATCH /shared-links/{id}
 func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44738,6 +52939,8 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 		semconv.HTTPRequestMethodKey.String("PATCH"),
 		semconv.HTTPRouteKey.String("/shared-links/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateSharedLinkOperation,
@@ -44761,7 +52964,7 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -44912,7 +53115,7 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateSharedLinkOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a shared link",
 			OperationID:      "updateSharedLink",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44963,7 +53166,9 @@ func (s *Server) handleUpdateSharedLinkRequest(args [1]string, argsEscaped bool,
 
 // handleUpdateStackRequest handles updateStack operation.
 //
-// This endpoint requires the `stack.update` permission.
+// Update an existing stack by its ID.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /stacks/{id}
 func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44974,6 +53179,8 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/stacks/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateStackOperation,
@@ -44997,7 +53204,7 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -45148,7 +53355,7 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateStackOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a stack",
 			OperationID:      "updateStack",
 			Body:             request,
 			RawBody:          rawBody,
@@ -45199,7 +53406,9 @@ func (s *Server) handleUpdateStackRequest(args [1]string, argsEscaped bool, w ht
 
 // handleUpdateTagRequest handles updateTag operation.
 //
-// This endpoint requires the `tag.update` permission.
+// Update an existing tag identified by its ID.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /tags/{id}
 func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45210,6 +53419,8 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/tags/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateTagOperation,
@@ -45233,7 +53444,7 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -45384,7 +53595,7 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateTagOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a tag",
 			OperationID:      "updateTag",
 			Body:             request,
 			RawBody:          rawBody,
@@ -45435,7 +53646,9 @@ func (s *Server) handleUpdateTagRequest(args [1]string, argsEscaped bool, w http
 
 // handleUpdateUserAdminRequest handles updateUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+// Update an existing user.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /admin/users/{id}
 func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45446,6 +53659,8 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateUserAdminOperation,
@@ -45469,7 +53684,7 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -45620,7 +53835,7 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateUserAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Update a user",
 			OperationID:      "updateUserAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -45671,7 +53886,9 @@ func (s *Server) handleUpdateUserAdminRequest(args [1]string, argsEscaped bool, 
 
 // handleUpdateUserPreferencesAdminRequest handles updateUserPreferencesAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+// Update the preferences of a specific user.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /admin/users/{id}/preferences
 func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45682,6 +53899,8 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/admin/users/{id}/preferences"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateUserPreferencesAdminOperation,
@@ -45705,7 +53924,7 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -45856,7 +54075,7 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpdateUserPreferencesAdminOperation,
-			OperationSummary: "",
+			OperationSummary: "Update user preferences",
 			OperationID:      "updateUserPreferencesAdmin",
 			Body:             request,
 			RawBody:          rawBody,
@@ -45905,9 +54124,250 @@ func (s *Server) handleUpdateUserPreferencesAdminRequest(args [1]string, argsEsc
 	}
 }
 
+// handleUpdateWorkflowRequest handles updateWorkflow operation.
+//
+// Update the information of a specific workflow by its ID. This endpoint can be used to update the
+// workflow name, description, trigger type, filters and actions order, etc.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// PUT /workflows/{id}
+func (s *Server) handleUpdateWorkflowRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateWorkflow"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/workflows/{id}"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UpdateWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateWorkflowOperation,
+			ID:   "updateWorkflow",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UpdateWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UpdateWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UpdateWorkflowOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+	params, err := decodeUpdateWorkflowParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateWorkflowRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *WorkflowResponseDto
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateWorkflowOperation,
+			OperationSummary: "Update a workflow",
+			OperationID:      "updateWorkflow",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WorkflowUpdateDto
+			Params   = UpdateWorkflowParams
+			Response = *WorkflowResponseDto
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUpdateWorkflowParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateWorkflow(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateWorkflow(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateWorkflowResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUploadAssetRequest handles uploadAsset operation.
 //
-// This endpoint requires the `asset.upload` permission.
+// Uploads a new asset to the server.
 //
 // POST /assets
 func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45918,6 +54378,8 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/assets"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UploadAssetOperation,
@@ -45941,7 +54403,7 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -46092,7 +54554,7 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UploadAssetOperation,
-			OperationSummary: "",
+			OperationSummary: "Upload asset",
 			OperationID:      "uploadAsset",
 			Body:             request,
 			RawBody:          rawBody,
@@ -46149,9 +54611,232 @@ func (s *Server) handleUploadAssetRequest(args [0]string, argsEscaped bool, w ht
 	}
 }
 
+// handleUploadDatabaseBackupRequest handles uploadDatabaseBackup operation.
+//
+// Uploads .sql/.sql.gz file to restore backup from.
+//
+// POST /admin/database-backups/upload
+func (s *Server) handleUploadDatabaseBackupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("uploadDatabaseBackup"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/admin/database-backups/upload"),
+	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), UploadDatabaseBackupOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(attrs...)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code < 100 || code >= 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UploadDatabaseBackupOperation,
+			ID:   "uploadDatabaseBackup",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securityBearer(ctx, UploadDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Bearer",
+					Err:              err,
+				}
+				defer recordError("Security:Bearer", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityCookie(ctx, UploadDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Cookie",
+					Err:              err,
+				}
+				defer recordError("Security:Cookie", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 1
+				ctx = sctx
+			}
+		}
+		{
+			sctx, ok, err := s.securityAPIKey(ctx, UploadDatabaseBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "APIKey",
+					Err:              err,
+				}
+				defer recordError("Security:APIKey", err)
+				s.cfg.ErrorHandler(ctx, w, r, err)
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 2
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			defer recordError("Security", err)
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUploadDatabaseBackupRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *UploadDatabaseBackupCreated
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UploadDatabaseBackupOperation,
+			OperationSummary: "Upload database backup",
+			OperationID:      "uploadDatabaseBackup",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *DatabaseBackupUploadDtoMultipart
+			Params   = struct{}
+			Response = *UploadDatabaseBackupCreated
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.UploadDatabaseBackup(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.UploadDatabaseBackup(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUploadDatabaseBackupResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUpsertTagsRequest handles upsertTags operation.
 //
-// This endpoint requires the `tag.create` permission.
+// Create or update multiple tags in a single request.
 //
 // PUT /tags
 func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -46162,6 +54847,8 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 		semconv.HTTPRequestMethodKey.String("PUT"),
 		semconv.HTTPRouteKey.String("/tags"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), UpsertTagsOperation,
@@ -46185,7 +54872,7 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -46326,7 +55013,7 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    UpsertTagsOperation,
-			OperationSummary: "",
+			OperationSummary: "Upsert tags",
 			OperationID:      "upsertTags",
 			Body:             request,
 			RawBody:          rawBody,
@@ -46372,6 +55059,8 @@ func (s *Server) handleUpsertTagsRequest(args [0]string, argsEscaped bool, w htt
 
 // handleValidateRequest handles validate operation.
 //
+// Validate the settings of an external library.
+//
 // POST /libraries/{id}/validate
 func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -46381,6 +55070,8 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/libraries/{id}/validate"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ValidateOperation,
@@ -46404,7 +55095,7 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -46555,7 +55246,7 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ValidateOperation,
-			OperationSummary: "",
+			OperationSummary: "Validate library settings",
 			OperationID:      "validate",
 			Body:             request,
 			RawBody:          rawBody,
@@ -46606,6 +55297,8 @@ func (s *Server) handleValidateRequest(args [1]string, argsEscaped bool, w http.
 
 // handleValidateAccessTokenRequest handles validateAccessToken operation.
 //
+// Validate the current authorization method is still valid.
+//
 // POST /auth/validateToken
 func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
@@ -46615,6 +55308,8 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 		semconv.HTTPRequestMethodKey.String("POST"),
 		semconv.HTTPRouteKey.String("/auth/validateToken"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ValidateAccessTokenOperation,
@@ -46638,7 +55333,7 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -46764,7 +55459,7 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ValidateAccessTokenOperation,
-			OperationSummary: "",
+			OperationSummary: "Validate access token",
 			OperationID:      "validateAccessToken",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -46810,7 +55505,8 @@ func (s *Server) handleValidateAccessTokenRequest(args [0]string, argsEscaped bo
 
 // handleViewAssetRequest handles viewAsset operation.
 //
-// This endpoint requires the `asset.view` permission.
+// Retrieve the thumbnail image for the specified asset. Viewing the fullsize thumbnail might redirect
+// to downloadAsset, which requires a different permission.
 //
 // GET /assets/{id}/thumbnail
 func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -46821,6 +55517,8 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 		semconv.HTTPRequestMethodKey.String("GET"),
 		semconv.HTTPRouteKey.String("/assets/{id}/thumbnail"),
 	}
+	// Add attributes from config.
+	otelAttrs = append(otelAttrs, s.cfg.Attributes...)
 
 	// Start a span for this request.
 	ctx, span := s.cfg.Tracer.Start(r.Context(), ViewAssetOperation,
@@ -46844,7 +55542,7 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 		if code != 0 {
 			codeAttr := semconv.HTTPResponseStatusCode(code)
 			attrs = append(attrs, codeAttr)
-			span.SetAttributes(codeAttr)
+			span.SetAttributes(attrs...)
 		}
 		attrOpt := metric.WithAttributes(attrs...)
 
@@ -46980,11 +55678,15 @@ func (s *Server) handleViewAssetRequest(args [1]string, argsEscaped bool, w http
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ViewAssetOperation,
-			OperationSummary: "",
+			OperationSummary: "View asset thumbnail",
 			OperationID:      "viewAsset",
 			Body:             nil,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
+				{
+					Name: "edited",
+					In:   "query",
+				}: params.Edited,
 				{
 					Name: "id",
 					In:   "path",

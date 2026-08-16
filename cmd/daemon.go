@@ -163,17 +163,15 @@ func downloadAlbum(args string) (byte, string) {
 	if err != nil {
 		return socketrpc.ErrGeneric, err.Error()
 	}
-	album, _ := server.Album(albumUUID)
-	for _, asset := range album.Assets {
+	assets, err := server.AlbumAssets(albumUUID)
+	if err != nil {
+		return socketrpc.ErrGeneric, err.Error()
+	}
+	for _, asset := range assets {
 		if asset.IsTrashed || asset.IsArchived {
 			continue
 		}
-		imageUUID, err := uuid.Parse(asset.ID)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		err = server.Download(path, imageUUID)
+		err = server.Download(path, asset.ID)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return socketrpc.ErrFileNotFound, ""
@@ -205,12 +203,11 @@ func uploadFile(arg string) (byte, string) {
 	uuids := make([]uuid.UUID, 0)
 	for _, path := range uploadRequest.Paths {
 		log.Printf("Uploading %s\n", path)
-		idString, err := server.Upload(path, nil)
-		uploadedUUID, err2 := uuid.Parse(idString)
-		uuids = append(uuids, uploadedUUID)
-		if err != nil || err2 != nil {
+		uploadedUUID, err := server.Upload(path, nil)
+		if err != nil {
 			failed += 1
 		} else {
+			uuids = append(uuids, uploadedUUID)
 			success += 1
 		}
 	}

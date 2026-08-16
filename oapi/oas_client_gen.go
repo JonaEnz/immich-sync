@@ -4,6 +4,7 @@ package oapi
 
 import (
 	"context"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -30,123 +31,125 @@ func trimTrailingSlashes(u *url.URL) {
 type Invoker interface {
 	// AddAssetsToAlbum invokes addAssetsToAlbum operation.
 	//
-	// This endpoint requires the `albumAsset.create` permission.
+	// Add multiple assets to a specific album by its ID.
 	//
 	// PUT /albums/{id}/assets
 	AddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, params AddAssetsToAlbumParams) ([]BulkIdResponseDto, error)
 	// AddAssetsToAlbums invokes addAssetsToAlbums operation.
 	//
-	// This endpoint requires the `albumAsset.create` permission.
+	// Send a list of asset IDs and album IDs to add each asset to each album.
 	//
 	// PUT /albums/assets
-	AddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (*AlbumsAddAssetsResponseDto, error)
+	AddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto) (*AlbumsAddAssetsResponseDto, error)
 	// AddMemoryAssets invokes addMemoryAssets operation.
 	//
-	// This endpoint requires the `memoryAsset.create` permission.
+	// Add a list of asset IDs to a specific memory.
 	//
 	// PUT /memories/{id}/assets
 	AddMemoryAssets(ctx context.Context, request *BulkIdsDto, params AddMemoryAssetsParams) ([]BulkIdResponseDto, error)
 	// AddSharedLinkAssets invokes addSharedLinkAssets operation.
 	//
+	// Add assets to a specific shared link by its ID. This endpoint is only relevant for shared link of
+	// type individual.
+	//
 	// PUT /shared-links/{id}/assets
 	AddSharedLinkAssets(ctx context.Context, request *AssetIdsDto, params AddSharedLinkAssetsParams) ([]AssetIdsResponseDto, error)
 	// AddUsersToAlbum invokes addUsersToAlbum operation.
 	//
-	// This endpoint requires the `albumUser.create` permission.
+	// Share an album with multiple users. Each user can be given a specific role in the album.
 	//
 	// PUT /albums/{id}/users
 	AddUsersToAlbum(ctx context.Context, request *AddUsersDto, params AddUsersToAlbumParams) (*AlbumResponseDto, error)
 	// BulkTagAssets invokes bulkTagAssets operation.
 	//
-	// This endpoint requires the `tag.asset` permission.
+	// Add multiple tags to multiple assets in a single request.
 	//
 	// PUT /tags/assets
 	BulkTagAssets(ctx context.Context, request *TagBulkAssetsDto) (*TagBulkAssetsResponseDto, error)
 	// ChangePassword invokes changePassword operation.
 	//
-	// This endpoint requires the `auth.changePassword` permission.
+	// Change the password of the current user.
 	//
 	// POST /auth/change-password
 	ChangePassword(ctx context.Context, request *ChangePasswordDto) (*UserAdminResponseDto, error)
 	// ChangePinCode invokes changePinCode operation.
 	//
-	// This endpoint requires the `pinCode.update` permission.
+	// Change the pin code for the current user.
 	//
 	// PUT /auth/pin-code
 	ChangePinCode(ctx context.Context, request *PinCodeChangeDto) error
 	// CheckBulkUpload invokes checkBulkUpload operation.
 	//
-	// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
+	// Determine which assets have already been uploaded to the server based on their SHA1 checksums.
 	//
 	// POST /assets/bulk-upload-check
 	CheckBulkUpload(ctx context.Context, request *AssetBulkUploadCheckDto) (*AssetBulkUploadCheckResponseDto, error)
-	// CheckExistingAssets invokes checkExistingAssets operation.
-	//
-	// Checks if multiple assets exist on the server and returns all existing - used by background backup.
-	//
-	// POST /assets/exist
-	CheckExistingAssets(ctx context.Context, request *CheckExistingAssetsDto) (*CheckExistingAssetsResponseDto, error)
 	// CopyAsset invokes copyAsset operation.
 	//
-	// This endpoint requires the `asset.copy` permission.
+	// Copy asset information like albums, tags, etc. from one asset to another.
 	//
 	// PUT /assets/copy
 	CopyAsset(ctx context.Context, request *AssetCopyDto) error
 	// CreateActivity invokes createActivity operation.
 	//
-	// This endpoint requires the `activity.create` permission.
+	// Create a like or a comment for an album, or an asset in an album.
 	//
 	// POST /activities
 	CreateActivity(ctx context.Context, request *ActivityCreateDto) (*ActivityResponseDto, error)
 	// CreateAlbum invokes createAlbum operation.
 	//
-	// This endpoint requires the `album.create` permission.
+	// Create a new album. The album can also be created with initial users and assets.
 	//
 	// POST /albums
 	CreateAlbum(ctx context.Context, request *CreateAlbumDto) (*AlbumResponseDto, error)
 	// CreateApiKey invokes createApiKey operation.
 	//
-	// This endpoint requires the `apiKey.create` permission.
+	// Creates a new API key. It will be limited to the permissions specified.
 	//
 	// POST /api-keys
-	CreateApiKey(ctx context.Context, request *APIKeyCreateDto) (*APIKeyCreateResponseDto, error)
+	CreateApiKey(ctx context.Context, request *ApiKeyCreateDto) (*ApiKeyCreateResponseDto, error)
 	// CreateFace invokes createFace operation.
 	//
-	// This endpoint requires the `face.create` permission.
+	// Create a new face that has not been discovered by facial recognition. The content of the bounding
+	// box is considered a face.
 	//
 	// POST /faces
 	CreateFace(ctx context.Context, request *AssetFaceCreateDto) error
 	// CreateJob invokes createJob operation.
 	//
-	// This endpoint is an admin-only route, and requires the `job.create` permission.
+	// Run a specific job. Most jobs are queued automatically, but this endpoint allows for manual creation
+	// of a handful of jobs, including various cleanup tasks, as well as creating a new database backup.
 	//
 	// POST /jobs
 	CreateJob(ctx context.Context, request *JobCreateDto) error
 	// CreateLibrary invokes createLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.create` permission.
+	// Create a new external library.
 	//
 	// POST /libraries
 	CreateLibrary(ctx context.Context, request *CreateLibraryDto) (*LibraryResponseDto, error)
 	// CreateMemory invokes createMemory operation.
 	//
-	// This endpoint requires the `memory.create` permission.
+	// Create a new memory by providing a name, description, and a list of asset IDs to include in the
+	// memory.
 	//
 	// POST /memories
 	CreateMemory(ctx context.Context, request *MemoryCreateDto) (*MemoryResponseDto, error)
 	// CreateNotification invokes createNotification operation.
 	//
+	// Create a new notification for a specific user.
+	//
 	// POST /admin/notifications
 	CreateNotification(ctx context.Context, request *NotificationCreateDto) (*NotificationDto, error)
 	// CreatePartner invokes createPartner operation.
 	//
-	// This endpoint requires the `partner.create` permission.
+	// Create a new partner to share assets with.
 	//
 	// POST /partners
 	CreatePartner(ctx context.Context, request *PartnerCreateDto) (*PartnerResponseDto, error)
 	// CreatePartnerDeprecated invokes createPartnerDeprecated operation.
 	//
-	// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+	// Create a new partner to share assets with.
 	//
 	// Deprecated: schema marks this operation as deprecated.
 	//
@@ -154,1112 +157,1452 @@ type Invoker interface {
 	CreatePartnerDeprecated(ctx context.Context, params CreatePartnerDeprecatedParams) (*PartnerResponseDto, error)
 	// CreatePerson invokes createPerson operation.
 	//
-	// This endpoint requires the `person.create` permission.
+	// Create a new person that can have multiple faces assigned to them.
 	//
 	// POST /people
 	CreatePerson(ctx context.Context, request *PersonCreateDto) (*PersonResponseDto, error)
 	// CreateProfileImage invokes createProfileImage operation.
 	//
-	// This endpoint requires the `userProfileImage.update` permission.
+	// Upload and set a new profile image for the current user.
 	//
 	// POST /users/profile-image
 	CreateProfileImage(ctx context.Context, request *CreateProfileImageDtoMultipart) (*CreateProfileImageResponseDto, error)
 	// CreateSession invokes createSession operation.
 	//
-	// This endpoint requires the `session.create` permission.
+	// Create a session as a child to the current session. This endpoint is used for casting.
 	//
 	// POST /sessions
 	CreateSession(ctx context.Context, request *SessionCreateDto) (*SessionCreateResponseDto, error)
 	// CreateSharedLink invokes createSharedLink operation.
 	//
-	// This endpoint requires the `sharedLink.create` permission.
+	// Create a new shared link.
 	//
 	// POST /shared-links
 	CreateSharedLink(ctx context.Context, request *SharedLinkCreateDto) (*SharedLinkResponseDto, error)
 	// CreateStack invokes createStack operation.
 	//
-	// This endpoint requires the `stack.create` permission.
+	// Create a new stack by providing a name and a list of asset IDs to include in the stack. If any of
+	// the provided asset IDs are primary assets of an existing stack, the existing stack will be merged
+	// into the newly created stack.
 	//
 	// POST /stacks
 	CreateStack(ctx context.Context, request *StackCreateDto) (*StackResponseDto, error)
 	// CreateTag invokes createTag operation.
 	//
-	// This endpoint requires the `tag.create` permission.
+	// Create a new tag by providing a name and optional color.
 	//
 	// POST /tags
 	CreateTag(ctx context.Context, request *TagCreateDto) (*TagResponseDto, error)
 	// CreateUserAdmin invokes createUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
+	// Create a new user.
 	//
 	// POST /admin/users
 	CreateUserAdmin(ctx context.Context, request *UserAdminCreateDto) (*UserAdminResponseDto, error)
+	// CreateWorkflow invokes createWorkflow operation.
+	//
+	// Create a new workflow, the workflow can also be created with empty filters and actions.
+	//
+	// POST /workflows
+	CreateWorkflow(ctx context.Context, request *WorkflowCreateDto) (*WorkflowResponseDto, error)
 	// DeleteActivity invokes deleteActivity operation.
 	//
-	// This endpoint requires the `activity.delete` permission.
+	// Removes a like or comment from a given album or asset in an album.
 	//
 	// DELETE /activities/{id}
 	DeleteActivity(ctx context.Context, params DeleteActivityParams) error
 	// DeleteAlbum invokes deleteAlbum operation.
 	//
-	// This endpoint requires the `album.delete` permission.
+	// Delete a specific album by its ID. Note the album is initially trashed and then immediately
+	// scheduled for deletion, but relies on a background job to complete the process.
 	//
 	// DELETE /albums/{id}
 	DeleteAlbum(ctx context.Context, params DeleteAlbumParams) error
 	// DeleteAllSessions invokes deleteAllSessions operation.
 	//
-	// This endpoint requires the `session.delete` permission.
+	// Delete all sessions for the user. This will not delete the current session.
 	//
 	// DELETE /sessions
 	DeleteAllSessions(ctx context.Context) error
 	// DeleteApiKey invokes deleteApiKey operation.
 	//
-	// This endpoint requires the `apiKey.delete` permission.
+	// Deletes an API key identified by its ID. The current user must own this API key.
 	//
 	// DELETE /api-keys/{id}
 	DeleteApiKey(ctx context.Context, params DeleteApiKeyParams) error
 	// DeleteAssetMetadata invokes deleteAssetMetadata operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Delete a specific metadata key-value pair associated with the specified asset.
 	//
 	// DELETE /assets/{id}/metadata/{key}
 	DeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) error
 	// DeleteAssets invokes deleteAssets operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Deletes multiple assets at the same time.
 	//
 	// DELETE /assets
 	DeleteAssets(ctx context.Context, request *AssetBulkDeleteDto) error
+	// DeleteBulkAssetMetadata invokes deleteBulkAssetMetadata operation.
+	//
+	// Delete metadata key-value pairs for multiple assets.
+	//
+	// DELETE /assets/metadata
+	DeleteBulkAssetMetadata(ctx context.Context, request *AssetMetadataBulkDeleteDto) error
+	// DeleteDatabaseBackup invokes deleteDatabaseBackup operation.
+	//
+	// Delete a backup by its filename.
+	//
+	// DELETE /admin/database-backups
+	DeleteDatabaseBackup(ctx context.Context, request *DatabaseBackupDeleteDto) error
 	// DeleteDuplicate invokes deleteDuplicate operation.
 	//
-	// This endpoint requires the `duplicate.delete` permission.
+	// Dismiss a duplicate group by its ID, unlinking all assets in the group without deleting them.
 	//
 	// DELETE /duplicates/{id}
 	DeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) error
 	// DeleteDuplicates invokes deleteDuplicates operation.
 	//
-	// This endpoint requires the `duplicate.delete` permission.
+	// Delete multiple duplicate assets specified by their IDs.
 	//
 	// DELETE /duplicates
 	DeleteDuplicates(ctx context.Context, request *BulkIdsDto) error
 	// DeleteFace invokes deleteFace operation.
 	//
-	// This endpoint requires the `face.delete` permission.
+	// Delete a face identified by the id. Optionally can be force deleted.
 	//
 	// DELETE /faces/{id}
 	DeleteFace(ctx context.Context, request *AssetFaceDeleteDto, params DeleteFaceParams) error
+	// DeleteIntegrityReport invokes deleteIntegrityReport operation.
+	//
+	// Delete a given report item and perform corresponding deletion (e.g. trash asset, delete file).
+	//
+	// DELETE /admin/integrity/report/{id}
+	DeleteIntegrityReport(ctx context.Context, params DeleteIntegrityReportParams) error
 	// DeleteLibrary invokes deleteLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.delete` permission.
+	// Delete an external library by its ID.
 	//
 	// DELETE /libraries/{id}
 	DeleteLibrary(ctx context.Context, params DeleteLibraryParams) error
 	// DeleteMemory invokes deleteMemory operation.
 	//
-	// This endpoint requires the `memory.delete` permission.
+	// Delete a specific memory by its ID.
 	//
 	// DELETE /memories/{id}
 	DeleteMemory(ctx context.Context, params DeleteMemoryParams) error
 	// DeleteNotification invokes deleteNotification operation.
 	//
-	// This endpoint requires the `notification.delete` permission.
+	// Delete a specific notification.
 	//
 	// DELETE /notifications/{id}
 	DeleteNotification(ctx context.Context, params DeleteNotificationParams) error
 	// DeleteNotifications invokes deleteNotifications operation.
 	//
-	// This endpoint requires the `notification.delete` permission.
+	// Delete a list of notifications at once.
 	//
 	// DELETE /notifications
 	DeleteNotifications(ctx context.Context, request *NotificationDeleteAllDto) error
 	// DeletePeople invokes deletePeople operation.
 	//
-	// This endpoint requires the `person.delete` permission.
+	// Bulk delete a list of people at once.
 	//
 	// DELETE /people
 	DeletePeople(ctx context.Context, request *BulkIdsDto) error
 	// DeletePerson invokes deletePerson operation.
 	//
-	// This endpoint requires the `person.delete` permission.
+	// Delete an individual person.
 	//
 	// DELETE /people/{id}
 	DeletePerson(ctx context.Context, params DeletePersonParams) error
 	// DeleteProfileImage invokes deleteProfileImage operation.
 	//
-	// This endpoint requires the `userProfileImage.delete` permission.
+	// Delete the profile image of the current user.
 	//
 	// DELETE /users/profile-image
 	DeleteProfileImage(ctx context.Context) error
 	// DeleteServerLicense invokes deleteServerLicense operation.
 	//
-	// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+	// Delete the currently set server product key.
 	//
 	// DELETE /server/license
 	DeleteServerLicense(ctx context.Context) error
 	// DeleteSession invokes deleteSession operation.
 	//
-	// This endpoint requires the `session.delete` permission.
+	// Delete a specific session by id.
 	//
 	// DELETE /sessions/{id}
 	DeleteSession(ctx context.Context, params DeleteSessionParams) error
 	// DeleteStack invokes deleteStack operation.
 	//
-	// This endpoint requires the `stack.delete` permission.
+	// Delete a specific stack by its ID.
 	//
 	// DELETE /stacks/{id}
 	DeleteStack(ctx context.Context, params DeleteStackParams) error
 	// DeleteStacks invokes deleteStacks operation.
 	//
-	// This endpoint requires the `stack.delete` permission.
+	// Delete multiple stacks by providing a list of stack IDs.
 	//
 	// DELETE /stacks
 	DeleteStacks(ctx context.Context, request *BulkIdsDto) error
 	// DeleteSyncAck invokes deleteSyncAck operation.
 	//
-	// This endpoint requires the `syncCheckpoint.delete` permission.
+	// Delete specific synchronization acknowledgments.
 	//
 	// DELETE /sync/ack
 	DeleteSyncAck(ctx context.Context, request *SyncAckDeleteDto) error
 	// DeleteTag invokes deleteTag operation.
 	//
-	// This endpoint requires the `tag.delete` permission.
+	// Delete a specific tag by its ID.
 	//
 	// DELETE /tags/{id}
 	DeleteTag(ctx context.Context, params DeleteTagParams) error
 	// DeleteUserAdmin invokes deleteUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+	// Delete a user.
 	//
 	// DELETE /admin/users/{id}
 	DeleteUserAdmin(ctx context.Context, request *UserAdminDeleteDto, params DeleteUserAdminParams) (*UserAdminResponseDto, error)
 	// DeleteUserLicense invokes deleteUserLicense operation.
 	//
-	// This endpoint requires the `userLicense.delete` permission.
+	// Delete the registered product key for the current user.
 	//
 	// DELETE /users/me/license
 	DeleteUserLicense(ctx context.Context) error
 	// DeleteUserOnboarding invokes deleteUserOnboarding operation.
 	//
-	// This endpoint requires the `userOnboarding.delete` permission.
+	// Delete the onboarding status of the current user.
 	//
 	// DELETE /users/me/onboarding
 	DeleteUserOnboarding(ctx context.Context) error
+	// DeleteWorkflow invokes deleteWorkflow operation.
+	//
+	// Delete a workflow by its ID.
+	//
+	// DELETE /workflows/{id}
+	DeleteWorkflow(ctx context.Context, params DeleteWorkflowParams) error
+	// DetectPriorInstall invokes detectPriorInstall operation.
+	//
+	// Collect integrity checks and other heuristics about local data.
+	//
+	// GET /admin/maintenance/detect-install
+	DetectPriorInstall(ctx context.Context) (*MaintenanceDetectInstallResponseDto, error)
 	// DownloadArchive invokes downloadArchive operation.
 	//
-	// This endpoint requires the `asset.download` permission.
+	// Download a ZIP archive containing the specified assets. The assets must have been previously
+	// requested via the "getDownloadInfo" endpoint.
 	//
 	// POST /download/archive
-	DownloadArchive(ctx context.Context, request *AssetIdsDto, params DownloadArchiveParams) (DownloadArchiveOK, error)
+	DownloadArchive(ctx context.Context, request *DownloadArchiveDto, params DownloadArchiveParams) (DownloadArchiveOK, error)
 	// DownloadAsset invokes downloadAsset operation.
 	//
-	// This endpoint requires the `asset.download` permission.
+	// Downloads the original file of the specified asset.
 	//
 	// GET /assets/{id}/original
 	DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error)
+	// DownloadDatabaseBackup invokes downloadDatabaseBackup operation.
+	//
+	// Downloads the database backup file.
+	//
+	// GET /admin/database-backups/{filename}
+	DownloadDatabaseBackup(ctx context.Context, params DownloadDatabaseBackupParams) (DownloadDatabaseBackupOK, error)
+	// EmptyQueue invokes emptyQueue operation.
+	//
+	// Removes all jobs from the specified queue.
+	//
+	// DELETE /queues/{name}/jobs
+	EmptyQueue(ctx context.Context, request *QueueDeleteDto, params EmptyQueueParams) error
 	// EmptyTrash invokes emptyTrash operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Permanently delete all items in the trash.
 	//
 	// POST /trash/empty
 	EmptyTrash(ctx context.Context) (*TrashResponseDto, error)
+	// EndSession invokes endSession operation.
+	//
+	// Releases server resources for the streaming session.
+	//
+	// DELETE /assets/{id}/video/stream/{sessionId}
+	EndSession(ctx context.Context, params EndSessionParams) error
 	// FinishOAuth invokes finishOAuth operation.
+	//
+	// Complete the OAuth authorization process by exchanging the authorization code for a session token.
 	//
 	// POST /oauth/callback
 	FinishOAuth(ctx context.Context, request *OAuthCallbackDto) (*LoginResponseDto, error)
 	// GetAboutInfo invokes getAboutInfo operation.
 	//
-	// This endpoint requires the `server.about` permission.
+	// Retrieve a list of information about the server.
 	//
 	// GET /server/about
 	GetAboutInfo(ctx context.Context) (*ServerAboutResponseDto, error)
 	// GetActivities invokes getActivities operation.
 	//
-	// This endpoint requires the `activity.read` permission.
+	// Returns a list of activities for the selected asset or album. The activities are returned in sorted
+	// order, with the oldest activities appearing first.
 	//
 	// GET /activities
 	GetActivities(ctx context.Context, params GetActivitiesParams) ([]ActivityResponseDto, error)
 	// GetActivityStatistics invokes getActivityStatistics operation.
 	//
-	// This endpoint requires the `activity.statistics` permission.
+	// Returns the number of likes and comments for a given album or asset in an album.
 	//
 	// GET /activities/statistics
 	GetActivityStatistics(ctx context.Context, params GetActivityStatisticsParams) (*ActivityStatisticsResponseDto, error)
 	// GetAdminOnboarding invokes getAdminOnboarding operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	// Retrieve the current admin onboarding status.
 	//
 	// GET /system-metadata/admin-onboarding
 	GetAdminOnboarding(ctx context.Context) (*AdminOnboardingUpdateDto, error)
 	// GetAlbumInfo invokes getAlbumInfo operation.
 	//
-	// This endpoint requires the `album.read` permission.
+	// Retrieve information about a specific album by its ID.
 	//
 	// GET /albums/{id}
 	GetAlbumInfo(ctx context.Context, params GetAlbumInfoParams) (*AlbumResponseDto, error)
+	// GetAlbumMapMarkers invokes getAlbumMapMarkers operation.
+	//
+	// Retrieve map marker information for a specific album by its ID.
+	//
+	// GET /albums/{id}/map-markers
+	GetAlbumMapMarkers(ctx context.Context, params GetAlbumMapMarkersParams) ([]MapMarkerResponseDto, error)
 	// GetAlbumStatistics invokes getAlbumStatistics operation.
 	//
-	// This endpoint requires the `album.statistics` permission.
+	// Returns statistics about the albums available to the authenticated user.
 	//
 	// GET /albums/statistics
 	GetAlbumStatistics(ctx context.Context) (*AlbumStatisticsResponseDto, error)
 	// GetAllAlbums invokes getAllAlbums operation.
 	//
-	// This endpoint requires the `album.read` permission.
+	// Retrieve a list of albums available to the authenticated user.
 	//
 	// GET /albums
 	GetAllAlbums(ctx context.Context, params GetAllAlbumsParams) ([]AlbumResponseDto, error)
-	// GetAllJobsStatus invokes getAllJobsStatus operation.
-	//
-	// This endpoint is an admin-only route, and requires the `job.read` permission.
-	//
-	// GET /jobs
-	GetAllJobsStatus(ctx context.Context) (*AllJobStatusResponseDto, error)
 	// GetAllLibraries invokes getAllLibraries operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.read` permission.
+	// Retrieve a list of external libraries.
 	//
 	// GET /libraries
 	GetAllLibraries(ctx context.Context) ([]LibraryResponseDto, error)
 	// GetAllPeople invokes getAllPeople operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Retrieve a list of all people.
 	//
 	// GET /people
 	GetAllPeople(ctx context.Context, params GetAllPeopleParams) (*PeopleResponseDto, error)
 	// GetAllSharedLinks invokes getAllSharedLinks operation.
 	//
-	// This endpoint requires the `sharedLink.read` permission.
+	// Retrieve a list of all shared links.
 	//
 	// GET /shared-links
 	GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) ([]SharedLinkResponseDto, error)
 	// GetAllTags invokes getAllTags operation.
 	//
-	// This endpoint requires the `tag.read` permission.
+	// Retrieve a list of all tags.
 	//
 	// GET /tags
 	GetAllTags(ctx context.Context) ([]TagResponseDto, error)
-	// GetAllUserAssetsByDeviceId invokes getAllUserAssetsByDeviceId operation.
-	//
-	// Get all asset of a device that are in the database, ID only.
-	//
-	// GET /assets/device/{deviceId}
-	GetAllUserAssetsByDeviceId(ctx context.Context, params GetAllUserAssetsByDeviceIdParams) ([]string, error)
 	// GetApiKey invokes getApiKey operation.
 	//
-	// This endpoint requires the `apiKey.read` permission.
+	// Retrieve an API key by its ID. The current user must own this API key.
 	//
 	// GET /api-keys/{id}
-	GetApiKey(ctx context.Context, params GetApiKeyParams) (*APIKeyResponseDto, error)
+	GetApiKey(ctx context.Context, params GetApiKeyParams) (*ApiKeyResponseDto, error)
 	// GetApiKeys invokes getApiKeys operation.
 	//
-	// This endpoint requires the `apiKey.read` permission.
+	// Retrieve all API keys of the current user.
 	//
 	// GET /api-keys
-	GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error)
+	GetApiKeys(ctx context.Context) ([]ApiKeyResponseDto, error)
 	// GetApkLinks invokes getApkLinks operation.
 	//
-	// This endpoint requires the `server.apkLinks` permission.
+	// Retrieve links to the APKs for the current server version.
 	//
 	// GET /server/apk-links
 	GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error)
 	// GetAssetDuplicates invokes getAssetDuplicates operation.
 	//
-	// This endpoint requires the `duplicate.read` permission.
+	// Retrieve a list of duplicate assets available to the authenticated user.
 	//
 	// GET /duplicates
 	GetAssetDuplicates(ctx context.Context) ([]DuplicateResponseDto, error)
 	// GetAssetInfo invokes getAssetInfo operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve detailed information about a specific asset.
 	//
 	// GET /assets/{id}
 	GetAssetInfo(ctx context.Context, params GetAssetInfoParams) (*AssetResponseDto, error)
 	// GetAssetMetadata invokes getAssetMetadata operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve all metadata key-value pairs associated with the specified asset.
 	//
 	// GET /assets/{id}/metadata
 	GetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) ([]AssetMetadataResponseDto, error)
 	// GetAssetMetadataByKey invokes getAssetMetadataByKey operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve the value of a specific metadata key associated with the specified asset.
 	//
 	// GET /assets/{id}/metadata/{key}
 	GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error)
 	// GetAssetOcr invokes getAssetOcr operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve all OCR (Optical Character Recognition) data associated with the specified asset.
 	//
 	// GET /assets/{id}/ocr
 	GetAssetOcr(ctx context.Context, params GetAssetOcrParams) ([]AssetOcrResponseDto, error)
 	// GetAssetStatistics invokes getAssetStatistics operation.
 	//
-	// This endpoint requires the `asset.statistics` permission.
+	// Retrieve various statistics about the assets owned by the authenticated user.
 	//
 	// GET /assets/statistics
 	GetAssetStatistics(ctx context.Context, params GetAssetStatisticsParams) (*AssetStatsResponseDto, error)
 	// GetAssetsByCity invokes getAssetsByCity operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a list of assets with each asset belonging to a different city. This endpoint is used on
+	// the places pages to show a single thumbnail for each city the user has assets in.
 	//
 	// GET /search/cities
 	GetAssetsByCity(ctx context.Context) ([]AssetResponseDto, error)
 	// GetAssetsByOriginalPath invokes getAssetsByOriginalPath operation.
 	//
+	// Retrieve assets that are children of a specific folder.
+	//
 	// GET /view/folder
 	GetAssetsByOriginalPath(ctx context.Context, params GetAssetsByOriginalPathParams) ([]AssetResponseDto, error)
 	// GetAuthStatus invokes getAuthStatus operation.
+	//
+	// Get information about the current session, including whether the user has a password, and if the
+	// session can access locked assets.
 	//
 	// GET /auth/status
 	GetAuthStatus(ctx context.Context) (*AuthStatusResponseDto, error)
 	// GetConfig invokes getConfig operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	// Retrieve the current system configuration.
 	//
 	// GET /system-config
 	GetConfig(ctx context.Context) (*SystemConfigDto, error)
 	// GetConfigDefaults invokes getConfigDefaults operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	// Retrieve the default values for the system configuration.
 	//
 	// GET /system-config/defaults
 	GetConfigDefaults(ctx context.Context) (*SystemConfigDto, error)
-	// GetDeltaSync invokes getDeltaSync operation.
-	//
-	// POST /sync/delta-sync
-	GetDeltaSync(ctx context.Context, request *AssetDeltaSyncDto) (*AssetDeltaSyncResponseDto, error)
 	// GetDownloadInfo invokes getDownloadInfo operation.
 	//
-	// This endpoint requires the `asset.download` permission.
+	// Retrieve information about how to request a download for the specified assets or album. The response
+	// includes groups of assets that can be downloaded together.
 	//
 	// POST /download/info
 	GetDownloadInfo(ctx context.Context, request *DownloadInfoDto, params GetDownloadInfoParams) (*DownloadResponseDto, error)
 	// GetExploreData invokes getExploreData operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve data for the explore section, such as popular people and places.
 	//
 	// GET /search/explore
 	GetExploreData(ctx context.Context) ([]SearchExploreResponseDto, error)
 	// GetFaces invokes getFaces operation.
 	//
-	// This endpoint requires the `face.read` permission.
+	// Retrieve all faces belonging to an asset.
 	//
 	// GET /faces
 	GetFaces(ctx context.Context, params GetFacesParams) ([]AssetFaceResponseDto, error)
-	// GetFullSyncForUser invokes getFullSyncForUser operation.
+	// GetIntegrityReport invokes getIntegrityReport operation.
 	//
-	// POST /sync/full-sync
-	GetFullSyncForUser(ctx context.Context, request *AssetFullSyncDto) ([]AssetResponseDto, error)
+	// Get all flagged items by integrity report type.
+	//
+	// GET /admin/integrity/report
+	GetIntegrityReport(ctx context.Context, params GetIntegrityReportParams) (*IntegrityReportResponseDto, error)
+	// GetIntegrityReportCsv invokes getIntegrityReportCsv operation.
+	//
+	// Get all integrity report entries for a given type as a CSV.
+	//
+	// GET /admin/integrity/report/{type}/csv
+	GetIntegrityReportCsv(ctx context.Context, params GetIntegrityReportCsvParams) (GetIntegrityReportCsvOK, error)
+	// GetIntegrityReportFile invokes getIntegrityReportFile operation.
+	//
+	// Download the untracked/broken file if one exists.
+	//
+	// GET /admin/integrity/report/{id}/file
+	GetIntegrityReportFile(ctx context.Context, params GetIntegrityReportFileParams) (GetIntegrityReportFileOK, error)
+	// GetIntegrityReportSummary invokes getIntegrityReportSummary operation.
+	//
+	// Get a count of the items flagged in each integrity report.
+	//
+	// GET /admin/integrity/summary
+	GetIntegrityReportSummary(ctx context.Context) (*IntegrityReportSummaryResponseDto, error)
 	// GetLibrary invokes getLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.read` permission.
+	// Retrieve an external library by its ID.
 	//
 	// GET /libraries/{id}
 	GetLibrary(ctx context.Context, params GetLibraryParams) (*LibraryResponseDto, error)
 	// GetLibraryStatistics invokes getLibraryStatistics operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.statistics` permission.
+	// Retrieve statistics for a specific external library, including number of videos, images, and storage
+	// usage.
 	//
 	// GET /libraries/{id}/statistics
 	GetLibraryStatistics(ctx context.Context, params GetLibraryStatisticsParams) (*LibraryStatsResponseDto, error)
+	// GetMainPlaylist invokes getMainPlaylist operation.
+	//
+	// Returns an HLS main playlist with all available variants for the asset.
+	//
+	// GET /assets/{id}/video/stream/main.m3u8
+	GetMainPlaylist(ctx context.Context, params GetMainPlaylistParams) (GetMainPlaylistOK, error)
+	// GetMaintenanceStatus invokes getMaintenanceStatus operation.
+	//
+	// Fetch information about the currently running maintenance action.
+	//
+	// GET /admin/maintenance/status
+	GetMaintenanceStatus(ctx context.Context) (*MaintenanceStatusResponseDto, error)
 	// GetMapMarkers invokes getMapMarkers operation.
+	//
+	// Retrieve a list of latitude and longitude coordinates for every asset with location data.
 	//
 	// GET /map/markers
 	GetMapMarkers(ctx context.Context, params GetMapMarkersParams) ([]MapMarkerResponseDto, error)
+	// GetMediaPlaylist invokes getMediaPlaylist operation.
+	//
+	// Returns an HLS media playlist for one variant of the streaming session.
+	//
+	// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8
+	GetMediaPlaylist(ctx context.Context, params GetMediaPlaylistParams) (GetMediaPlaylistOK, error)
 	// GetMemory invokes getMemory operation.
 	//
-	// This endpoint requires the `memory.read` permission.
+	// Retrieve a specific memory by its ID.
 	//
 	// GET /memories/{id}
 	GetMemory(ctx context.Context, params GetMemoryParams) (*MemoryResponseDto, error)
 	// GetMyApiKey invokes getMyApiKey operation.
 	//
+	// Retrieve the API key that is used to access this endpoint.
+	//
 	// GET /api-keys/me
-	GetMyApiKey(ctx context.Context) (*APIKeyResponseDto, error)
+	GetMyApiKey(ctx context.Context) (*ApiKeyResponseDto, error)
+	// GetMyCalendarHeatmap invokes getMyCalendarHeatmap operation.
+	//
+	// Retrieve activity counts for a specified period, in a calendar heatmap format.
+	//
+	// GET /users/me/calendar-heatmap
+	GetMyCalendarHeatmap(ctx context.Context, params GetMyCalendarHeatmapParams) (*CalendarHeatmapResponseDto, error)
 	// GetMyPreferences invokes getMyPreferences operation.
 	//
-	// This endpoint requires the `userPreference.read` permission.
+	// Retrieve the preferences for the current user.
 	//
 	// GET /users/me/preferences
 	GetMyPreferences(ctx context.Context) (*UserPreferencesResponseDto, error)
 	// GetMySharedLink invokes getMySharedLink operation.
 	//
+	// Retrieve the current shared link associated with authentication method.
+	//
 	// GET /shared-links/me
 	GetMySharedLink(ctx context.Context, params GetMySharedLinkParams) (*SharedLinkResponseDto, error)
 	// GetMyUser invokes getMyUser operation.
 	//
-	// This endpoint requires the `user.read` permission.
+	// Retrieve information about the user making the API request.
 	//
 	// GET /users/me
 	GetMyUser(ctx context.Context) (*UserAdminResponseDto, error)
 	// GetNotification invokes getNotification operation.
 	//
-	// This endpoint requires the `notification.read` permission.
+	// Retrieve a specific notification identified by id.
 	//
 	// GET /notifications/{id}
 	GetNotification(ctx context.Context, params GetNotificationParams) (*NotificationDto, error)
 	// GetNotificationTemplateAdmin invokes getNotificationTemplateAdmin operation.
 	//
+	// Retrieve a preview of the provided email template.
+	//
 	// POST /admin/notifications/templates/{name}
 	GetNotificationTemplateAdmin(ctx context.Context, request *TemplateDto, params GetNotificationTemplateAdminParams) (*TemplateResponseDto, error)
 	// GetNotifications invokes getNotifications operation.
 	//
-	// This endpoint requires the `notification.read` permission.
+	// Retrieve a list of notifications.
 	//
 	// GET /notifications
 	GetNotifications(ctx context.Context, params GetNotificationsParams) ([]NotificationDto, error)
 	// GetPartners invokes getPartners operation.
 	//
-	// This endpoint requires the `partner.read` permission.
+	// Retrieve a list of partners with whom assets are shared.
 	//
 	// GET /partners
 	GetPartners(ctx context.Context, params GetPartnersParams) ([]PartnerResponseDto, error)
 	// GetPerson invokes getPerson operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Retrieve a person by id.
 	//
 	// GET /people/{id}
 	GetPerson(ctx context.Context, params GetPersonParams) (*PersonResponseDto, error)
 	// GetPersonStatistics invokes getPersonStatistics operation.
 	//
-	// This endpoint requires the `person.statistics` permission.
+	// Retrieve statistics about a specific person.
 	//
 	// GET /people/{id}/statistics
 	GetPersonStatistics(ctx context.Context, params GetPersonStatisticsParams) (*PersonStatisticsResponseDto, error)
 	// GetPersonThumbnail invokes getPersonThumbnail operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Retrieve the thumbnail file for a person.
 	//
 	// GET /people/{id}/thumbnail
 	GetPersonThumbnail(ctx context.Context, params GetPersonThumbnailParams) (GetPersonThumbnailOK, error)
+	// GetPlugin invokes getPlugin operation.
+	//
+	// Retrieve information about a specific plugin by its ID.
+	//
+	// GET /plugins/{id}
+	GetPlugin(ctx context.Context, params GetPluginParams) (*PluginResponseDto, error)
 	// GetProfileImage invokes getProfileImage operation.
 	//
-	// This endpoint requires the `userProfileImage.read` permission.
+	// Retrieve the profile image file for a user.
 	//
 	// GET /users/{id}/profile-image
 	GetProfileImage(ctx context.Context, params GetProfileImageParams) (GetProfileImageOK, error)
-	// GetRandom invokes getRandom operation.
+	// GetQueue invokes getQueue operation.
 	//
-	// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
+	// Retrieves a specific queue by its name.
+	//
+	// GET /queues/{name}
+	GetQueue(ctx context.Context, params GetQueueParams) (*QueueResponseDto, error)
+	// GetQueueJobs invokes getQueueJobs operation.
+	//
+	// Retrieves a list of queue jobs from the specified queue.
+	//
+	// GET /queues/{name}/jobs
+	GetQueueJobs(ctx context.Context, params GetQueueJobsParams) ([]QueueJobResponseDto, error)
+	// GetQueues invokes getQueues operation.
+	//
+	// Retrieves a list of queues.
+	//
+	// GET /queues
+	GetQueues(ctx context.Context) ([]QueueResponseDto, error)
+	// GetQueuesLegacy invokes getQueuesLegacy operation.
+	//
+	// Retrieve the counts of the current queue, as well as the current status.
 	//
 	// Deprecated: schema marks this operation as deprecated.
 	//
-	// GET /assets/random
-	GetRandom(ctx context.Context, params GetRandomParams) ([]AssetResponseDto, error)
+	// GET /jobs
+	GetQueuesLegacy(ctx context.Context) (*QueuesResponseLegacyDto, error)
 	// GetReverseGeocodingState invokes getReverseGeocodingState operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	// Retrieve the current state of the reverse geocoding import.
 	//
 	// GET /system-metadata/reverse-geocoding-state
 	GetReverseGeocodingState(ctx context.Context) (*ReverseGeocodingStateResponseDto, error)
 	// GetSearchSuggestions invokes getSearchSuggestions operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve search suggestions based on partial input. This endpoint is used for typeahead search
+	// features.
 	//
 	// GET /search/suggestions
 	GetSearchSuggestions(ctx context.Context, params GetSearchSuggestionsParams) ([]string, error)
+	// GetSegment invokes getSegment operation.
+	//
+	// Streams an HLS init segment (init.mp4) or media segment (seg_N.m4s).
+	//
+	// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}
+	GetSegment(ctx context.Context, params GetSegmentParams) (GetSegmentOK, error)
 	// GetServerConfig invokes getServerConfig operation.
+	//
+	// Retrieve the current server configuration.
 	//
 	// GET /server/config
 	GetServerConfig(ctx context.Context) (*ServerConfigDto, error)
 	// GetServerFeatures invokes getServerFeatures operation.
 	//
+	// Retrieve available features supported by this server.
+	//
 	// GET /server/features
 	GetServerFeatures(ctx context.Context) (*ServerFeaturesDto, error)
 	// GetServerLicense invokes getServerLicense operation.
 	//
-	// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+	// Retrieve information about whether the server currently has a product key registered.
 	//
 	// GET /server/license
 	GetServerLicense(ctx context.Context) (GetServerLicenseRes, error)
 	// GetServerStatistics invokes getServerStatistics operation.
 	//
-	// This endpoint is an admin-only route, and requires the `server.statistics` permission.
+	// Retrieve statistics about the entire Immich instance such as asset counts.
 	//
 	// GET /server/statistics
 	GetServerStatistics(ctx context.Context) (*ServerStatsResponseDto, error)
 	// GetServerVersion invokes getServerVersion operation.
 	//
+	// Retrieve the current server version in semantic versioning (semver) format.
+	//
 	// GET /server/version
 	GetServerVersion(ctx context.Context) (*ServerVersionResponseDto, error)
 	// GetSessions invokes getSessions operation.
 	//
-	// This endpoint requires the `session.read` permission.
+	// Retrieve a list of sessions for the user.
 	//
 	// GET /sessions
 	GetSessions(ctx context.Context) ([]SessionResponseDto, error)
 	// GetSharedLinkById invokes getSharedLinkById operation.
 	//
-	// This endpoint requires the `sharedLink.read` permission.
+	// Retrieve a specific shared link by its ID.
 	//
 	// GET /shared-links/{id}
 	GetSharedLinkById(ctx context.Context, params GetSharedLinkByIdParams) (*SharedLinkResponseDto, error)
 	// GetStack invokes getStack operation.
 	//
-	// This endpoint requires the `stack.read` permission.
+	// Retrieve a specific stack by its ID.
 	//
 	// GET /stacks/{id}
 	GetStack(ctx context.Context, params GetStackParams) (*StackResponseDto, error)
 	// GetStorage invokes getStorage operation.
 	//
-	// This endpoint requires the `server.storage` permission.
+	// Retrieve the current storage utilization information of the server.
 	//
 	// GET /server/storage
 	GetStorage(ctx context.Context) (*ServerStorageResponseDto, error)
 	// GetStorageTemplateOptions invokes getStorageTemplateOptions operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+	// Retrieve exemplary storage template options.
 	//
 	// GET /system-config/storage-template-options
 	GetStorageTemplateOptions(ctx context.Context) (*SystemConfigTemplateStorageOptionDto, error)
 	// GetSupportedMediaTypes invokes getSupportedMediaTypes operation.
 	//
+	// Retrieve all media types supported by the server.
+	//
 	// GET /server/media-types
 	GetSupportedMediaTypes(ctx context.Context) (*ServerMediaTypesResponseDto, error)
 	// GetSyncAck invokes getSyncAck operation.
 	//
-	// This endpoint requires the `syncCheckpoint.read` permission.
+	// Retrieve the synchronization acknowledgments for the current session.
 	//
 	// GET /sync/ack
 	GetSyncAck(ctx context.Context) ([]SyncAckDto, error)
 	// GetSyncStream invokes getSyncStream operation.
 	//
-	// This endpoint requires the `sync.stream` permission.
+	// Retrieve a JSON lines streamed response of changes for synchronization. This endpoint is used by the
+	// mobile app to efficiently stay up to date with changes.
 	//
 	// POST /sync/stream
 	GetSyncStream(ctx context.Context, request *SyncStreamDto) error
 	// GetTagById invokes getTagById operation.
 	//
-	// This endpoint requires the `tag.read` permission.
+	// Retrieve a specific tag by its ID.
 	//
 	// GET /tags/{id}
 	GetTagById(ctx context.Context, params GetTagByIdParams) (*TagResponseDto, error)
-	// GetTheme invokes getTheme operation.
-	//
-	// GET /server/theme
-	GetTheme(ctx context.Context) (*ServerThemeDto, error)
 	// GetTimeBucket invokes getTimeBucket operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a string of all asset ids in a given time bucket.
 	//
 	// GET /timeline/bucket
 	GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (*TimeBucketAssetResponseDto, error)
 	// GetTimeBuckets invokes getTimeBuckets operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a list of all minimal time buckets.
 	//
 	// GET /timeline/buckets
 	GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketsResponseDto, error)
 	// GetUniqueOriginalPaths invokes getUniqueOriginalPaths operation.
 	//
+	// Retrieve a list of unique folder paths from asset original paths.
+	//
 	// GET /view/folder/unique-paths
 	GetUniqueOriginalPaths(ctx context.Context) ([]string, error)
 	// GetUser invokes getUser operation.
 	//
-	// This endpoint requires the `user.read` permission.
+	// Retrieve a specific user by their ID.
 	//
 	// GET /users/{id}
 	GetUser(ctx context.Context, params GetUserParams) (*UserResponseDto, error)
 	// GetUserAdmin invokes getUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Retrieve a specific user by their ID.
 	//
 	// GET /admin/users/{id}
 	GetUserAdmin(ctx context.Context, params GetUserAdminParams) (*UserAdminResponseDto, error)
+	// GetUserCalendarHeatmapAdmin invokes getUserCalendarHeatmapAdmin operation.
+	//
+	// Retrieve activity counts for a specified period, in a calendar heatmap format.
+	//
+	// GET /admin/users/{id}/calendar-heatmap
+	GetUserCalendarHeatmapAdmin(ctx context.Context, params GetUserCalendarHeatmapAdminParams) (*CalendarHeatmapResponseDto, error)
 	// GetUserLicense invokes getUserLicense operation.
 	//
-	// This endpoint requires the `userLicense.read` permission.
+	// Retrieve information about whether the current user has a registered product key.
 	//
 	// GET /users/me/license
-	GetUserLicense(ctx context.Context) (*LicenseResponseDto, error)
+	GetUserLicense(ctx context.Context) (*UserLicense, error)
 	// GetUserOnboarding invokes getUserOnboarding operation.
 	//
-	// This endpoint requires the `userOnboarding.read` permission.
+	// Retrieve the onboarding status of the current user.
 	//
 	// GET /users/me/onboarding
 	GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error)
 	// GetUserPreferencesAdmin invokes getUserPreferencesAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Retrieve the preferences of a specific user.
 	//
 	// GET /admin/users/{id}/preferences
 	GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
 	// GetUserSessionsAdmin invokes getUserSessionsAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+	// Retrieve all sessions for a specific user.
 	//
 	// GET /admin/users/{id}/sessions
 	GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) ([]SessionResponseDto, error)
 	// GetUserStatisticsAdmin invokes getUserStatisticsAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Retrieve asset statistics for a specific user.
 	//
 	// GET /admin/users/{id}/statistics
 	GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error)
 	// GetVersionCheck invokes getVersionCheck operation.
 	//
-	// This endpoint requires the `server.versionCheck` permission.
+	// Retrieve information about the last time the version check ran.
 	//
 	// GET /server/version-check
 	GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionCheckState invokes getVersionCheckState operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+	// Retrieve the current state of the version check process.
 	//
 	// GET /system-metadata/version-check-state
 	GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error)
 	// GetVersionHistory invokes getVersionHistory operation.
 	//
+	// Retrieve a list of past versions the server has been on.
+	//
 	// GET /server/version-history
 	GetVersionHistory(ctx context.Context) ([]ServerVersionHistoryResponseDto, error)
+	// GetWorkflow invokes getWorkflow operation.
+	//
+	// Retrieve information about a specific workflow by its ID.
+	//
+	// GET /workflows/{id}
+	GetWorkflow(ctx context.Context, params GetWorkflowParams) (*WorkflowResponseDto, error)
+	// GetWorkflowForShare invokes getWorkflowForShare operation.
+	//
+	// Retrieve a workflow details without ids, default values, etc.
+	//
+	// GET /workflows/{id}/share
+	GetWorkflowForShare(ctx context.Context, params GetWorkflowForShareParams) (*WorkflowShareResponseDto, error)
+	// GetWorkflowLogs invokes getWorkflowLogs operation.
+	//
+	// Retrieve logs of a workflows runs by ID.
+	//
+	// GET /workflows/{id}/logs
+	GetWorkflowLogs(ctx context.Context, params GetWorkflowLogsParams) ([]WorkflowLogEntryDto, error)
+	// GetWorkflowTriggers invokes getWorkflowTriggers operation.
+	//
+	// Retrieve a list of all available workflow triggers.
+	//
+	// GET /workflows/triggers
+	GetWorkflowTriggers(ctx context.Context) ([]WorkflowTriggerResponseDto, error)
 	// LinkOAuthAccount invokes linkOAuthAccount operation.
+	//
+	// Link an OAuth account to the authenticated user.
 	//
 	// POST /oauth/link
 	LinkOAuthAccount(ctx context.Context, request *OAuthCallbackDto) (*UserAdminResponseDto, error)
+	// ListDatabaseBackups invokes listDatabaseBackups operation.
+	//
+	// Get the list of the successful and failed backups.
+	//
+	// GET /admin/database-backups
+	ListDatabaseBackups(ctx context.Context) (*DatabaseBackupListResponseDto, error)
 	// LockAuthSession invokes lockAuthSession operation.
+	//
+	// Remove elevated access to locked assets from the current session.
 	//
 	// POST /auth/session/lock
 	LockAuthSession(ctx context.Context) error
 	// LockSession invokes lockSession operation.
 	//
-	// This endpoint requires the `session.lock` permission.
+	// Lock a specific session by id.
 	//
 	// POST /sessions/{id}/lock
 	LockSession(ctx context.Context, params LockSessionParams) error
 	// Login invokes login operation.
 	//
+	// Login with username and password and receive a session token.
+	//
 	// POST /auth/login
 	Login(ctx context.Context, request *LoginCredentialDto) (*LoginResponseDto, error)
 	// Logout invokes logout operation.
 	//
+	// Logout the current user and invalidate the session token.
+	//
 	// POST /auth/logout
 	Logout(ctx context.Context) (*LogoutResponseDto, error)
+	// LogoutOAuth invokes logoutOAuth operation.
+	//
+	// Logout the OAuth account and invalidate the session specified by the sid claim or all sessions if
+	// the sid claim is not present.
+	//
+	// POST /oauth/backchannel-logout
+	LogoutOAuth(ctx context.Context, request *OAuthBackchannelLogoutDto) error
+	// MaintenanceLogin invokes maintenanceLogin operation.
+	//
+	// Login with maintenance token or cookie to receive current information and perform further actions.
+	//
+	// POST /admin/maintenance/login
+	MaintenanceLogin(ctx context.Context, request *MaintenanceLoginDto) (*MaintenanceAuthDto, error)
 	// MemoriesStatistics invokes memoriesStatistics operation.
 	//
-	// This endpoint requires the `memory.statistics` permission.
+	// Retrieve statistics about memories, such as total count and other relevant metrics.
 	//
 	// GET /memories/statistics
 	MemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (*MemoryStatisticsResponseDto, error)
 	// MergePerson invokes mergePerson operation.
 	//
-	// This endpoint requires the `person.merge` permission.
+	// Merge a list of people into the person specified in the path parameter.
 	//
 	// POST /people/{id}/merge
 	MergePerson(ctx context.Context, request *MergePersonDto, params MergePersonParams) ([]BulkIdResponseDto, error)
 	// PingServer invokes pingServer operation.
 	//
+	// Pong.
+	//
 	// GET /server/ping
 	PingServer(ctx context.Context) (*ServerPingResponse, error)
 	// PlayAssetVideo invokes playAssetVideo operation.
 	//
-	// This endpoint requires the `asset.view` permission.
+	// Streams the video file for the specified asset. This endpoint also supports byte range requests.
 	//
 	// GET /assets/{id}/video/playback
 	PlayAssetVideo(ctx context.Context, params PlayAssetVideoParams) (PlayAssetVideoOK, error)
 	// ReassignFaces invokes reassignFaces operation.
 	//
-	// This endpoint requires the `person.reassign` permission.
+	// Bulk reassign a list of faces to a different person.
 	//
 	// PUT /people/{id}/reassign
 	ReassignFaces(ctx context.Context, request *AssetFaceUpdateDto, params ReassignFacesParams) ([]PersonResponseDto, error)
 	// ReassignFacesById invokes reassignFacesById operation.
 	//
-	// This endpoint requires the `face.update` permission.
+	// Re-assign the face provided in the body to the person identified by the id in the path parameter.
 	//
 	// PUT /faces/{id}
 	ReassignFacesById(ctx context.Context, request *FaceDto, params ReassignFacesByIdParams) (*PersonResponseDto, error)
 	// RedirectOAuthToMobile invokes redirectOAuthToMobile operation.
 	//
+	// Requests to this URL are automatically forwarded to the mobile app, and is used in some cases for
+	// OAuth redirecting.
+	//
 	// GET /oauth/mobile-redirect
 	RedirectOAuthToMobile(ctx context.Context) error
+	// RemoveAssetEdits invokes removeAssetEdits operation.
+	//
+	// Removes all edit actions (crop, rotate, mirror) associated with the specified asset.
+	//
+	// DELETE /assets/{id}/edits
+	RemoveAssetEdits(ctx context.Context, params RemoveAssetEditsParams) error
 	// RemoveAssetFromAlbum invokes removeAssetFromAlbum operation.
 	//
-	// This endpoint requires the `albumAsset.delete` permission.
+	// Remove multiple assets from a specific album by its ID.
 	//
 	// DELETE /albums/{id}/assets
 	RemoveAssetFromAlbum(ctx context.Context, request *BulkIdsDto, params RemoveAssetFromAlbumParams) ([]BulkIdResponseDto, error)
 	// RemoveAssetFromStack invokes removeAssetFromStack operation.
 	//
-	// This endpoint requires the `stack.update` permission.
+	// Remove a specific asset from a stack by providing the stack ID and asset ID.
 	//
 	// DELETE /stacks/{id}/assets/{assetId}
 	RemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) error
 	// RemoveMemoryAssets invokes removeMemoryAssets operation.
 	//
-	// This endpoint requires the `memoryAsset.delete` permission.
+	// Remove a list of asset IDs from a specific memory.
 	//
 	// DELETE /memories/{id}/assets
 	RemoveMemoryAssets(ctx context.Context, request *BulkIdsDto, params RemoveMemoryAssetsParams) ([]BulkIdResponseDto, error)
 	// RemovePartner invokes removePartner operation.
 	//
-	// This endpoint requires the `partner.delete` permission.
+	// Stop sharing assets with a partner.
 	//
 	// DELETE /partners/{id}
 	RemovePartner(ctx context.Context, params RemovePartnerParams) error
 	// RemoveSharedLink invokes removeSharedLink operation.
 	//
-	// This endpoint requires the `sharedLink.delete` permission.
+	// Delete a specific shared link by its ID.
 	//
 	// DELETE /shared-links/{id}
 	RemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) error
 	// RemoveSharedLinkAssets invokes removeSharedLinkAssets operation.
 	//
+	// Remove assets from a specific shared link by its ID. This endpoint is only relevant for shared link
+	// of type individual.
+	//
 	// DELETE /shared-links/{id}/assets
 	RemoveSharedLinkAssets(ctx context.Context, request *AssetIdsDto, params RemoveSharedLinkAssetsParams) ([]AssetIdsResponseDto, error)
 	// RemoveUserFromAlbum invokes removeUserFromAlbum operation.
 	//
-	// This endpoint requires the `albumUser.delete` permission.
+	// Remove a user from an album. Use an ID of "me" to leave a shared album.
 	//
 	// DELETE /albums/{id}/user/{userId}
 	RemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) error
-	// ReplaceAsset invokes replaceAsset operation.
-	//
-	// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
-	//  This endpoint requires the `asset.replace` permission.
-	//
-	// Deprecated: schema marks this operation as deprecated.
-	//
-	// PUT /assets/{id}/original
-	ReplaceAsset(ctx context.Context, request *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (*AssetMediaResponseDto, error)
 	// ResetPinCode invokes resetPinCode operation.
 	//
-	// This endpoint requires the `pinCode.delete` permission.
+	// Reset the pin code for the current user by providing the account password.
 	//
 	// DELETE /auth/pin-code
 	ResetPinCode(ctx context.Context, request *PinCodeResetDto) error
+	// ResolveDuplicates invokes resolveDuplicates operation.
+	//
+	// Resolve duplicate groups by synchronizing metadata across assets and deleting/trashing duplicates.
+	//
+	// POST /duplicates/resolve
+	ResolveDuplicates(ctx context.Context, request *DuplicateResolveDto) ([]BulkIdResponseDto, error)
 	// RestoreAssets invokes restoreAssets operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Restore specific assets from the trash.
 	//
 	// POST /trash/restore/assets
 	RestoreAssets(ctx context.Context, request *BulkIdsDto) (*TrashResponseDto, error)
 	// RestoreTrash invokes restoreTrash operation.
 	//
-	// This endpoint requires the `asset.delete` permission.
+	// Restore all items in the trash.
 	//
 	// POST /trash/restore
 	RestoreTrash(ctx context.Context) (*TrashResponseDto, error)
 	// RestoreUserAdmin invokes restoreUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+	// Restore a previously deleted user.
 	//
 	// POST /admin/users/{id}/restore
 	RestoreUserAdmin(ctx context.Context, params RestoreUserAdminParams) (*UserAdminResponseDto, error)
 	// ReverseGeocode invokes reverseGeocode operation.
 	//
+	// Retrieve location information (e.g., city, country) for given latitude and longitude coordinates.
+	//
 	// GET /map/reverse-geocode
 	ReverseGeocode(ctx context.Context, params ReverseGeocodeParams) ([]MapReverseGeocodeResponseDto, error)
 	// RunAssetJobs invokes runAssetJobs operation.
 	//
+	// Run a specific job on a set of assets.
+	//
 	// POST /assets/jobs
 	RunAssetJobs(ctx context.Context, request *AssetJobsDto) error
+	// RunQueueCommandLegacy invokes runQueueCommandLegacy operation.
+	//
+	// Queue all assets for a specific job type. Defaults to only queueing assets that have not yet been
+	// processed, but the force command can be used to re-process all assets.
+	//
+	// Deprecated: schema marks this operation as deprecated.
+	//
+	// PUT /jobs/{name}
+	RunQueueCommandLegacy(ctx context.Context, request *QueueCommandDto, params RunQueueCommandLegacyParams) (*QueueResponseLegacyDto, error)
 	// ScanLibrary invokes scanLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.update` permission.
+	// Queue a scan for the external library to find and import new assets.
 	//
 	// POST /libraries/{id}/scan
 	ScanLibrary(ctx context.Context, params ScanLibraryParams) error
 	// SearchAssetStatistics invokes searchAssetStatistics operation.
 	//
-	// This endpoint requires the `asset.statistics` permission.
+	// Retrieve statistical data about assets based on search criteria, such as the total matching count.
 	//
 	// POST /search/statistics
 	SearchAssetStatistics(ctx context.Context, request *StatisticsSearchDto) (*SearchStatisticsResponseDto, error)
 	// SearchAssets invokes searchAssets operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Search for assets based on various metadata criteria.
 	//
 	// POST /search/metadata
-	SearchAssets(ctx context.Context, request *MetadataSearchDto) (*SearchResponseDto, error)
+	SearchAssets(ctx context.Context, request *MetadataSearchDto, params SearchAssetsParams) (*SearchResponseDto, error)
 	// SearchLargeAssets invokes searchLargeAssets operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Search for assets that are considered large based on specified criteria.
 	//
 	// POST /search/large-assets
 	SearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) ([]AssetResponseDto, error)
 	// SearchMemories invokes searchMemories operation.
 	//
-	// This endpoint requires the `memory.read` permission.
+	// Retrieve a list of memories. Memories are sorted descending by creation date by default, although
+	// they can also be sorted in ascending order, or randomly.
 	//
 	// GET /memories
 	SearchMemories(ctx context.Context, params SearchMemoriesParams) ([]MemoryResponseDto, error)
 	// SearchPerson invokes searchPerson operation.
 	//
-	// This endpoint requires the `person.read` permission.
+	// Search for people by name.
 	//
 	// GET /search/person
 	SearchPerson(ctx context.Context, params SearchPersonParams) ([]PersonResponseDto, error)
 	// SearchPlaces invokes searchPlaces operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Search for places by name.
 	//
 	// GET /search/places
 	SearchPlaces(ctx context.Context, params SearchPlacesParams) ([]PlacesResponseDto, error)
+	// SearchPluginMethods invokes searchPluginMethods operation.
+	//
+	// Retrieve a list of plugin methods.
+	//
+	// GET /plugins/methods
+	SearchPluginMethods(ctx context.Context, params SearchPluginMethodsParams) ([]PluginMethodResponseDto, error)
+	// SearchPluginTemplates invokes searchPluginTemplates operation.
+	//
+	// Retrieve workflow templates provided by installed plugins.
+	//
+	// GET /plugins/templates
+	SearchPluginTemplates(ctx context.Context) ([]PluginTemplateResponseDto, error)
+	// SearchPlugins invokes searchPlugins operation.
+	//
+	// Retrieve a list of plugins available to the authenticated user.
+	//
+	// GET /plugins
+	SearchPlugins(ctx context.Context, params SearchPluginsParams) ([]PluginResponseDto, error)
 	// SearchRandom invokes searchRandom operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Retrieve a random selection of assets based on the provided criteria.
 	//
 	// POST /search/random
 	SearchRandom(ctx context.Context, request *RandomSearchDto) ([]AssetResponseDto, error)
 	// SearchSmart invokes searchSmart operation.
 	//
-	// This endpoint requires the `asset.read` permission.
+	// Perform a smart search for assets by using machine learning vectors to determine relevance.
 	//
 	// POST /search/smart
 	SearchSmart(ctx context.Context, request *SmartSearchDto) (*SearchResponseDto, error)
 	// SearchStacks invokes searchStacks operation.
 	//
-	// This endpoint requires the `stack.read` permission.
+	// Retrieve a list of stacks.
 	//
 	// GET /stacks
 	SearchStacks(ctx context.Context, params SearchStacksParams) ([]StackResponseDto, error)
 	// SearchUsers invokes searchUsers operation.
 	//
-	// This endpoint requires the `user.read` permission.
+	// Retrieve a list of all users on the server.
 	//
 	// GET /users
 	SearchUsers(ctx context.Context) ([]UserResponseDto, error)
 	// SearchUsersAdmin invokes searchUsersAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+	// Search for users.
 	//
 	// GET /admin/users
 	SearchUsersAdmin(ctx context.Context, params SearchUsersAdminParams) ([]UserAdminResponseDto, error)
-	// SendJobCommand invokes sendJobCommand operation.
+	// SearchWorkflows invokes searchWorkflows operation.
 	//
-	// This endpoint is an admin-only route, and requires the `job.create` permission.
+	// Retrieve a list of workflows available to the authenticated user.
 	//
-	// PUT /jobs/{id}
-	SendJobCommand(ctx context.Context, request *JobCommandDto, params SendJobCommandParams) (*JobStatusDto, error)
+	// GET /workflows
+	SearchWorkflows(ctx context.Context, params SearchWorkflowsParams) ([]WorkflowResponseDto, error)
 	// SendSyncAck invokes sendSyncAck operation.
 	//
-	// This endpoint requires the `syncCheckpoint.update` permission.
+	// Send a list of synchronization acknowledgements to confirm that the latest changes have been
+	// received.
 	//
 	// POST /sync/ack
 	SendSyncAck(ctx context.Context, request *SyncAckSetDto) error
 	// SendTestEmailAdmin invokes sendTestEmailAdmin operation.
 	//
+	// Send a test email using the provided SMTP configuration.
+	//
 	// POST /admin/notifications/test-email
 	SendTestEmailAdmin(ctx context.Context, request *SystemConfigSmtpDto) (*TestEmailResponseDto, error)
+	// SetMaintenanceMode invokes setMaintenanceMode operation.
+	//
+	// Put Immich into or take it out of maintenance mode.
+	//
+	// POST /admin/maintenance
+	SetMaintenanceMode(ctx context.Context, request *SetMaintenanceModeDto) error
 	// SetServerLicense invokes setServerLicense operation.
 	//
-	// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+	// Validate and set the server product key if successful.
 	//
 	// PUT /server/license
-	SetServerLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error)
+	SetServerLicense(ctx context.Context, request *LicenseKeyDto) (*UserLicense, error)
 	// SetUserLicense invokes setUserLicense operation.
 	//
-	// This endpoint requires the `userLicense.update` permission.
+	// Register a product key for the current user.
 	//
 	// PUT /users/me/license
-	SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error)
+	SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*UserLicense, error)
 	// SetUserOnboarding invokes setUserOnboarding operation.
 	//
-	// This endpoint requires the `userOnboarding.update` permission.
+	// Update the onboarding status of the current user.
 	//
 	// PUT /users/me/onboarding
 	SetUserOnboarding(ctx context.Context, request *OnboardingDto) (*OnboardingResponseDto, error)
 	// SetupPinCode invokes setupPinCode operation.
 	//
-	// This endpoint requires the `pinCode.create` permission.
+	// Setup a new pin code for the current user.
 	//
 	// POST /auth/pin-code
 	SetupPinCode(ctx context.Context, request *PinCodeSetupDto) error
+	// SharedLinkLogin invokes sharedLinkLogin operation.
+	//
+	// Login to a password protected shared link.
+	//
+	// POST /shared-links/login
+	SharedLinkLogin(ctx context.Context, request *SharedLinkLoginDto, params SharedLinkLoginParams) (*SharedLinkResponseDto, error)
 	// SignUpAdmin invokes signUpAdmin operation.
+	//
+	// Create the first admin user in the system.
 	//
 	// POST /auth/admin-sign-up
 	SignUpAdmin(ctx context.Context, request *SignUpDto) (*UserAdminResponseDto, error)
+	// StartDatabaseRestoreFlow invokes startDatabaseRestoreFlow operation.
+	//
+	// Put Immich into maintenance mode to restore a backup (Immich must not be configured).
+	//
+	// POST /admin/database-backups/start-restore
+	StartDatabaseRestoreFlow(ctx context.Context) error
 	// StartOAuth invokes startOAuth operation.
+	//
+	// Initiate the OAuth authorization process.
 	//
 	// POST /oauth/authorize
 	StartOAuth(ctx context.Context, request *OAuthConfigDto) (*OAuthAuthorizeResponseDto, error)
 	// TagAssets invokes tagAssets operation.
 	//
-	// This endpoint requires the `tag.asset` permission.
+	// Add a tag to all the specified assets.
 	//
 	// PUT /tags/{id}/assets
 	TagAssets(ctx context.Context, request *BulkIdsDto, params TagAssetsParams) ([]BulkIdResponseDto, error)
 	// UnlinkAllOAuthAccountsAdmin invokes unlinkAllOAuthAccountsAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+	// Unlinks all OAuth accounts associated with user accounts in the system.
 	//
 	// POST /admin/auth/unlink-all
 	UnlinkAllOAuthAccountsAdmin(ctx context.Context) error
 	// UnlinkOAuthAccount invokes unlinkOAuthAccount operation.
 	//
+	// Unlink the OAuth account from the authenticated user.
+	//
 	// POST /oauth/unlink
 	UnlinkOAuthAccount(ctx context.Context) (*UserAdminResponseDto, error)
 	// UnlockAuthSession invokes unlockAuthSession operation.
+	//
+	// Temporarily grant the session elevated access to locked assets by providing the correct PIN code.
 	//
 	// POST /auth/session/unlock
 	UnlockAuthSession(ctx context.Context, request *SessionUnlockDto) error
 	// UntagAssets invokes untagAssets operation.
 	//
-	// This endpoint requires the `tag.asset` permission.
+	// Remove a tag from all the specified assets.
 	//
 	// DELETE /tags/{id}/assets
 	UntagAssets(ctx context.Context, request *BulkIdsDto, params UntagAssetsParams) ([]BulkIdResponseDto, error)
 	// UpdateAdminOnboarding invokes updateAdminOnboarding operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
+	// Update the admin onboarding status.
 	//
 	// POST /system-metadata/admin-onboarding
 	UpdateAdminOnboarding(ctx context.Context, request *AdminOnboardingUpdateDto) error
 	// UpdateAlbumInfo invokes updateAlbumInfo operation.
 	//
-	// This endpoint requires the `album.update` permission.
+	// Update the information of a specific album by its ID. This endpoint can be used to update the album
+	// name, description, sort order, etc. However, it is not used to add or remove assets or users from
+	// the album.
 	//
 	// PATCH /albums/{id}
 	UpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDto, params UpdateAlbumInfoParams) (*AlbumResponseDto, error)
 	// UpdateAlbumUser invokes updateAlbumUser operation.
 	//
-	// This endpoint requires the `albumUser.update` permission.
+	// Change the role for a specific user in a specific album.
 	//
 	// PUT /albums/{id}/user/{userId}
 	UpdateAlbumUser(ctx context.Context, request *UpdateAlbumUserDto, params UpdateAlbumUserParams) error
 	// UpdateApiKey invokes updateApiKey operation.
 	//
-	// This endpoint requires the `apiKey.update` permission.
+	// Updates the name and permissions of an API key by its ID. The current user must own this API key.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /api-keys/{id}
-	UpdateApiKey(ctx context.Context, request *APIKeyUpdateDto, params UpdateApiKeyParams) (*APIKeyResponseDto, error)
+	UpdateApiKey(ctx context.Context, request *ApiKeyUpdateDto, params UpdateApiKeyParams) (*ApiKeyResponseDto, error)
 	// UpdateAsset invokes updateAsset operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Update information of a specific asset.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /assets/{id}
 	UpdateAsset(ctx context.Context, request *UpdateAssetDto, params UpdateAssetParams) (*AssetResponseDto, error)
 	// UpdateAssetMetadata invokes updateAssetMetadata operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Update or add metadata key-value pairs for the specified asset.
 	//
 	// PUT /assets/{id}/metadata
 	UpdateAssetMetadata(ctx context.Context, request *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) ([]AssetMetadataResponseDto, error)
 	// UpdateAssets invokes updateAssets operation.
 	//
-	// This endpoint requires the `asset.update` permission.
+	// Updates multiple assets at the same time.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /assets
 	UpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) error
+	// UpdateBulkAssetMetadata invokes updateBulkAssetMetadata operation.
+	//
+	// Upsert metadata key-value pairs for multiple assets.
+	//
+	// PUT /assets/metadata
+	UpdateBulkAssetMetadata(ctx context.Context, request *AssetMetadataBulkUpsertDto) ([]AssetMetadataBulkResponseDto, error)
 	// UpdateConfig invokes updateConfig operation.
 	//
-	// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+	// Update the system configuration with a new system configuration.
 	//
 	// PUT /system-config
 	UpdateConfig(ctx context.Context, request *SystemConfigDto) (*SystemConfigDto, error)
 	// UpdateLibrary invokes updateLibrary operation.
 	//
-	// This endpoint is an admin-only route, and requires the `library.update` permission.
+	// Update an existing external library.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /libraries/{id}
 	UpdateLibrary(ctx context.Context, request *UpdateLibraryDto, params UpdateLibraryParams) (*LibraryResponseDto, error)
 	// UpdateMemory invokes updateMemory operation.
 	//
-	// This endpoint requires the `memory.update` permission.
+	// Update an existing memory by its ID.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /memories/{id}
 	UpdateMemory(ctx context.Context, request *MemoryUpdateDto, params UpdateMemoryParams) (*MemoryResponseDto, error)
 	// UpdateMyPreferences invokes updateMyPreferences operation.
 	//
-	// This endpoint requires the `userPreference.update` permission.
+	// Update the preferences of the current user.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /users/me/preferences
 	UpdateMyPreferences(ctx context.Context, request *UserPreferencesUpdateDto) (*UserPreferencesResponseDto, error)
 	// UpdateMyUser invokes updateMyUser operation.
 	//
-	// This endpoint requires the `user.update` permission.
+	// Update the current user making the API request.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /users/me
 	UpdateMyUser(ctx context.Context, request *UserUpdateMeDto) (*UserAdminResponseDto, error)
 	// UpdateNotification invokes updateNotification operation.
 	//
-	// This endpoint requires the `notification.update` permission.
+	// Update a specific notification to set its read status.
 	//
 	// PUT /notifications/{id}
 	UpdateNotification(ctx context.Context, request *NotificationUpdateDto, params UpdateNotificationParams) (*NotificationDto, error)
 	// UpdateNotifications invokes updateNotifications operation.
 	//
-	// This endpoint requires the `notification.update` permission.
+	// Update a list of notifications. Allows to bulk-set the read status of notifications.
 	//
 	// PUT /notifications
 	UpdateNotifications(ctx context.Context, request *NotificationUpdateAllDto) error
 	// UpdatePartner invokes updatePartner operation.
 	//
-	// This endpoint requires the `partner.update` permission.
+	// Specify whether a partner's assets should appear in the user's timeline.
 	//
 	// PUT /partners/{id}
 	UpdatePartner(ctx context.Context, request *PartnerUpdateDto, params UpdatePartnerParams) (*PartnerResponseDto, error)
 	// UpdatePeople invokes updatePeople operation.
 	//
-	// This endpoint requires the `person.update` permission.
+	// Bulk update multiple people at once.
 	//
 	// PUT /people
 	UpdatePeople(ctx context.Context, request *PeopleUpdateDto) ([]BulkIdResponseDto, error)
 	// UpdatePerson invokes updatePerson operation.
 	//
-	// This endpoint requires the `person.update` permission.
+	// Update an individual person.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /people/{id}
 	UpdatePerson(ctx context.Context, request *PersonUpdateDto, params UpdatePersonParams) (*PersonResponseDto, error)
+	// UpdateQueue invokes updateQueue operation.
+	//
+	// Change the paused status of a specific queue.
+	//
+	// PUT /queues/{name}
+	UpdateQueue(ctx context.Context, request *QueueUpdateDto, params UpdateQueueParams) (*QueueResponseDto, error)
 	// UpdateSession invokes updateSession operation.
 	//
-	// This endpoint requires the `session.update` permission.
+	// Update a specific session identified by id.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /sessions/{id}
 	UpdateSession(ctx context.Context, request *SessionUpdateDto, params UpdateSessionParams) (*SessionResponseDto, error)
 	// UpdateSharedLink invokes updateSharedLink operation.
 	//
-	// This endpoint requires the `sharedLink.update` permission.
+	// Update an existing shared link by its ID.
 	//
 	// PATCH /shared-links/{id}
 	UpdateSharedLink(ctx context.Context, request *SharedLinkEditDto, params UpdateSharedLinkParams) (*SharedLinkResponseDto, error)
 	// UpdateStack invokes updateStack operation.
 	//
-	// This endpoint requires the `stack.update` permission.
+	// Update an existing stack by its ID.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /stacks/{id}
 	UpdateStack(ctx context.Context, request *StackUpdateDto, params UpdateStackParams) (*StackResponseDto, error)
 	// UpdateTag invokes updateTag operation.
 	//
-	// This endpoint requires the `tag.update` permission.
+	// Update an existing tag identified by its ID.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /tags/{id}
 	UpdateTag(ctx context.Context, request *TagUpdateDto, params UpdateTagParams) (*TagResponseDto, error)
 	// UpdateUserAdmin invokes updateUserAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+	// Update an existing user.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /admin/users/{id}
 	UpdateUserAdmin(ctx context.Context, request *UserAdminUpdateDto, params UpdateUserAdminParams) (*UserAdminResponseDto, error)
 	// UpdateUserPreferencesAdmin invokes updateUserPreferencesAdmin operation.
 	//
-	// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+	// Update the preferences of a specific user.
+	//
+	// Deprecated: schema marks this operation as deprecated.
 	//
 	// PUT /admin/users/{id}/preferences
 	UpdateUserPreferencesAdmin(ctx context.Context, request *UserPreferencesUpdateDto, params UpdateUserPreferencesAdminParams) (*UserPreferencesResponseDto, error)
+	// UpdateWorkflow invokes updateWorkflow operation.
+	//
+	// Update the information of a specific workflow by its ID. This endpoint can be used to update the
+	// workflow name, description, trigger type, filters and actions order, etc.
+	//
+	// Deprecated: schema marks this operation as deprecated.
+	//
+	// PUT /workflows/{id}
+	UpdateWorkflow(ctx context.Context, request *WorkflowUpdateDto, params UpdateWorkflowParams) (*WorkflowResponseDto, error)
 	// UploadAsset invokes uploadAsset operation.
 	//
-	// This endpoint requires the `asset.upload` permission.
+	// Uploads a new asset to the server.
 	//
 	// POST /assets
 	UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error)
+	// UploadDatabaseBackup invokes uploadDatabaseBackup operation.
+	//
+	// Uploads .sql/.sql.gz file to restore backup from.
+	//
+	// POST /admin/database-backups/upload
+	UploadDatabaseBackup(ctx context.Context, request *DatabaseBackupUploadDtoMultipart) error
 	// UpsertTags invokes upsertTags operation.
 	//
-	// This endpoint requires the `tag.create` permission.
+	// Create or update multiple tags in a single request.
 	//
 	// PUT /tags
 	UpsertTags(ctx context.Context, request *TagUpsertDto) ([]TagResponseDto, error)
 	// Validate invokes validate operation.
 	//
+	// Validate the settings of an external library.
+	//
 	// POST /libraries/{id}/validate
 	Validate(ctx context.Context, request *ValidateLibraryDto, params ValidateParams) (*ValidateLibraryResponseDto, error)
 	// ValidateAccessToken invokes validateAccessToken operation.
+	//
+	// Validate the current authorization method is still valid.
 	//
 	// POST /auth/validateToken
 	ValidateAccessToken(ctx context.Context) (*ValidateAccessTokenResponseDto, error)
 	// ViewAsset invokes viewAsset operation.
 	//
-	// This endpoint requires the `asset.view` permission.
+	// Retrieve the thumbnail image for the specified asset. Viewing the fullsize thumbnail might redirect
+	// to downloadAsset, which requires a different permission.
 	//
 	// GET /assets/{id}/thumbnail
 	ViewAsset(ctx context.Context, params ViewAssetParams) (ViewAssetOK, error)
@@ -1271,10 +1614,6 @@ type Client struct {
 	sec       SecuritySource
 	baseClient
 }
-
-var _ Handler = struct {
-	*Client
-}{}
 
 // NewClient initializes new Client defined by OAS.
 func NewClient(serverURL string, sec SecuritySource, opts ...ClientOption) (*Client, error) {
@@ -1312,7 +1651,7 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 
 // AddAssetsToAlbum invokes addAssetsToAlbum operation.
 //
-// This endpoint requires the `albumAsset.create` permission.
+// Add multiple assets to a specific album by its ID.
 //
 // PUT /albums/{id}/assets
 func (c *Client) AddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, params AddAssetsToAlbumParams) ([]BulkIdResponseDto, error) {
@@ -1379,44 +1718,6 @@ func (c *Client) sendAddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, 
 	}
 	pathParts[2] = "/assets"
 	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "key" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "key",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Key.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "slug" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "slug",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Slug.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "PUT", u)
@@ -1489,7 +1790,14 @@ func (c *Client) sendAddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeAddAssetsToAlbumResponse(resp)
@@ -1502,15 +1810,15 @@ func (c *Client) sendAddAssetsToAlbum(ctx context.Context, request *BulkIdsDto, 
 
 // AddAssetsToAlbums invokes addAssetsToAlbums operation.
 //
-// This endpoint requires the `albumAsset.create` permission.
+// Send a list of asset IDs and album IDs to add each asset to each album.
 //
 // PUT /albums/assets
-func (c *Client) AddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (*AlbumsAddAssetsResponseDto, error) {
-	res, err := c.sendAddAssetsToAlbums(ctx, request, params)
+func (c *Client) AddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto) (*AlbumsAddAssetsResponseDto, error) {
+	res, err := c.sendAddAssetsToAlbums(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendAddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto, params AddAssetsToAlbumsParams) (res *AlbumsAddAssetsResponseDto, err error) {
+func (c *Client) sendAddAssetsToAlbums(ctx context.Context, request *AlbumsAddAssetsDto) (res *AlbumsAddAssetsResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("addAssetsToAlbums"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
@@ -1550,44 +1858,6 @@ func (c *Client) sendAddAssetsToAlbums(ctx context.Context, request *AlbumsAddAs
 	var pathParts [1]string
 	pathParts[0] = "/albums/assets"
 	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "key" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "key",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Key.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "slug" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "slug",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Slug.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "PUT", u)
@@ -1660,7 +1930,14 @@ func (c *Client) sendAddAssetsToAlbums(ctx context.Context, request *AlbumsAddAs
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeAddAssetsToAlbumsResponse(resp)
@@ -1673,7 +1950,7 @@ func (c *Client) sendAddAssetsToAlbums(ctx context.Context, request *AlbumsAddAs
 
 // AddMemoryAssets invokes addMemoryAssets operation.
 //
-// This endpoint requires the `memoryAsset.create` permission.
+// Add a list of asset IDs to a specific memory.
 //
 // PUT /memories/{id}/assets
 func (c *Client) AddMemoryAssets(ctx context.Context, request *BulkIdsDto, params AddMemoryAssetsParams) ([]BulkIdResponseDto, error) {
@@ -1812,7 +2089,14 @@ func (c *Client) sendAddMemoryAssets(ctx context.Context, request *BulkIdsDto, p
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeAddMemoryAssetsResponse(resp)
@@ -1824,6 +2108,9 @@ func (c *Client) sendAddMemoryAssets(ctx context.Context, request *BulkIdsDto, p
 }
 
 // AddSharedLinkAssets invokes addSharedLinkAssets operation.
+//
+// Add assets to a specific shared link by its ID. This endpoint is only relevant for shared link of
+// type individual.
 //
 // PUT /shared-links/{id}/assets
 func (c *Client) AddSharedLinkAssets(ctx context.Context, request *AssetIdsDto, params AddSharedLinkAssetsParams) ([]AssetIdsResponseDto, error) {
@@ -1890,44 +2177,6 @@ func (c *Client) sendAddSharedLinkAssets(ctx context.Context, request *AssetIdsD
 	}
 	pathParts[2] = "/assets"
 	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "key" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "key",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Key.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "slug" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "slug",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Slug.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "PUT", u)
@@ -2000,7 +2249,14 @@ func (c *Client) sendAddSharedLinkAssets(ctx context.Context, request *AssetIdsD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeAddSharedLinkAssetsResponse(resp)
@@ -2013,7 +2269,7 @@ func (c *Client) sendAddSharedLinkAssets(ctx context.Context, request *AssetIdsD
 
 // AddUsersToAlbum invokes addUsersToAlbum operation.
 //
-// This endpoint requires the `albumUser.create` permission.
+// Share an album with multiple users. Each user can be given a specific role in the album.
 //
 // PUT /albums/{id}/users
 func (c *Client) AddUsersToAlbum(ctx context.Context, request *AddUsersDto, params AddUsersToAlbumParams) (*AlbumResponseDto, error) {
@@ -2152,7 +2408,14 @@ func (c *Client) sendAddUsersToAlbum(ctx context.Context, request *AddUsersDto, 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeAddUsersToAlbumResponse(resp)
@@ -2165,7 +2428,7 @@ func (c *Client) sendAddUsersToAlbum(ctx context.Context, request *AddUsersDto, 
 
 // BulkTagAssets invokes bulkTagAssets operation.
 //
-// This endpoint requires the `tag.asset` permission.
+// Add multiple tags to multiple assets in a single request.
 //
 // PUT /tags/assets
 func (c *Client) BulkTagAssets(ctx context.Context, request *TagBulkAssetsDto) (*TagBulkAssetsResponseDto, error) {
@@ -2285,7 +2548,14 @@ func (c *Client) sendBulkTagAssets(ctx context.Context, request *TagBulkAssetsDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeBulkTagAssetsResponse(resp)
@@ -2298,7 +2568,7 @@ func (c *Client) sendBulkTagAssets(ctx context.Context, request *TagBulkAssetsDt
 
 // ChangePassword invokes changePassword operation.
 //
-// This endpoint requires the `auth.changePassword` permission.
+// Change the password of the current user.
 //
 // POST /auth/change-password
 func (c *Client) ChangePassword(ctx context.Context, request *ChangePasswordDto) (*UserAdminResponseDto, error) {
@@ -2418,7 +2688,14 @@ func (c *Client) sendChangePassword(ctx context.Context, request *ChangePassword
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeChangePasswordResponse(resp)
@@ -2431,7 +2708,7 @@ func (c *Client) sendChangePassword(ctx context.Context, request *ChangePassword
 
 // ChangePinCode invokes changePinCode operation.
 //
-// This endpoint requires the `pinCode.update` permission.
+// Change the pin code for the current user.
 //
 // PUT /auth/pin-code
 func (c *Client) ChangePinCode(ctx context.Context, request *PinCodeChangeDto) error {
@@ -2551,7 +2828,14 @@ func (c *Client) sendChangePinCode(ctx context.Context, request *PinCodeChangeDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeChangePinCodeResponse(resp)
@@ -2564,7 +2848,7 @@ func (c *Client) sendChangePinCode(ctx context.Context, request *PinCodeChangeDt
 
 // CheckBulkUpload invokes checkBulkUpload operation.
 //
-// Checks if assets exist by checksums. This endpoint requires the `asset.upload` permission.
+// Determine which assets have already been uploaded to the server based on their SHA1 checksums.
 //
 // POST /assets/bulk-upload-check
 func (c *Client) CheckBulkUpload(ctx context.Context, request *AssetBulkUploadCheckDto) (*AssetBulkUploadCheckResponseDto, error) {
@@ -2684,7 +2968,14 @@ func (c *Client) sendCheckBulkUpload(ctx context.Context, request *AssetBulkUplo
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCheckBulkUploadResponse(resp)
@@ -2695,142 +2986,9 @@ func (c *Client) sendCheckBulkUpload(ctx context.Context, request *AssetBulkUplo
 	return result, nil
 }
 
-// CheckExistingAssets invokes checkExistingAssets operation.
-//
-// Checks if multiple assets exist on the server and returns all existing - used by background backup.
-//
-// POST /assets/exist
-func (c *Client) CheckExistingAssets(ctx context.Context, request *CheckExistingAssetsDto) (*CheckExistingAssetsResponseDto, error) {
-	res, err := c.sendCheckExistingAssets(ctx, request)
-	return res, err
-}
-
-func (c *Client) sendCheckExistingAssets(ctx context.Context, request *CheckExistingAssetsDto) (res *CheckExistingAssetsResponseDto, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("checkExistingAssets"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.URLTemplateKey.String("/assets/exist"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, CheckExistingAssetsOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/assets/exist"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeCheckExistingAssetsRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, CheckExistingAssetsOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Bearer\"")
-			}
-		}
-		{
-			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, CheckExistingAssetsOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 1
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Cookie\"")
-			}
-		}
-		{
-			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, CheckExistingAssetsOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 2
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"APIKey\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeCheckExistingAssetsResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // CopyAsset invokes copyAsset operation.
 //
-// This endpoint requires the `asset.copy` permission.
+// Copy asset information like albums, tags, etc. from one asset to another.
 //
 // PUT /assets/copy
 func (c *Client) CopyAsset(ctx context.Context, request *AssetCopyDto) error {
@@ -2950,7 +3108,14 @@ func (c *Client) sendCopyAsset(ctx context.Context, request *AssetCopyDto) (res 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCopyAssetResponse(resp)
@@ -2963,7 +3128,7 @@ func (c *Client) sendCopyAsset(ctx context.Context, request *AssetCopyDto) (res 
 
 // CreateActivity invokes createActivity operation.
 //
-// This endpoint requires the `activity.create` permission.
+// Create a like or a comment for an album, or an asset in an album.
 //
 // POST /activities
 func (c *Client) CreateActivity(ctx context.Context, request *ActivityCreateDto) (*ActivityResponseDto, error) {
@@ -3083,7 +3248,14 @@ func (c *Client) sendCreateActivity(ctx context.Context, request *ActivityCreate
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateActivityResponse(resp)
@@ -3096,7 +3268,7 @@ func (c *Client) sendCreateActivity(ctx context.Context, request *ActivityCreate
 
 // CreateAlbum invokes createAlbum operation.
 //
-// This endpoint requires the `album.create` permission.
+// Create a new album. The album can also be created with initial users and assets.
 //
 // POST /albums
 func (c *Client) CreateAlbum(ctx context.Context, request *CreateAlbumDto) (*AlbumResponseDto, error) {
@@ -3216,7 +3388,14 @@ func (c *Client) sendCreateAlbum(ctx context.Context, request *CreateAlbumDto) (
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateAlbumResponse(resp)
@@ -3229,15 +3408,15 @@ func (c *Client) sendCreateAlbum(ctx context.Context, request *CreateAlbumDto) (
 
 // CreateApiKey invokes createApiKey operation.
 //
-// This endpoint requires the `apiKey.create` permission.
+// Creates a new API key. It will be limited to the permissions specified.
 //
 // POST /api-keys
-func (c *Client) CreateApiKey(ctx context.Context, request *APIKeyCreateDto) (*APIKeyCreateResponseDto, error) {
+func (c *Client) CreateApiKey(ctx context.Context, request *ApiKeyCreateDto) (*ApiKeyCreateResponseDto, error) {
 	res, err := c.sendCreateApiKey(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendCreateApiKey(ctx context.Context, request *APIKeyCreateDto) (res *APIKeyCreateResponseDto, err error) {
+func (c *Client) sendCreateApiKey(ctx context.Context, request *ApiKeyCreateDto) (res *ApiKeyCreateResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("createApiKey"),
 		semconv.HTTPRequestMethodKey.String("POST"),
@@ -3349,7 +3528,14 @@ func (c *Client) sendCreateApiKey(ctx context.Context, request *APIKeyCreateDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateApiKeyResponse(resp)
@@ -3362,7 +3548,8 @@ func (c *Client) sendCreateApiKey(ctx context.Context, request *APIKeyCreateDto)
 
 // CreateFace invokes createFace operation.
 //
-// This endpoint requires the `face.create` permission.
+// Create a new face that has not been discovered by facial recognition. The content of the bounding
+// box is considered a face.
 //
 // POST /faces
 func (c *Client) CreateFace(ctx context.Context, request *AssetFaceCreateDto) error {
@@ -3482,7 +3669,14 @@ func (c *Client) sendCreateFace(ctx context.Context, request *AssetFaceCreateDto
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateFaceResponse(resp)
@@ -3495,7 +3689,8 @@ func (c *Client) sendCreateFace(ctx context.Context, request *AssetFaceCreateDto
 
 // CreateJob invokes createJob operation.
 //
-// This endpoint is an admin-only route, and requires the `job.create` permission.
+// Run a specific job. Most jobs are queued automatically, but this endpoint allows for manual creation
+// of a handful of jobs, including various cleanup tasks, as well as creating a new database backup.
 //
 // POST /jobs
 func (c *Client) CreateJob(ctx context.Context, request *JobCreateDto) error {
@@ -3615,7 +3810,14 @@ func (c *Client) sendCreateJob(ctx context.Context, request *JobCreateDto) (res 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateJobResponse(resp)
@@ -3628,7 +3830,7 @@ func (c *Client) sendCreateJob(ctx context.Context, request *JobCreateDto) (res 
 
 // CreateLibrary invokes createLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.create` permission.
+// Create a new external library.
 //
 // POST /libraries
 func (c *Client) CreateLibrary(ctx context.Context, request *CreateLibraryDto) (*LibraryResponseDto, error) {
@@ -3748,7 +3950,14 @@ func (c *Client) sendCreateLibrary(ctx context.Context, request *CreateLibraryDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateLibraryResponse(resp)
@@ -3761,7 +3970,8 @@ func (c *Client) sendCreateLibrary(ctx context.Context, request *CreateLibraryDt
 
 // CreateMemory invokes createMemory operation.
 //
-// This endpoint requires the `memory.create` permission.
+// Create a new memory by providing a name, description, and a list of asset IDs to include in the
+// memory.
 //
 // POST /memories
 func (c *Client) CreateMemory(ctx context.Context, request *MemoryCreateDto) (*MemoryResponseDto, error) {
@@ -3881,7 +4091,14 @@ func (c *Client) sendCreateMemory(ctx context.Context, request *MemoryCreateDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateMemoryResponse(resp)
@@ -3893,6 +4110,8 @@ func (c *Client) sendCreateMemory(ctx context.Context, request *MemoryCreateDto)
 }
 
 // CreateNotification invokes createNotification operation.
+//
+// Create a new notification for a specific user.
 //
 // POST /admin/notifications
 func (c *Client) CreateNotification(ctx context.Context, request *NotificationCreateDto) (*NotificationDto, error) {
@@ -4012,7 +4231,14 @@ func (c *Client) sendCreateNotification(ctx context.Context, request *Notificati
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateNotificationResponse(resp)
@@ -4025,7 +4251,7 @@ func (c *Client) sendCreateNotification(ctx context.Context, request *Notificati
 
 // CreatePartner invokes createPartner operation.
 //
-// This endpoint requires the `partner.create` permission.
+// Create a new partner to share assets with.
 //
 // POST /partners
 func (c *Client) CreatePartner(ctx context.Context, request *PartnerCreateDto) (*PartnerResponseDto, error) {
@@ -4145,7 +4371,14 @@ func (c *Client) sendCreatePartner(ctx context.Context, request *PartnerCreateDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreatePartnerResponse(resp)
@@ -4158,7 +4391,7 @@ func (c *Client) sendCreatePartner(ctx context.Context, request *PartnerCreateDt
 
 // CreatePartnerDeprecated invokes createPartnerDeprecated operation.
 //
-// This property was deprecated in v1.141.0. This endpoint requires the `partner.create` permission.
+// Create a new partner to share assets with.
 //
 // Deprecated: schema marks this operation as deprecated.
 //
@@ -4295,7 +4528,14 @@ func (c *Client) sendCreatePartnerDeprecated(ctx context.Context, params CreateP
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreatePartnerDeprecatedResponse(resp)
@@ -4308,7 +4548,7 @@ func (c *Client) sendCreatePartnerDeprecated(ctx context.Context, params CreateP
 
 // CreatePerson invokes createPerson operation.
 //
-// This endpoint requires the `person.create` permission.
+// Create a new person that can have multiple faces assigned to them.
 //
 // POST /people
 func (c *Client) CreatePerson(ctx context.Context, request *PersonCreateDto) (*PersonResponseDto, error) {
@@ -4428,7 +4668,14 @@ func (c *Client) sendCreatePerson(ctx context.Context, request *PersonCreateDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreatePersonResponse(resp)
@@ -4441,7 +4688,7 @@ func (c *Client) sendCreatePerson(ctx context.Context, request *PersonCreateDto)
 
 // CreateProfileImage invokes createProfileImage operation.
 //
-// This endpoint requires the `userProfileImage.update` permission.
+// Upload and set a new profile image for the current user.
 //
 // POST /users/profile-image
 func (c *Client) CreateProfileImage(ctx context.Context, request *CreateProfileImageDtoMultipart) (*CreateProfileImageResponseDto, error) {
@@ -4561,7 +4808,14 @@ func (c *Client) sendCreateProfileImage(ctx context.Context, request *CreateProf
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateProfileImageResponse(resp)
@@ -4574,7 +4828,7 @@ func (c *Client) sendCreateProfileImage(ctx context.Context, request *CreateProf
 
 // CreateSession invokes createSession operation.
 //
-// This endpoint requires the `session.create` permission.
+// Create a session as a child to the current session. This endpoint is used for casting.
 //
 // POST /sessions
 func (c *Client) CreateSession(ctx context.Context, request *SessionCreateDto) (*SessionCreateResponseDto, error) {
@@ -4694,7 +4948,14 @@ func (c *Client) sendCreateSession(ctx context.Context, request *SessionCreateDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateSessionResponse(resp)
@@ -4707,7 +4968,7 @@ func (c *Client) sendCreateSession(ctx context.Context, request *SessionCreateDt
 
 // CreateSharedLink invokes createSharedLink operation.
 //
-// This endpoint requires the `sharedLink.create` permission.
+// Create a new shared link.
 //
 // POST /shared-links
 func (c *Client) CreateSharedLink(ctx context.Context, request *SharedLinkCreateDto) (*SharedLinkResponseDto, error) {
@@ -4827,7 +5088,14 @@ func (c *Client) sendCreateSharedLink(ctx context.Context, request *SharedLinkCr
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateSharedLinkResponse(resp)
@@ -4840,7 +5108,9 @@ func (c *Client) sendCreateSharedLink(ctx context.Context, request *SharedLinkCr
 
 // CreateStack invokes createStack operation.
 //
-// This endpoint requires the `stack.create` permission.
+// Create a new stack by providing a name and a list of asset IDs to include in the stack. If any of
+// the provided asset IDs are primary assets of an existing stack, the existing stack will be merged
+// into the newly created stack.
 //
 // POST /stacks
 func (c *Client) CreateStack(ctx context.Context, request *StackCreateDto) (*StackResponseDto, error) {
@@ -4960,7 +5230,14 @@ func (c *Client) sendCreateStack(ctx context.Context, request *StackCreateDto) (
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateStackResponse(resp)
@@ -4973,7 +5250,7 @@ func (c *Client) sendCreateStack(ctx context.Context, request *StackCreateDto) (
 
 // CreateTag invokes createTag operation.
 //
-// This endpoint requires the `tag.create` permission.
+// Create a new tag by providing a name and optional color.
 //
 // POST /tags
 func (c *Client) CreateTag(ctx context.Context, request *TagCreateDto) (*TagResponseDto, error) {
@@ -5093,7 +5370,14 @@ func (c *Client) sendCreateTag(ctx context.Context, request *TagCreateDto) (res 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateTagResponse(resp)
@@ -5106,7 +5390,7 @@ func (c *Client) sendCreateTag(ctx context.Context, request *TagCreateDto) (res 
 
 // CreateUserAdmin invokes createUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.create` permission.
+// Create a new user.
 //
 // POST /admin/users
 func (c *Client) CreateUserAdmin(ctx context.Context, request *UserAdminCreateDto) (*UserAdminResponseDto, error) {
@@ -5226,7 +5510,14 @@ func (c *Client) sendCreateUserAdmin(ctx context.Context, request *UserAdminCrea
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeCreateUserAdminResponse(resp)
@@ -5237,9 +5528,149 @@ func (c *Client) sendCreateUserAdmin(ctx context.Context, request *UserAdminCrea
 	return result, nil
 }
 
+// CreateWorkflow invokes createWorkflow operation.
+//
+// Create a new workflow, the workflow can also be created with empty filters and actions.
+//
+// POST /workflows
+func (c *Client) CreateWorkflow(ctx context.Context, request *WorkflowCreateDto) (*WorkflowResponseDto, error) {
+	res, err := c.sendCreateWorkflow(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendCreateWorkflow(ctx context.Context, request *WorkflowCreateDto) (res *WorkflowResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("createWorkflow"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/workflows"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, CreateWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/workflows"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeCreateWorkflowRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, CreateWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, CreateWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, CreateWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeCreateWorkflowResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeleteActivity invokes deleteActivity operation.
 //
-// This endpoint requires the `activity.delete` permission.
+// Removes a like or comment from a given album or asset in an album.
 //
 // DELETE /activities/{id}
 func (c *Client) DeleteActivity(ctx context.Context, params DeleteActivityParams) error {
@@ -5374,7 +5805,14 @@ func (c *Client) sendDeleteActivity(ctx context.Context, params DeleteActivityPa
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteActivityResponse(resp)
@@ -5387,7 +5825,8 @@ func (c *Client) sendDeleteActivity(ctx context.Context, params DeleteActivityPa
 
 // DeleteAlbum invokes deleteAlbum operation.
 //
-// This endpoint requires the `album.delete` permission.
+// Delete a specific album by its ID. Note the album is initially trashed and then immediately
+// scheduled for deletion, but relies on a background job to complete the process.
 //
 // DELETE /albums/{id}
 func (c *Client) DeleteAlbum(ctx context.Context, params DeleteAlbumParams) error {
@@ -5522,7 +5961,14 @@ func (c *Client) sendDeleteAlbum(ctx context.Context, params DeleteAlbumParams) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteAlbumResponse(resp)
@@ -5535,7 +5981,7 @@ func (c *Client) sendDeleteAlbum(ctx context.Context, params DeleteAlbumParams) 
 
 // DeleteAllSessions invokes deleteAllSessions operation.
 //
-// This endpoint requires the `session.delete` permission.
+// Delete all sessions for the user. This will not delete the current session.
 //
 // DELETE /sessions
 func (c *Client) DeleteAllSessions(ctx context.Context) error {
@@ -5652,7 +6098,14 @@ func (c *Client) sendDeleteAllSessions(ctx context.Context) (res *DeleteAllSessi
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteAllSessionsResponse(resp)
@@ -5665,7 +6118,7 @@ func (c *Client) sendDeleteAllSessions(ctx context.Context) (res *DeleteAllSessi
 
 // DeleteApiKey invokes deleteApiKey operation.
 //
-// This endpoint requires the `apiKey.delete` permission.
+// Deletes an API key identified by its ID. The current user must own this API key.
 //
 // DELETE /api-keys/{id}
 func (c *Client) DeleteApiKey(ctx context.Context, params DeleteApiKeyParams) error {
@@ -5800,7 +6253,14 @@ func (c *Client) sendDeleteApiKey(ctx context.Context, params DeleteApiKeyParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteApiKeyResponse(resp)
@@ -5813,7 +6273,7 @@ func (c *Client) sendDeleteApiKey(ctx context.Context, params DeleteApiKeyParams
 
 // DeleteAssetMetadata invokes deleteAssetMetadata operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Delete a specific metadata key-value pair associated with the specified asset.
 //
 // DELETE /assets/{id}/metadata/{key}
 func (c *Client) DeleteAssetMetadata(ctx context.Context, params DeleteAssetMetadataParams) error {
@@ -5887,7 +6347,7 @@ func (c *Client) sendDeleteAssetMetadata(ctx context.Context, params DeleteAsset
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(string(params.Key)))
+			return e.EncodeValue(conv.StringToString(params.Key))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -5967,7 +6427,14 @@ func (c *Client) sendDeleteAssetMetadata(ctx context.Context, params DeleteAsset
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteAssetMetadataResponse(resp)
@@ -5980,7 +6447,7 @@ func (c *Client) sendDeleteAssetMetadata(ctx context.Context, params DeleteAsset
 
 // DeleteAssets invokes deleteAssets operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Deletes multiple assets at the same time.
 //
 // DELETE /assets
 func (c *Client) DeleteAssets(ctx context.Context, request *AssetBulkDeleteDto) error {
@@ -6100,7 +6567,14 @@ func (c *Client) sendDeleteAssets(ctx context.Context, request *AssetBulkDeleteD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteAssetsResponse(resp)
@@ -6111,9 +6585,289 @@ func (c *Client) sendDeleteAssets(ctx context.Context, request *AssetBulkDeleteD
 	return result, nil
 }
 
+// DeleteBulkAssetMetadata invokes deleteBulkAssetMetadata operation.
+//
+// Delete metadata key-value pairs for multiple assets.
+//
+// DELETE /assets/metadata
+func (c *Client) DeleteBulkAssetMetadata(ctx context.Context, request *AssetMetadataBulkDeleteDto) error {
+	_, err := c.sendDeleteBulkAssetMetadata(ctx, request)
+	return err
+}
+
+func (c *Client) sendDeleteBulkAssetMetadata(ctx context.Context, request *AssetMetadataBulkDeleteDto) (res *DeleteBulkAssetMetadataNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteBulkAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/assets/metadata"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteBulkAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/assets/metadata"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeDeleteBulkAssetMetadataRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteBulkAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteBulkAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteBulkAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteBulkAssetMetadataResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DeleteDatabaseBackup invokes deleteDatabaseBackup operation.
+//
+// Delete a backup by its filename.
+//
+// DELETE /admin/database-backups
+func (c *Client) DeleteDatabaseBackup(ctx context.Context, request *DatabaseBackupDeleteDto) error {
+	_, err := c.sendDeleteDatabaseBackup(ctx, request)
+	return err
+}
+
+func (c *Client) sendDeleteDatabaseBackup(ctx context.Context, request *DatabaseBackupDeleteDto) (res *DeleteDatabaseBackupOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteDatabaseBackup"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/admin/database-backups"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteDatabaseBackupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/database-backups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeDeleteDatabaseBackupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteDatabaseBackupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeleteDuplicate invokes deleteDuplicate operation.
 //
-// This endpoint requires the `duplicate.delete` permission.
+// Dismiss a duplicate group by its ID, unlinking all assets in the group without deleting them.
 //
 // DELETE /duplicates/{id}
 func (c *Client) DeleteDuplicate(ctx context.Context, params DeleteDuplicateParams) error {
@@ -6248,7 +7002,14 @@ func (c *Client) sendDeleteDuplicate(ctx context.Context, params DeleteDuplicate
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteDuplicateResponse(resp)
@@ -6261,7 +7022,7 @@ func (c *Client) sendDeleteDuplicate(ctx context.Context, params DeleteDuplicate
 
 // DeleteDuplicates invokes deleteDuplicates operation.
 //
-// This endpoint requires the `duplicate.delete` permission.
+// Delete multiple duplicate assets specified by their IDs.
 //
 // DELETE /duplicates
 func (c *Client) DeleteDuplicates(ctx context.Context, request *BulkIdsDto) error {
@@ -6381,7 +7142,14 @@ func (c *Client) sendDeleteDuplicates(ctx context.Context, request *BulkIdsDto) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteDuplicatesResponse(resp)
@@ -6394,7 +7162,7 @@ func (c *Client) sendDeleteDuplicates(ctx context.Context, request *BulkIdsDto) 
 
 // DeleteFace invokes deleteFace operation.
 //
-// This endpoint requires the `face.delete` permission.
+// Delete a face identified by the id. Optionally can be force deleted.
 //
 // DELETE /faces/{id}
 func (c *Client) DeleteFace(ctx context.Context, request *AssetFaceDeleteDto, params DeleteFaceParams) error {
@@ -6532,7 +7300,14 @@ func (c *Client) sendDeleteFace(ctx context.Context, request *AssetFaceDeleteDto
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteFaceResponse(resp)
@@ -6543,9 +7318,164 @@ func (c *Client) sendDeleteFace(ctx context.Context, request *AssetFaceDeleteDto
 	return result, nil
 }
 
+// DeleteIntegrityReport invokes deleteIntegrityReport operation.
+//
+// Delete a given report item and perform corresponding deletion (e.g. trash asset, delete file).
+//
+// DELETE /admin/integrity/report/{id}
+func (c *Client) DeleteIntegrityReport(ctx context.Context, params DeleteIntegrityReportParams) error {
+	_, err := c.sendDeleteIntegrityReport(ctx, params)
+	return err
+}
+
+func (c *Client) sendDeleteIntegrityReport(ctx context.Context, params DeleteIntegrityReportParams) (res *DeleteIntegrityReportOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteIntegrityReport"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/admin/integrity/report/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteIntegrityReportOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/admin/integrity/report/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteIntegrityReportOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteIntegrityReportOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteIntegrityReportOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteIntegrityReportResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DeleteLibrary invokes deleteLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.delete` permission.
+// Delete an external library by its ID.
 //
 // DELETE /libraries/{id}
 func (c *Client) DeleteLibrary(ctx context.Context, params DeleteLibraryParams) error {
@@ -6680,7 +7610,14 @@ func (c *Client) sendDeleteLibrary(ctx context.Context, params DeleteLibraryPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteLibraryResponse(resp)
@@ -6693,7 +7630,7 @@ func (c *Client) sendDeleteLibrary(ctx context.Context, params DeleteLibraryPara
 
 // DeleteMemory invokes deleteMemory operation.
 //
-// This endpoint requires the `memory.delete` permission.
+// Delete a specific memory by its ID.
 //
 // DELETE /memories/{id}
 func (c *Client) DeleteMemory(ctx context.Context, params DeleteMemoryParams) error {
@@ -6828,7 +7765,14 @@ func (c *Client) sendDeleteMemory(ctx context.Context, params DeleteMemoryParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteMemoryResponse(resp)
@@ -6841,7 +7785,7 @@ func (c *Client) sendDeleteMemory(ctx context.Context, params DeleteMemoryParams
 
 // DeleteNotification invokes deleteNotification operation.
 //
-// This endpoint requires the `notification.delete` permission.
+// Delete a specific notification.
 //
 // DELETE /notifications/{id}
 func (c *Client) DeleteNotification(ctx context.Context, params DeleteNotificationParams) error {
@@ -6976,7 +7920,14 @@ func (c *Client) sendDeleteNotification(ctx context.Context, params DeleteNotifi
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteNotificationResponse(resp)
@@ -6989,7 +7940,7 @@ func (c *Client) sendDeleteNotification(ctx context.Context, params DeleteNotifi
 
 // DeleteNotifications invokes deleteNotifications operation.
 //
-// This endpoint requires the `notification.delete` permission.
+// Delete a list of notifications at once.
 //
 // DELETE /notifications
 func (c *Client) DeleteNotifications(ctx context.Context, request *NotificationDeleteAllDto) error {
@@ -7109,7 +8060,14 @@ func (c *Client) sendDeleteNotifications(ctx context.Context, request *Notificat
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteNotificationsResponse(resp)
@@ -7122,7 +8080,7 @@ func (c *Client) sendDeleteNotifications(ctx context.Context, request *Notificat
 
 // DeletePeople invokes deletePeople operation.
 //
-// This endpoint requires the `person.delete` permission.
+// Bulk delete a list of people at once.
 //
 // DELETE /people
 func (c *Client) DeletePeople(ctx context.Context, request *BulkIdsDto) error {
@@ -7242,7 +8200,14 @@ func (c *Client) sendDeletePeople(ctx context.Context, request *BulkIdsDto) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeletePeopleResponse(resp)
@@ -7255,7 +8220,7 @@ func (c *Client) sendDeletePeople(ctx context.Context, request *BulkIdsDto) (res
 
 // DeletePerson invokes deletePerson operation.
 //
-// This endpoint requires the `person.delete` permission.
+// Delete an individual person.
 //
 // DELETE /people/{id}
 func (c *Client) DeletePerson(ctx context.Context, params DeletePersonParams) error {
@@ -7390,7 +8355,14 @@ func (c *Client) sendDeletePerson(ctx context.Context, params DeletePersonParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeletePersonResponse(resp)
@@ -7403,7 +8375,7 @@ func (c *Client) sendDeletePerson(ctx context.Context, params DeletePersonParams
 
 // DeleteProfileImage invokes deleteProfileImage operation.
 //
-// This endpoint requires the `userProfileImage.delete` permission.
+// Delete the profile image of the current user.
 //
 // DELETE /users/profile-image
 func (c *Client) DeleteProfileImage(ctx context.Context) error {
@@ -7520,7 +8492,14 @@ func (c *Client) sendDeleteProfileImage(ctx context.Context) (res *DeleteProfile
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteProfileImageResponse(resp)
@@ -7533,7 +8512,7 @@ func (c *Client) sendDeleteProfileImage(ctx context.Context) (res *DeleteProfile
 
 // DeleteServerLicense invokes deleteServerLicense operation.
 //
-// This endpoint is an admin-only route, and requires the `serverLicense.delete` permission.
+// Delete the currently set server product key.
 //
 // DELETE /server/license
 func (c *Client) DeleteServerLicense(ctx context.Context) error {
@@ -7650,7 +8629,14 @@ func (c *Client) sendDeleteServerLicense(ctx context.Context) (res *DeleteServer
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteServerLicenseResponse(resp)
@@ -7663,7 +8649,7 @@ func (c *Client) sendDeleteServerLicense(ctx context.Context) (res *DeleteServer
 
 // DeleteSession invokes deleteSession operation.
 //
-// This endpoint requires the `session.delete` permission.
+// Delete a specific session by id.
 //
 // DELETE /sessions/{id}
 func (c *Client) DeleteSession(ctx context.Context, params DeleteSessionParams) error {
@@ -7798,7 +8784,14 @@ func (c *Client) sendDeleteSession(ctx context.Context, params DeleteSessionPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteSessionResponse(resp)
@@ -7811,7 +8804,7 @@ func (c *Client) sendDeleteSession(ctx context.Context, params DeleteSessionPara
 
 // DeleteStack invokes deleteStack operation.
 //
-// This endpoint requires the `stack.delete` permission.
+// Delete a specific stack by its ID.
 //
 // DELETE /stacks/{id}
 func (c *Client) DeleteStack(ctx context.Context, params DeleteStackParams) error {
@@ -7946,7 +8939,14 @@ func (c *Client) sendDeleteStack(ctx context.Context, params DeleteStackParams) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteStackResponse(resp)
@@ -7959,7 +8959,7 @@ func (c *Client) sendDeleteStack(ctx context.Context, params DeleteStackParams) 
 
 // DeleteStacks invokes deleteStacks operation.
 //
-// This endpoint requires the `stack.delete` permission.
+// Delete multiple stacks by providing a list of stack IDs.
 //
 // DELETE /stacks
 func (c *Client) DeleteStacks(ctx context.Context, request *BulkIdsDto) error {
@@ -8079,7 +9079,14 @@ func (c *Client) sendDeleteStacks(ctx context.Context, request *BulkIdsDto) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteStacksResponse(resp)
@@ -8092,7 +9099,7 @@ func (c *Client) sendDeleteStacks(ctx context.Context, request *BulkIdsDto) (res
 
 // DeleteSyncAck invokes deleteSyncAck operation.
 //
-// This endpoint requires the `syncCheckpoint.delete` permission.
+// Delete specific synchronization acknowledgments.
 //
 // DELETE /sync/ack
 func (c *Client) DeleteSyncAck(ctx context.Context, request *SyncAckDeleteDto) error {
@@ -8212,7 +9219,14 @@ func (c *Client) sendDeleteSyncAck(ctx context.Context, request *SyncAckDeleteDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteSyncAckResponse(resp)
@@ -8225,7 +9239,7 @@ func (c *Client) sendDeleteSyncAck(ctx context.Context, request *SyncAckDeleteDt
 
 // DeleteTag invokes deleteTag operation.
 //
-// This endpoint requires the `tag.delete` permission.
+// Delete a specific tag by its ID.
 //
 // DELETE /tags/{id}
 func (c *Client) DeleteTag(ctx context.Context, params DeleteTagParams) error {
@@ -8360,7 +9374,14 @@ func (c *Client) sendDeleteTag(ctx context.Context, params DeleteTagParams) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteTagResponse(resp)
@@ -8373,7 +9394,7 @@ func (c *Client) sendDeleteTag(ctx context.Context, params DeleteTagParams) (res
 
 // DeleteUserAdmin invokes deleteUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+// Delete a user.
 //
 // DELETE /admin/users/{id}
 func (c *Client) DeleteUserAdmin(ctx context.Context, request *UserAdminDeleteDto, params DeleteUserAdminParams) (*UserAdminResponseDto, error) {
@@ -8511,7 +9532,14 @@ func (c *Client) sendDeleteUserAdmin(ctx context.Context, request *UserAdminDele
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteUserAdminResponse(resp)
@@ -8524,7 +9552,7 @@ func (c *Client) sendDeleteUserAdmin(ctx context.Context, request *UserAdminDele
 
 // DeleteUserLicense invokes deleteUserLicense operation.
 //
-// This endpoint requires the `userLicense.delete` permission.
+// Delete the registered product key for the current user.
 //
 // DELETE /users/me/license
 func (c *Client) DeleteUserLicense(ctx context.Context) error {
@@ -8641,7 +9669,14 @@ func (c *Client) sendDeleteUserLicense(ctx context.Context) (res *DeleteUserLice
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteUserLicenseResponse(resp)
@@ -8654,7 +9689,7 @@ func (c *Client) sendDeleteUserLicense(ctx context.Context) (res *DeleteUserLice
 
 // DeleteUserOnboarding invokes deleteUserOnboarding operation.
 //
-// This endpoint requires the `userOnboarding.delete` permission.
+// Delete the onboarding status of the current user.
 //
 // DELETE /users/me/onboarding
 func (c *Client) DeleteUserOnboarding(ctx context.Context) error {
@@ -8771,7 +9806,14 @@ func (c *Client) sendDeleteUserOnboarding(ctx context.Context) (res *DeleteUserO
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDeleteUserOnboardingResponse(resp)
@@ -8782,17 +9824,310 @@ func (c *Client) sendDeleteUserOnboarding(ctx context.Context) (res *DeleteUserO
 	return result, nil
 }
 
+// DeleteWorkflow invokes deleteWorkflow operation.
+//
+// Delete a workflow by its ID.
+//
+// DELETE /workflows/{id}
+func (c *Client) DeleteWorkflow(ctx context.Context, params DeleteWorkflowParams) error {
+	_, err := c.sendDeleteWorkflow(ctx, params)
+	return err
+}
+
+func (c *Client) sendDeleteWorkflow(ctx context.Context, params DeleteWorkflowParams) (res *DeleteWorkflowNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteWorkflow"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/workflows/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/workflows/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DeleteWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DeleteWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DeleteWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteWorkflowResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DetectPriorInstall invokes detectPriorInstall operation.
+//
+// Collect integrity checks and other heuristics about local data.
+//
+// GET /admin/maintenance/detect-install
+func (c *Client) DetectPriorInstall(ctx context.Context) (*MaintenanceDetectInstallResponseDto, error) {
+	res, err := c.sendDetectPriorInstall(ctx)
+	return res, err
+}
+
+func (c *Client) sendDetectPriorInstall(ctx context.Context) (res *MaintenanceDetectInstallResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("detectPriorInstall"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/maintenance/detect-install"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DetectPriorInstallOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/maintenance/detect-install"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DetectPriorInstallOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DetectPriorInstallOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DetectPriorInstallOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDetectPriorInstallResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // DownloadArchive invokes downloadArchive operation.
 //
-// This endpoint requires the `asset.download` permission.
+// Download a ZIP archive containing the specified assets. The assets must have been previously
+// requested via the "getDownloadInfo" endpoint.
 //
 // POST /download/archive
-func (c *Client) DownloadArchive(ctx context.Context, request *AssetIdsDto, params DownloadArchiveParams) (DownloadArchiveOK, error) {
+func (c *Client) DownloadArchive(ctx context.Context, request *DownloadArchiveDto, params DownloadArchiveParams) (DownloadArchiveOK, error) {
 	res, err := c.sendDownloadArchive(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, params DownloadArchiveParams) (res DownloadArchiveOK, err error) {
+func (c *Client) sendDownloadArchive(ctx context.Context, request *DownloadArchiveDto, params DownloadArchiveParams) (res DownloadArchiveOK, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("downloadArchive"),
 		semconv.HTTPRequestMethodKey.String("POST"),
@@ -8942,7 +10277,14 @@ func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDownloadArchiveResponse(resp)
@@ -8955,7 +10297,7 @@ func (c *Client) sendDownloadArchive(ctx context.Context, request *AssetIdsDto, 
 
 // DownloadAsset invokes downloadAsset operation.
 //
-// This endpoint requires the `asset.download` permission.
+// Downloads the original file of the specified asset.
 //
 // GET /assets/{id}/original
 func (c *Client) DownloadAsset(ctx context.Context, params DownloadAssetParams) (DownloadAssetOK, error) {
@@ -9025,6 +10367,23 @@ func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetPara
 
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
+	{
+		// Encode "edited" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "edited",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Edited.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
 	{
 		// Encode "key" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -9129,7 +10488,14 @@ func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeDownloadAssetResponse(resp)
@@ -9140,9 +10506,323 @@ func (c *Client) sendDownloadAsset(ctx context.Context, params DownloadAssetPara
 	return result, nil
 }
 
+// DownloadDatabaseBackup invokes downloadDatabaseBackup operation.
+//
+// Downloads the database backup file.
+//
+// GET /admin/database-backups/{filename}
+func (c *Client) DownloadDatabaseBackup(ctx context.Context, params DownloadDatabaseBackupParams) (DownloadDatabaseBackupOK, error) {
+	res, err := c.sendDownloadDatabaseBackup(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendDownloadDatabaseBackup(ctx context.Context, params DownloadDatabaseBackupParams) (res DownloadDatabaseBackupOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("downloadDatabaseBackup"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/database-backups/{filename}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DownloadDatabaseBackupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/admin/database-backups/"
+	{
+		// Encode "filename" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "filename",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Filename))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, DownloadDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, DownloadDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, DownloadDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDownloadDatabaseBackupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// EmptyQueue invokes emptyQueue operation.
+//
+// Removes all jobs from the specified queue.
+//
+// DELETE /queues/{name}/jobs
+func (c *Client) EmptyQueue(ctx context.Context, request *QueueDeleteDto, params EmptyQueueParams) error {
+	_, err := c.sendEmptyQueue(ctx, request, params)
+	return err
+}
+
+func (c *Client) sendEmptyQueue(ctx context.Context, request *QueueDeleteDto, params EmptyQueueParams) (res *EmptyQueueNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("emptyQueue"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/queues/{name}/jobs"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, EmptyQueueOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/queues/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Name)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/jobs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeEmptyQueueRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, EmptyQueueOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, EmptyQueueOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, EmptyQueueOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeEmptyQueueResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // EmptyTrash invokes emptyTrash operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Permanently delete all items in the trash.
 //
 // POST /trash/empty
 func (c *Client) EmptyTrash(ctx context.Context) (*TrashResponseDto, error) {
@@ -9259,7 +10939,14 @@ func (c *Client) sendEmptyTrash(ctx context.Context) (res *TrashResponseDto, err
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeEmptyTrashResponse(resp)
@@ -9270,7 +10957,221 @@ func (c *Client) sendEmptyTrash(ctx context.Context) (res *TrashResponseDto, err
 	return result, nil
 }
 
+// EndSession invokes endSession operation.
+//
+// Releases server resources for the streaming session.
+//
+// DELETE /assets/{id}/video/stream/{sessionId}
+func (c *Client) EndSession(ctx context.Context, params EndSessionParams) error {
+	_, err := c.sendEndSession(ctx, params)
+	return err
+}
+
+func (c *Client) sendEndSession(ctx context.Context, params EndSessionParams) (res *EndSessionNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("endSession"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/assets/{id}/video/stream/{sessionId}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, EndSessionOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [4]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/video/stream/"
+	{
+		// Encode "sessionId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "sessionId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.SessionId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, EndSessionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, EndSessionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, EndSessionOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeEndSessionResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // FinishOAuth invokes finishOAuth operation.
+//
+// Complete the OAuth authorization process by exchanging the authorization code for a session token.
 //
 // POST /oauth/callback
 func (c *Client) FinishOAuth(ctx context.Context, request *OAuthCallbackDto) (*LoginResponseDto, error) {
@@ -9333,7 +11234,14 @@ func (c *Client) sendFinishOAuth(ctx context.Context, request *OAuthCallbackDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeFinishOAuthResponse(resp)
@@ -9346,7 +11254,7 @@ func (c *Client) sendFinishOAuth(ctx context.Context, request *OAuthCallbackDto)
 
 // GetAboutInfo invokes getAboutInfo operation.
 //
-// This endpoint requires the `server.about` permission.
+// Retrieve a list of information about the server.
 //
 // GET /server/about
 func (c *Client) GetAboutInfo(ctx context.Context) (*ServerAboutResponseDto, error) {
@@ -9463,7 +11371,14 @@ func (c *Client) sendGetAboutInfo(ctx context.Context) (res *ServerAboutResponse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAboutInfoResponse(resp)
@@ -9476,7 +11391,8 @@ func (c *Client) sendGetAboutInfo(ctx context.Context) (res *ServerAboutResponse
 
 // GetActivities invokes getActivities operation.
 //
-// This endpoint requires the `activity.read` permission.
+// Returns a list of activities for the selected asset or album. The activities are returned in sorted
+// order, with the oldest activities appearing first.
 //
 // GET /activities
 func (c *Client) GetActivities(ctx context.Context, params GetActivitiesParams) ([]ActivityResponseDto, error) {
@@ -9679,7 +11595,14 @@ func (c *Client) sendGetActivities(ctx context.Context, params GetActivitiesPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetActivitiesResponse(resp)
@@ -9692,7 +11615,7 @@ func (c *Client) sendGetActivities(ctx context.Context, params GetActivitiesPara
 
 // GetActivityStatistics invokes getActivityStatistics operation.
 //
-// This endpoint requires the `activity.statistics` permission.
+// Returns the number of likes and comments for a given album or asset in an album.
 //
 // GET /activities/statistics
 func (c *Client) GetActivityStatistics(ctx context.Context, params GetActivityStatisticsParams) (*ActivityStatisticsResponseDto, error) {
@@ -9844,7 +11767,14 @@ func (c *Client) sendGetActivityStatistics(ctx context.Context, params GetActivi
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetActivityStatisticsResponse(resp)
@@ -9857,7 +11787,7 @@ func (c *Client) sendGetActivityStatistics(ctx context.Context, params GetActivi
 
 // GetAdminOnboarding invokes getAdminOnboarding operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+// Retrieve the current admin onboarding status.
 //
 // GET /system-metadata/admin-onboarding
 func (c *Client) GetAdminOnboarding(ctx context.Context) (*AdminOnboardingUpdateDto, error) {
@@ -9974,7 +11904,14 @@ func (c *Client) sendGetAdminOnboarding(ctx context.Context) (res *AdminOnboardi
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAdminOnboardingResponse(resp)
@@ -9987,7 +11924,7 @@ func (c *Client) sendGetAdminOnboarding(ctx context.Context) (res *AdminOnboardi
 
 // GetAlbumInfo invokes getAlbumInfo operation.
 //
-// This endpoint requires the `album.read` permission.
+// Retrieve information about a specific album by its ID.
 //
 // GET /albums/{id}
 func (c *Client) GetAlbumInfo(ctx context.Context, params GetAlbumInfoParams) (*AlbumResponseDto, error) {
@@ -10090,23 +12027,6 @@ func (c *Client) sendGetAlbumInfo(ctx context.Context, params GetAlbumInfoParams
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
-	{
-		// Encode "withoutAssets" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "withoutAssets",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.WithoutAssets.Get(); ok {
-				return e.EncodeValue(conv.BoolToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
 	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
@@ -10177,7 +12097,14 @@ func (c *Client) sendGetAlbumInfo(ctx context.Context, params GetAlbumInfoParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAlbumInfoResponse(resp)
@@ -10188,9 +12115,203 @@ func (c *Client) sendGetAlbumInfo(ctx context.Context, params GetAlbumInfoParams
 	return result, nil
 }
 
+// GetAlbumMapMarkers invokes getAlbumMapMarkers operation.
+//
+// Retrieve map marker information for a specific album by its ID.
+//
+// GET /albums/{id}/map-markers
+func (c *Client) GetAlbumMapMarkers(ctx context.Context, params GetAlbumMapMarkersParams) ([]MapMarkerResponseDto, error) {
+	res, err := c.sendGetAlbumMapMarkers(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetAlbumMapMarkers(ctx context.Context, params GetAlbumMapMarkersParams) (res []MapMarkerResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getAlbumMapMarkers"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/albums/{id}/map-markers"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetAlbumMapMarkersOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/albums/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/map-markers"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetAlbumMapMarkersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetAlbumMapMarkersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetAlbumMapMarkersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetAlbumMapMarkersResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetAlbumStatistics invokes getAlbumStatistics operation.
 //
-// This endpoint requires the `album.statistics` permission.
+// Returns statistics about the albums available to the authenticated user.
 //
 // GET /albums/statistics
 func (c *Client) GetAlbumStatistics(ctx context.Context) (*AlbumStatisticsResponseDto, error) {
@@ -10307,7 +12428,14 @@ func (c *Client) sendGetAlbumStatistics(ctx context.Context) (res *AlbumStatisti
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAlbumStatisticsResponse(resp)
@@ -10320,7 +12448,7 @@ func (c *Client) sendGetAlbumStatistics(ctx context.Context) (res *AlbumStatisti
 
 // GetAllAlbums invokes getAllAlbums operation.
 //
-// This endpoint requires the `album.read` permission.
+// Retrieve a list of albums available to the authenticated user.
 //
 // GET /albums
 func (c *Client) GetAllAlbums(ctx context.Context, params GetAllAlbumsParams) ([]AlbumResponseDto, error) {
@@ -10389,16 +12517,67 @@ func (c *Client) sendGetAllAlbums(ctx context.Context, params GetAllAlbumsParams
 		}
 	}
 	{
-		// Encode "shared" parameter.
+		// Encode "id" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "shared",
+			Name:    "id",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Shared.Get(); ok {
+			if val, ok := params.ID.Get(); ok {
+				return e.EncodeValue(conv.UUIDToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isOwned" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isOwned",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsOwned.Get(); ok {
 				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isShared" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isShared",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsShared.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "name" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "name",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Name.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -10475,7 +12654,14 @@ func (c *Client) sendGetAllAlbums(ctx context.Context, params GetAllAlbumsParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAllAlbumsResponse(resp)
@@ -10486,139 +12672,9 @@ func (c *Client) sendGetAllAlbums(ctx context.Context, params GetAllAlbumsParams
 	return result, nil
 }
 
-// GetAllJobsStatus invokes getAllJobsStatus operation.
-//
-// This endpoint is an admin-only route, and requires the `job.read` permission.
-//
-// GET /jobs
-func (c *Client) GetAllJobsStatus(ctx context.Context) (*AllJobStatusResponseDto, error) {
-	res, err := c.sendGetAllJobsStatus(ctx)
-	return res, err
-}
-
-func (c *Client) sendGetAllJobsStatus(ctx context.Context) (res *AllJobStatusResponseDto, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAllJobsStatus"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.URLTemplateKey.String("/jobs"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetAllJobsStatusOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/jobs"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, GetAllJobsStatusOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Bearer\"")
-			}
-		}
-		{
-			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, GetAllJobsStatusOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 1
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Cookie\"")
-			}
-		}
-		{
-			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, GetAllJobsStatusOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 2
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"APIKey\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetAllJobsStatusResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // GetAllLibraries invokes getAllLibraries operation.
 //
-// This endpoint is an admin-only route, and requires the `library.read` permission.
+// Retrieve a list of external libraries.
 //
 // GET /libraries
 func (c *Client) GetAllLibraries(ctx context.Context) ([]LibraryResponseDto, error) {
@@ -10735,7 +12791,14 @@ func (c *Client) sendGetAllLibraries(ctx context.Context) (res []LibraryResponse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAllLibrariesResponse(resp)
@@ -10748,7 +12811,7 @@ func (c *Client) sendGetAllLibraries(ctx context.Context) (res []LibraryResponse
 
 // GetAllPeople invokes getAllPeople operation.
 //
-// This endpoint requires the `person.read` permission.
+// Retrieve a list of all people.
 //
 // GET /people
 func (c *Client) GetAllPeople(ctx context.Context, params GetAllPeopleParams) (*PeopleResponseDto, error) {
@@ -10843,7 +12906,7 @@ func (c *Client) sendGetAllPeople(ctx context.Context, params GetAllPeopleParams
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Page.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -10860,7 +12923,7 @@ func (c *Client) sendGetAllPeople(ctx context.Context, params GetAllPeopleParams
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Size.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -10954,7 +13017,14 @@ func (c *Client) sendGetAllPeople(ctx context.Context, params GetAllPeopleParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAllPeopleResponse(resp)
@@ -10967,7 +13037,7 @@ func (c *Client) sendGetAllPeople(ctx context.Context, params GetAllPeopleParams
 
 // GetAllSharedLinks invokes getAllSharedLinks operation.
 //
-// This endpoint requires the `sharedLink.read` permission.
+// Retrieve a list of all shared links.
 //
 // GET /shared-links
 func (c *Client) GetAllSharedLinks(ctx context.Context, params GetAllSharedLinksParams) ([]SharedLinkResponseDto, error) {
@@ -11028,6 +13098,23 @@ func (c *Client) sendGetAllSharedLinks(ctx context.Context, params GetAllSharedL
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.AlbumId.Get(); ok {
+				return e.EncodeValue(conv.UUIDToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "id" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.ID.Get(); ok {
 				return e.EncodeValue(conv.UUIDToString(val))
 			}
 			return nil
@@ -11105,7 +13192,14 @@ func (c *Client) sendGetAllSharedLinks(ctx context.Context, params GetAllSharedL
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAllSharedLinksResponse(resp)
@@ -11118,7 +13212,7 @@ func (c *Client) sendGetAllSharedLinks(ctx context.Context, params GetAllSharedL
 
 // GetAllTags invokes getAllTags operation.
 //
-// This endpoint requires the `tag.read` permission.
+// Retrieve a list of all tags.
 //
 // GET /tags
 func (c *Client) GetAllTags(ctx context.Context) ([]TagResponseDto, error) {
@@ -11235,7 +13329,14 @@ func (c *Client) sendGetAllTags(ctx context.Context) (res []TagResponseDto, err 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAllTagsResponse(resp)
@@ -11246,165 +13347,17 @@ func (c *Client) sendGetAllTags(ctx context.Context) (res []TagResponseDto, err 
 	return result, nil
 }
 
-// GetAllUserAssetsByDeviceId invokes getAllUserAssetsByDeviceId operation.
-//
-// Get all asset of a device that are in the database, ID only.
-//
-// GET /assets/device/{deviceId}
-func (c *Client) GetAllUserAssetsByDeviceId(ctx context.Context, params GetAllUserAssetsByDeviceIdParams) ([]string, error) {
-	res, err := c.sendGetAllUserAssetsByDeviceId(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGetAllUserAssetsByDeviceId(ctx context.Context, params GetAllUserAssetsByDeviceIdParams) (res []string, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getAllUserAssetsByDeviceId"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.URLTemplateKey.String("/assets/device/{deviceId}"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetAllUserAssetsByDeviceIdOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [2]string
-	pathParts[0] = "/assets/device/"
-	{
-		// Encode "deviceId" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "deviceId",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.DeviceId))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, GetAllUserAssetsByDeviceIdOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Bearer\"")
-			}
-		}
-		{
-			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, GetAllUserAssetsByDeviceIdOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 1
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Cookie\"")
-			}
-		}
-		{
-			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, GetAllUserAssetsByDeviceIdOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 2
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"APIKey\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetAllUserAssetsByDeviceIdResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // GetApiKey invokes getApiKey operation.
 //
-// This endpoint requires the `apiKey.read` permission.
+// Retrieve an API key by its ID. The current user must own this API key.
 //
 // GET /api-keys/{id}
-func (c *Client) GetApiKey(ctx context.Context, params GetApiKeyParams) (*APIKeyResponseDto, error) {
+func (c *Client) GetApiKey(ctx context.Context, params GetApiKeyParams) (*ApiKeyResponseDto, error) {
 	res, err := c.sendGetApiKey(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetApiKey(ctx context.Context, params GetApiKeyParams) (res *APIKeyResponseDto, err error) {
+func (c *Client) sendGetApiKey(ctx context.Context, params GetApiKeyParams) (res *ApiKeyResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getApiKey"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -11531,7 +13484,14 @@ func (c *Client) sendGetApiKey(ctx context.Context, params GetApiKeyParams) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetApiKeyResponse(resp)
@@ -11544,15 +13504,15 @@ func (c *Client) sendGetApiKey(ctx context.Context, params GetApiKeyParams) (res
 
 // GetApiKeys invokes getApiKeys operation.
 //
-// This endpoint requires the `apiKey.read` permission.
+// Retrieve all API keys of the current user.
 //
 // GET /api-keys
-func (c *Client) GetApiKeys(ctx context.Context) ([]APIKeyResponseDto, error) {
+func (c *Client) GetApiKeys(ctx context.Context) ([]ApiKeyResponseDto, error) {
 	res, err := c.sendGetApiKeys(ctx)
 	return res, err
 }
 
-func (c *Client) sendGetApiKeys(ctx context.Context) (res []APIKeyResponseDto, err error) {
+func (c *Client) sendGetApiKeys(ctx context.Context) (res []ApiKeyResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getApiKeys"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -11661,7 +13621,14 @@ func (c *Client) sendGetApiKeys(ctx context.Context) (res []APIKeyResponseDto, e
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetApiKeysResponse(resp)
@@ -11674,7 +13641,7 @@ func (c *Client) sendGetApiKeys(ctx context.Context) (res []APIKeyResponseDto, e
 
 // GetApkLinks invokes getApkLinks operation.
 //
-// This endpoint requires the `server.apkLinks` permission.
+// Retrieve links to the APKs for the current server version.
 //
 // GET /server/apk-links
 func (c *Client) GetApkLinks(ctx context.Context) (*ServerApkLinksDto, error) {
@@ -11791,7 +13758,14 @@ func (c *Client) sendGetApkLinks(ctx context.Context) (res *ServerApkLinksDto, e
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetApkLinksResponse(resp)
@@ -11804,7 +13778,7 @@ func (c *Client) sendGetApkLinks(ctx context.Context) (res *ServerApkLinksDto, e
 
 // GetAssetDuplicates invokes getAssetDuplicates operation.
 //
-// This endpoint requires the `duplicate.read` permission.
+// Retrieve a list of duplicate assets available to the authenticated user.
 //
 // GET /duplicates
 func (c *Client) GetAssetDuplicates(ctx context.Context) ([]DuplicateResponseDto, error) {
@@ -11921,7 +13895,14 @@ func (c *Client) sendGetAssetDuplicates(ctx context.Context) (res []DuplicateRes
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetDuplicatesResponse(resp)
@@ -11934,7 +13915,7 @@ func (c *Client) sendGetAssetDuplicates(ctx context.Context) (res []DuplicateRes
 
 // GetAssetInfo invokes getAssetInfo operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve detailed information about a specific asset.
 //
 // GET /assets/{id}
 func (c *Client) GetAssetInfo(ctx context.Context, params GetAssetInfoParams) (*AssetResponseDto, error) {
@@ -12107,7 +14088,14 @@ func (c *Client) sendGetAssetInfo(ctx context.Context, params GetAssetInfoParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetInfoResponse(resp)
@@ -12120,7 +14108,7 @@ func (c *Client) sendGetAssetInfo(ctx context.Context, params GetAssetInfoParams
 
 // GetAssetMetadata invokes getAssetMetadata operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve all metadata key-value pairs associated with the specified asset.
 //
 // GET /assets/{id}/metadata
 func (c *Client) GetAssetMetadata(ctx context.Context, params GetAssetMetadataParams) ([]AssetMetadataResponseDto, error) {
@@ -12256,7 +14244,14 @@ func (c *Client) sendGetAssetMetadata(ctx context.Context, params GetAssetMetada
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetMetadataResponse(resp)
@@ -12269,7 +14264,7 @@ func (c *Client) sendGetAssetMetadata(ctx context.Context, params GetAssetMetada
 
 // GetAssetMetadataByKey invokes getAssetMetadataByKey operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve the value of a specific metadata key associated with the specified asset.
 //
 // GET /assets/{id}/metadata/{key}
 func (c *Client) GetAssetMetadataByKey(ctx context.Context, params GetAssetMetadataByKeyParams) (*AssetMetadataResponseDto, error) {
@@ -12343,7 +14338,7 @@ func (c *Client) sendGetAssetMetadataByKey(ctx context.Context, params GetAssetM
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(string(params.Key)))
+			return e.EncodeValue(conv.StringToString(params.Key))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -12423,7 +14418,14 @@ func (c *Client) sendGetAssetMetadataByKey(ctx context.Context, params GetAssetM
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetMetadataByKeyResponse(resp)
@@ -12436,7 +14438,7 @@ func (c *Client) sendGetAssetMetadataByKey(ctx context.Context, params GetAssetM
 
 // GetAssetOcr invokes getAssetOcr operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve all OCR (Optical Character Recognition) data associated with the specified asset.
 //
 // GET /assets/{id}/ocr
 func (c *Client) GetAssetOcr(ctx context.Context, params GetAssetOcrParams) ([]AssetOcrResponseDto, error) {
@@ -12572,7 +14574,14 @@ func (c *Client) sendGetAssetOcr(ctx context.Context, params GetAssetOcrParams) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetOcrResponse(resp)
@@ -12585,7 +14594,7 @@ func (c *Client) sendGetAssetOcr(ctx context.Context, params GetAssetOcrParams) 
 
 // GetAssetStatistics invokes getAssetStatistics operation.
 //
-// This endpoint requires the `asset.statistics` permission.
+// Retrieve various statistics about the assets owned by the authenticated user.
 //
 // GET /assets/statistics
 func (c *Client) GetAssetStatistics(ctx context.Context, params GetAssetStatisticsParams) (*AssetStatsResponseDto, error) {
@@ -12757,7 +14766,14 @@ func (c *Client) sendGetAssetStatistics(ctx context.Context, params GetAssetStat
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetStatisticsResponse(resp)
@@ -12770,7 +14786,8 @@ func (c *Client) sendGetAssetStatistics(ctx context.Context, params GetAssetStat
 
 // GetAssetsByCity invokes getAssetsByCity operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a list of assets with each asset belonging to a different city. This endpoint is used on
+// the places pages to show a single thumbnail for each city the user has assets in.
 //
 // GET /search/cities
 func (c *Client) GetAssetsByCity(ctx context.Context) ([]AssetResponseDto, error) {
@@ -12887,7 +14904,14 @@ func (c *Client) sendGetAssetsByCity(ctx context.Context) (res []AssetResponseDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetsByCityResponse(resp)
@@ -12899,6 +14923,8 @@ func (c *Client) sendGetAssetsByCity(ctx context.Context) (res []AssetResponseDt
 }
 
 // GetAssetsByOriginalPath invokes getAssetsByOriginalPath operation.
+//
+// Retrieve assets that are children of a specific folder.
 //
 // GET /view/folder
 func (c *Client) GetAssetsByOriginalPath(ctx context.Context, params GetAssetsByOriginalPathParams) ([]AssetResponseDto, error) {
@@ -13033,7 +15059,14 @@ func (c *Client) sendGetAssetsByOriginalPath(ctx context.Context, params GetAsse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAssetsByOriginalPathResponse(resp)
@@ -13045,6 +15078,9 @@ func (c *Client) sendGetAssetsByOriginalPath(ctx context.Context, params GetAsse
 }
 
 // GetAuthStatus invokes getAuthStatus operation.
+//
+// Get information about the current session, including whether the user has a password, and if the
+// session can access locked assets.
 //
 // GET /auth/status
 func (c *Client) GetAuthStatus(ctx context.Context) (*AuthStatusResponseDto, error) {
@@ -13161,7 +15197,14 @@ func (c *Client) sendGetAuthStatus(ctx context.Context) (res *AuthStatusResponse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetAuthStatusResponse(resp)
@@ -13174,7 +15217,7 @@ func (c *Client) sendGetAuthStatus(ctx context.Context) (res *AuthStatusResponse
 
 // GetConfig invokes getConfig operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+// Retrieve the current system configuration.
 //
 // GET /system-config
 func (c *Client) GetConfig(ctx context.Context) (*SystemConfigDto, error) {
@@ -13291,7 +15334,14 @@ func (c *Client) sendGetConfig(ctx context.Context) (res *SystemConfigDto, err e
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetConfigResponse(resp)
@@ -13304,7 +15354,7 @@ func (c *Client) sendGetConfig(ctx context.Context) (res *SystemConfigDto, err e
 
 // GetConfigDefaults invokes getConfigDefaults operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+// Retrieve the default values for the system configuration.
 //
 // GET /system-config/defaults
 func (c *Client) GetConfigDefaults(ctx context.Context) (*SystemConfigDto, error) {
@@ -13421,7 +15471,14 @@ func (c *Client) sendGetConfigDefaults(ctx context.Context) (res *SystemConfigDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetConfigDefaultsResponse(resp)
@@ -13432,140 +15489,10 @@ func (c *Client) sendGetConfigDefaults(ctx context.Context) (res *SystemConfigDt
 	return result, nil
 }
 
-// GetDeltaSync invokes getDeltaSync operation.
-//
-// POST /sync/delta-sync
-func (c *Client) GetDeltaSync(ctx context.Context, request *AssetDeltaSyncDto) (*AssetDeltaSyncResponseDto, error) {
-	res, err := c.sendGetDeltaSync(ctx, request)
-	return res, err
-}
-
-func (c *Client) sendGetDeltaSync(ctx context.Context, request *AssetDeltaSyncDto) (res *AssetDeltaSyncResponseDto, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getDeltaSync"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.URLTemplateKey.String("/sync/delta-sync"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetDeltaSyncOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/sync/delta-sync"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGetDeltaSyncRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, GetDeltaSyncOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Bearer\"")
-			}
-		}
-		{
-			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, GetDeltaSyncOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 1
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Cookie\"")
-			}
-		}
-		{
-			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, GetDeltaSyncOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 2
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"APIKey\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetDeltaSyncResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // GetDownloadInfo invokes getDownloadInfo operation.
 //
-// This endpoint requires the `asset.download` permission.
+// Retrieve information about how to request a download for the specified assets or album. The response
+// includes groups of assets that can be downloaded together.
 //
 // POST /download/info
 func (c *Client) GetDownloadInfo(ctx context.Context, request *DownloadInfoDto, params GetDownloadInfoParams) (*DownloadResponseDto, error) {
@@ -13723,7 +15650,14 @@ func (c *Client) sendGetDownloadInfo(ctx context.Context, request *DownloadInfoD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetDownloadInfoResponse(resp)
@@ -13736,7 +15670,7 @@ func (c *Client) sendGetDownloadInfo(ctx context.Context, request *DownloadInfoD
 
 // GetExploreData invokes getExploreData operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve data for the explore section, such as popular people and places.
 //
 // GET /search/explore
 func (c *Client) GetExploreData(ctx context.Context) ([]SearchExploreResponseDto, error) {
@@ -13853,7 +15787,14 @@ func (c *Client) sendGetExploreData(ctx context.Context) (res []SearchExploreRes
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetExploreDataResponse(resp)
@@ -13866,7 +15807,7 @@ func (c *Client) sendGetExploreData(ctx context.Context) (res []SearchExploreRes
 
 // GetFaces invokes getFaces operation.
 //
-// This endpoint requires the `face.read` permission.
+// Retrieve all faces belonging to an asset.
 //
 // GET /faces
 func (c *Client) GetFaces(ctx context.Context, params GetFacesParams) ([]AssetFaceResponseDto, error) {
@@ -14001,7 +15942,14 @@ func (c *Client) sendGetFaces(ctx context.Context, params GetFacesParams) (res [
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetFacesResponse(resp)
@@ -14012,19 +15960,21 @@ func (c *Client) sendGetFaces(ctx context.Context, params GetFacesParams) (res [
 	return result, nil
 }
 
-// GetFullSyncForUser invokes getFullSyncForUser operation.
+// GetIntegrityReport invokes getIntegrityReport operation.
 //
-// POST /sync/full-sync
-func (c *Client) GetFullSyncForUser(ctx context.Context, request *AssetFullSyncDto) ([]AssetResponseDto, error) {
-	res, err := c.sendGetFullSyncForUser(ctx, request)
+// Get all flagged items by integrity report type.
+//
+// GET /admin/integrity/report
+func (c *Client) GetIntegrityReport(ctx context.Context, params GetIntegrityReportParams) (*IntegrityReportResponseDto, error) {
+	res, err := c.sendGetIntegrityReport(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullSyncDto) (res []AssetResponseDto, err error) {
+func (c *Client) sendGetIntegrityReport(ctx context.Context, params GetIntegrityReportParams) (res *IntegrityReportResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getFullSyncForUser"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.URLTemplateKey.String("/sync/full-sync"),
+		otelogen.OperationID("getIntegrityReport"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/integrity/report"),
 	}
 	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
@@ -14040,7 +15990,7 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetFullSyncForUserOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetIntegrityReportOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -14058,16 +16008,65 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
-	pathParts[0] = "/sync/full-sync"
+	pathParts[0] = "/admin/integrity/report"
 	uri.AddPathParts(u, pathParts[:]...)
 
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "cursor" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "cursor",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Cursor.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "type" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.StringToString(string(params.Type)))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
 	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
+	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGetFullSyncForUserRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
 	}
 
 	{
@@ -14075,7 +16074,7 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 		var satisfied bitset
 		{
 			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, GetFullSyncForUserOperation, r); {
+			switch err := c.securityBearer(ctx, GetIntegrityReportOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -14086,7 +16085,7 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 		}
 		{
 			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, GetFullSyncForUserOperation, r); {
+			switch err := c.securityCookie(ctx, GetIntegrityReportOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 1
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -14097,7 +16096,7 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 		}
 		{
 			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, GetFullSyncForUserOperation, r); {
+			switch err := c.securityAPIKey(ctx, GetIntegrityReportOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 2
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -14132,10 +16131,466 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetFullSyncForUserResponse(resp)
+	result, err := decodeGetIntegrityReportResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetIntegrityReportCsv invokes getIntegrityReportCsv operation.
+//
+// Get all integrity report entries for a given type as a CSV.
+//
+// GET /admin/integrity/report/{type}/csv
+func (c *Client) GetIntegrityReportCsv(ctx context.Context, params GetIntegrityReportCsvParams) (GetIntegrityReportCsvOK, error) {
+	res, err := c.sendGetIntegrityReportCsv(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetIntegrityReportCsv(ctx context.Context, params GetIntegrityReportCsvParams) (res GetIntegrityReportCsvOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getIntegrityReportCsv"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/integrity/report/{type}/csv"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetIntegrityReportCsvOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/admin/integrity/report/"
+	{
+		// Encode "type" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "type",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Type)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/csv"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetIntegrityReportCsvOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetIntegrityReportCsvOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetIntegrityReportCsvOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetIntegrityReportCsvResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetIntegrityReportFile invokes getIntegrityReportFile operation.
+//
+// Download the untracked/broken file if one exists.
+//
+// GET /admin/integrity/report/{id}/file
+func (c *Client) GetIntegrityReportFile(ctx context.Context, params GetIntegrityReportFileParams) (GetIntegrityReportFileOK, error) {
+	res, err := c.sendGetIntegrityReportFile(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetIntegrityReportFile(ctx context.Context, params GetIntegrityReportFileParams) (res GetIntegrityReportFileOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getIntegrityReportFile"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/integrity/report/{id}/file"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetIntegrityReportFileOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/admin/integrity/report/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/file"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetIntegrityReportFileOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetIntegrityReportFileOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetIntegrityReportFileOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetIntegrityReportFileResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetIntegrityReportSummary invokes getIntegrityReportSummary operation.
+//
+// Get a count of the items flagged in each integrity report.
+//
+// GET /admin/integrity/summary
+func (c *Client) GetIntegrityReportSummary(ctx context.Context) (*IntegrityReportSummaryResponseDto, error) {
+	res, err := c.sendGetIntegrityReportSummary(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetIntegrityReportSummary(ctx context.Context) (res *IntegrityReportSummaryResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getIntegrityReportSummary"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/integrity/summary"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetIntegrityReportSummaryOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/integrity/summary"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetIntegrityReportSummaryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetIntegrityReportSummaryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetIntegrityReportSummaryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetIntegrityReportSummaryResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -14145,7 +16600,7 @@ func (c *Client) sendGetFullSyncForUser(ctx context.Context, request *AssetFullS
 
 // GetLibrary invokes getLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.read` permission.
+// Retrieve an external library by its ID.
 //
 // GET /libraries/{id}
 func (c *Client) GetLibrary(ctx context.Context, params GetLibraryParams) (*LibraryResponseDto, error) {
@@ -14280,7 +16735,14 @@ func (c *Client) sendGetLibrary(ctx context.Context, params GetLibraryParams) (r
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetLibraryResponse(resp)
@@ -14293,7 +16755,8 @@ func (c *Client) sendGetLibrary(ctx context.Context, params GetLibraryParams) (r
 
 // GetLibraryStatistics invokes getLibraryStatistics operation.
 //
-// This endpoint is an admin-only route, and requires the `library.statistics` permission.
+// Retrieve statistics for a specific external library, including number of videos, images, and storage
+// usage.
 //
 // GET /libraries/{id}/statistics
 func (c *Client) GetLibraryStatistics(ctx context.Context, params GetLibraryStatisticsParams) (*LibraryStatsResponseDto, error) {
@@ -14429,7 +16892,14 @@ func (c *Client) sendGetLibraryStatistics(ctx context.Context, params GetLibrary
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetLibraryStatisticsResponse(resp)
@@ -14440,7 +16910,283 @@ func (c *Client) sendGetLibraryStatistics(ctx context.Context, params GetLibrary
 	return result, nil
 }
 
+// GetMainPlaylist invokes getMainPlaylist operation.
+//
+// Returns an HLS main playlist with all available variants for the asset.
+//
+// GET /assets/{id}/video/stream/main.m3u8
+func (c *Client) GetMainPlaylist(ctx context.Context, params GetMainPlaylistParams) (GetMainPlaylistOK, error) {
+	res, err := c.sendGetMainPlaylist(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetMainPlaylist(ctx context.Context, params GetMainPlaylistParams) (res GetMainPlaylistOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMainPlaylist"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/assets/{id}/video/stream/main.m3u8"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMainPlaylistOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/video/stream/main.m3u8"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetMainPlaylistOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetMainPlaylistOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetMainPlaylistOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMainPlaylistResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetMaintenanceStatus invokes getMaintenanceStatus operation.
+//
+// Fetch information about the currently running maintenance action.
+//
+// GET /admin/maintenance/status
+func (c *Client) GetMaintenanceStatus(ctx context.Context) (*MaintenanceStatusResponseDto, error) {
+	res, err := c.sendGetMaintenanceStatus(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetMaintenanceStatus(ctx context.Context) (res *MaintenanceStatusResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMaintenanceStatus"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/maintenance/status"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMaintenanceStatusOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/maintenance/status"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMaintenanceStatusResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetMapMarkers invokes getMapMarkers operation.
+//
+// Retrieve a list of latitude and longitude coordinates for every asset with location data.
 //
 // GET /map/markers
 func (c *Client) GetMapMarkers(ctx context.Context, params GetMapMarkersParams) ([]MapMarkerResponseDto, error) {
@@ -14492,40 +17238,6 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
 	{
-		// Encode "isArchived" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "isArchived",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.IsArchived.Get(); ok {
-				return e.EncodeValue(conv.BoolToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "isFavorite" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "isFavorite",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.IsFavorite.Get(); ok {
-				return e.EncodeValue(conv.BoolToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
 		// Encode "fileCreatedAfter" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "fileCreatedAfter",
@@ -14553,6 +17265,40 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.FileCreatedBefore.Get(); ok {
 				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isArchived" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isArchived",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsArchived.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "isFavorite" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "isFavorite",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IsFavorite.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -14663,7 +17409,14 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetMapMarkersResponse(resp)
@@ -14674,9 +17427,258 @@ func (c *Client) sendGetMapMarkers(ctx context.Context, params GetMapMarkersPara
 	return result, nil
 }
 
+// GetMediaPlaylist invokes getMediaPlaylist operation.
+//
+// Returns an HLS media playlist for one variant of the streaming session.
+//
+// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8
+func (c *Client) GetMediaPlaylist(ctx context.Context, params GetMediaPlaylistParams) (GetMediaPlaylistOK, error) {
+	res, err := c.sendGetMediaPlaylist(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetMediaPlaylist(ctx context.Context, params GetMediaPlaylistParams) (res GetMediaPlaylistOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMediaPlaylist"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMediaPlaylistOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/video/stream/"
+	{
+		// Encode "sessionId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "sessionId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.SessionId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/"
+	{
+		// Encode "variantIndex" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "variantIndex",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.IntToString(params.VariantIndex))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/playlist.m3u8"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "EncodeHeaderParams"
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-immich-hls-pos",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XImmichHlsPos.Get(); ok {
+				return e.EncodeValue(conv.Float64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetMediaPlaylistOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetMediaPlaylistOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetMediaPlaylistOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMediaPlaylistResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetMemory invokes getMemory operation.
 //
-// This endpoint requires the `memory.read` permission.
+// Retrieve a specific memory by its ID.
 //
 // GET /memories/{id}
 func (c *Client) GetMemory(ctx context.Context, params GetMemoryParams) (*MemoryResponseDto, error) {
@@ -14811,7 +17813,14 @@ func (c *Client) sendGetMemory(ctx context.Context, params GetMemoryParams) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetMemoryResponse(resp)
@@ -14824,13 +17833,15 @@ func (c *Client) sendGetMemory(ctx context.Context, params GetMemoryParams) (res
 
 // GetMyApiKey invokes getMyApiKey operation.
 //
+// Retrieve the API key that is used to access this endpoint.
+//
 // GET /api-keys/me
-func (c *Client) GetMyApiKey(ctx context.Context) (*APIKeyResponseDto, error) {
+func (c *Client) GetMyApiKey(ctx context.Context) (*ApiKeyResponseDto, error) {
 	res, err := c.sendGetMyApiKey(ctx)
 	return res, err
 }
 
-func (c *Client) sendGetMyApiKey(ctx context.Context) (res *APIKeyResponseDto, err error) {
+func (c *Client) sendGetMyApiKey(ctx context.Context) (res *ApiKeyResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getMyApiKey"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -14939,7 +17950,14 @@ func (c *Client) sendGetMyApiKey(ctx context.Context) (res *APIKeyResponseDto, e
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetMyApiKeyResponse(resp)
@@ -14950,9 +17968,201 @@ func (c *Client) sendGetMyApiKey(ctx context.Context) (res *APIKeyResponseDto, e
 	return result, nil
 }
 
+// GetMyCalendarHeatmap invokes getMyCalendarHeatmap operation.
+//
+// Retrieve activity counts for a specified period, in a calendar heatmap format.
+//
+// GET /users/me/calendar-heatmap
+func (c *Client) GetMyCalendarHeatmap(ctx context.Context, params GetMyCalendarHeatmapParams) (*CalendarHeatmapResponseDto, error) {
+	res, err := c.sendGetMyCalendarHeatmap(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetMyCalendarHeatmap(ctx context.Context, params GetMyCalendarHeatmapParams) (res *CalendarHeatmapResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getMyCalendarHeatmap"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/users/me/calendar-heatmap"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetMyCalendarHeatmapOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/users/me/calendar-heatmap"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "from" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "from",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.From.Get(); ok {
+				return e.EncodeValue(conv.DateToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "to" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "to",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.To.Get(); ok {
+				return e.EncodeValue(conv.DateToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "type" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Type.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetMyCalendarHeatmapOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetMyCalendarHeatmapOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetMyCalendarHeatmapOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetMyCalendarHeatmapResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetMyPreferences invokes getMyPreferences operation.
 //
-// This endpoint requires the `userPreference.read` permission.
+// Retrieve the preferences for the current user.
 //
 // GET /users/me/preferences
 func (c *Client) GetMyPreferences(ctx context.Context) (*UserPreferencesResponseDto, error) {
@@ -15069,7 +18279,14 @@ func (c *Client) sendGetMyPreferences(ctx context.Context) (res *UserPreferences
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetMyPreferencesResponse(resp)
@@ -15081,6 +18298,8 @@ func (c *Client) sendGetMyPreferences(ctx context.Context) (res *UserPreferences
 }
 
 // GetMySharedLink invokes getMySharedLink operation.
+//
+// Retrieve the current shared link associated with authentication method.
 //
 // GET /shared-links/me
 func (c *Client) GetMySharedLink(ctx context.Context, params GetMySharedLinkParams) (*SharedLinkResponseDto, error) {
@@ -15131,40 +18350,6 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
-	{
-		// Encode "password" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "password",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Password.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "token" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "token",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Token.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
 	{
 		// Encode "key" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -15269,7 +18454,14 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetMySharedLinkResponse(resp)
@@ -15282,7 +18474,7 @@ func (c *Client) sendGetMySharedLink(ctx context.Context, params GetMySharedLink
 
 // GetMyUser invokes getMyUser operation.
 //
-// This endpoint requires the `user.read` permission.
+// Retrieve information about the user making the API request.
 //
 // GET /users/me
 func (c *Client) GetMyUser(ctx context.Context) (*UserAdminResponseDto, error) {
@@ -15399,7 +18591,14 @@ func (c *Client) sendGetMyUser(ctx context.Context) (res *UserAdminResponseDto, 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetMyUserResponse(resp)
@@ -15412,7 +18611,7 @@ func (c *Client) sendGetMyUser(ctx context.Context) (res *UserAdminResponseDto, 
 
 // GetNotification invokes getNotification operation.
 //
-// This endpoint requires the `notification.read` permission.
+// Retrieve a specific notification identified by id.
 //
 // GET /notifications/{id}
 func (c *Client) GetNotification(ctx context.Context, params GetNotificationParams) (*NotificationDto, error) {
@@ -15547,7 +18746,14 @@ func (c *Client) sendGetNotification(ctx context.Context, params GetNotification
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNotificationResponse(resp)
@@ -15559,6 +18765,8 @@ func (c *Client) sendGetNotification(ctx context.Context, params GetNotification
 }
 
 // GetNotificationTemplateAdmin invokes getNotificationTemplateAdmin operation.
+//
+// Retrieve a preview of the provided email template.
 //
 // POST /admin/notifications/templates/{name}
 func (c *Client) GetNotificationTemplateAdmin(ctx context.Context, request *TemplateDto, params GetNotificationTemplateAdminParams) (*TemplateResponseDto, error) {
@@ -15696,7 +18904,14 @@ func (c *Client) sendGetNotificationTemplateAdmin(ctx context.Context, request *
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNotificationTemplateAdminResponse(resp)
@@ -15709,7 +18924,7 @@ func (c *Client) sendGetNotificationTemplateAdmin(ctx context.Context, request *
 
 // GetNotifications invokes getNotifications operation.
 //
-// This endpoint requires the `notification.read` permission.
+// Retrieve a list of notifications.
 //
 // GET /notifications
 func (c *Client) GetNotifications(ctx context.Context, params GetNotificationsParams) ([]NotificationDto, error) {
@@ -15898,7 +19113,14 @@ func (c *Client) sendGetNotifications(ctx context.Context, params GetNotificatio
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetNotificationsResponse(resp)
@@ -15911,7 +19133,7 @@ func (c *Client) sendGetNotifications(ctx context.Context, params GetNotificatio
 
 // GetPartners invokes getPartners operation.
 //
-// This endpoint requires the `partner.read` permission.
+// Retrieve a list of partners with whom assets are shared.
 //
 // GET /partners
 func (c *Client) GetPartners(ctx context.Context, params GetPartnersParams) ([]PartnerResponseDto, error) {
@@ -16046,7 +19268,14 @@ func (c *Client) sendGetPartners(ctx context.Context, params GetPartnersParams) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetPartnersResponse(resp)
@@ -16059,7 +19288,7 @@ func (c *Client) sendGetPartners(ctx context.Context, params GetPartnersParams) 
 
 // GetPerson invokes getPerson operation.
 //
-// This endpoint requires the `person.read` permission.
+// Retrieve a person by id.
 //
 // GET /people/{id}
 func (c *Client) GetPerson(ctx context.Context, params GetPersonParams) (*PersonResponseDto, error) {
@@ -16194,7 +19423,14 @@ func (c *Client) sendGetPerson(ctx context.Context, params GetPersonParams) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetPersonResponse(resp)
@@ -16207,7 +19443,7 @@ func (c *Client) sendGetPerson(ctx context.Context, params GetPersonParams) (res
 
 // GetPersonStatistics invokes getPersonStatistics operation.
 //
-// This endpoint requires the `person.statistics` permission.
+// Retrieve statistics about a specific person.
 //
 // GET /people/{id}/statistics
 func (c *Client) GetPersonStatistics(ctx context.Context, params GetPersonStatisticsParams) (*PersonStatisticsResponseDto, error) {
@@ -16343,7 +19579,14 @@ func (c *Client) sendGetPersonStatistics(ctx context.Context, params GetPersonSt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetPersonStatisticsResponse(resp)
@@ -16356,7 +19599,7 @@ func (c *Client) sendGetPersonStatistics(ctx context.Context, params GetPersonSt
 
 // GetPersonThumbnail invokes getPersonThumbnail operation.
 //
-// This endpoint requires the `person.read` permission.
+// Retrieve the thumbnail file for a person.
 //
 // GET /people/{id}/thumbnail
 func (c *Client) GetPersonThumbnail(ctx context.Context, params GetPersonThumbnailParams) (GetPersonThumbnailOK, error) {
@@ -16492,7 +19735,14 @@ func (c *Client) sendGetPersonThumbnail(ctx context.Context, params GetPersonThu
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetPersonThumbnailResponse(resp)
@@ -16503,9 +19753,164 @@ func (c *Client) sendGetPersonThumbnail(ctx context.Context, params GetPersonThu
 	return result, nil
 }
 
+// GetPlugin invokes getPlugin operation.
+//
+// Retrieve information about a specific plugin by its ID.
+//
+// GET /plugins/{id}
+func (c *Client) GetPlugin(ctx context.Context, params GetPluginParams) (*PluginResponseDto, error) {
+	res, err := c.sendGetPlugin(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetPlugin(ctx context.Context, params GetPluginParams) (res *PluginResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getPlugin"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/plugins/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetPluginOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/plugins/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetPluginOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetPluginOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetPluginOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetPluginResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetProfileImage invokes getProfileImage operation.
 //
-// This endpoint requires the `userProfileImage.read` permission.
+// Retrieve the profile image file for a user.
 //
 // GET /users/{id}/profile-image
 func (c *Client) GetProfileImage(ctx context.Context, params GetProfileImageParams) (GetProfileImageOK, error) {
@@ -16641,7 +20046,14 @@ func (c *Client) sendGetProfileImage(ctx context.Context, params GetProfileImage
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetProfileImageResponse(resp)
@@ -16652,23 +20064,21 @@ func (c *Client) sendGetProfileImage(ctx context.Context, params GetProfileImage
 	return result, nil
 }
 
-// GetRandom invokes getRandom operation.
+// GetQueue invokes getQueue operation.
 //
-// This property was deprecated in v1.116.0. This endpoint requires the `asset.read` permission.
+// Retrieves a specific queue by its name.
 //
-// Deprecated: schema marks this operation as deprecated.
-//
-// GET /assets/random
-func (c *Client) GetRandom(ctx context.Context, params GetRandomParams) ([]AssetResponseDto, error) {
-	res, err := c.sendGetRandom(ctx, params)
+// GET /queues/{name}
+func (c *Client) GetQueue(ctx context.Context, params GetQueueParams) (*QueueResponseDto, error) {
+	res, err := c.sendGetQueue(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res []AssetResponseDto, err error) {
+func (c *Client) sendGetQueue(ctx context.Context, params GetQueueParams) (res *QueueResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getRandom"),
+		otelogen.OperationID("getQueue"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.URLTemplateKey.String("/assets/random"),
+		semconv.URLTemplateKey.String("/queues/{name}"),
 	}
 	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
@@ -16684,7 +20094,7 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetRandomOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, GetQueueOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -16701,30 +20111,27 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/assets/random"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
+	var pathParts [2]string
+	pathParts[0] = "/queues/"
 	{
-		// Encode "count" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "count",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Name)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
 		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Count.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
 		}
+		pathParts[1] = encoded
 	}
-	u.RawQuery = q.Values().Encode()
+	uri.AddPathParts(u, pathParts[:]...)
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -16737,7 +20144,7 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 		var satisfied bitset
 		{
 			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, GetRandomOperation, r); {
+			switch err := c.securityBearer(ctx, GetQueueOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -16748,7 +20155,7 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 		}
 		{
 			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, GetRandomOperation, r); {
+			switch err := c.securityCookie(ctx, GetQueueOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 1
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -16759,7 +20166,7 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 		}
 		{
 			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, GetRandomOperation, r); {
+			switch err := c.securityAPIKey(ctx, GetQueueOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 2
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -16794,10 +20201,479 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
-	result, err := decodeGetRandomResponse(resp)
+	result, err := decodeGetQueueResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetQueueJobs invokes getQueueJobs operation.
+//
+// Retrieves a list of queue jobs from the specified queue.
+//
+// GET /queues/{name}/jobs
+func (c *Client) GetQueueJobs(ctx context.Context, params GetQueueJobsParams) ([]QueueJobResponseDto, error) {
+	res, err := c.sendGetQueueJobs(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetQueueJobs(ctx context.Context, params GetQueueJobsParams) (res []QueueJobResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getQueueJobs"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/queues/{name}/jobs"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetQueueJobsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/queues/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Name)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/jobs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "status" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "status",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.Status != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Status {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetQueueJobsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetQueueJobsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetQueueJobsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetQueueJobsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetQueues invokes getQueues operation.
+//
+// Retrieves a list of queues.
+//
+// GET /queues
+func (c *Client) GetQueues(ctx context.Context) ([]QueueResponseDto, error) {
+	res, err := c.sendGetQueues(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetQueues(ctx context.Context) (res []QueueResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getQueues"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/queues"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetQueuesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/queues"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetQueuesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetQueuesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetQueuesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetQueuesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetQueuesLegacy invokes getQueuesLegacy operation.
+//
+// Retrieve the counts of the current queue, as well as the current status.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// GET /jobs
+func (c *Client) GetQueuesLegacy(ctx context.Context) (*QueuesResponseLegacyDto, error) {
+	res, err := c.sendGetQueuesLegacy(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetQueuesLegacy(ctx context.Context) (res *QueuesResponseLegacyDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getQueuesLegacy"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/jobs"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetQueuesLegacyOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/jobs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetQueuesLegacyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetQueuesLegacyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetQueuesLegacyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetQueuesLegacyResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -16807,7 +20683,7 @@ func (c *Client) sendGetRandom(ctx context.Context, params GetRandomParams) (res
 
 // GetReverseGeocodingState invokes getReverseGeocodingState operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+// Retrieve the current state of the reverse geocoding import.
 //
 // GET /system-metadata/reverse-geocoding-state
 func (c *Client) GetReverseGeocodingState(ctx context.Context) (*ReverseGeocodingStateResponseDto, error) {
@@ -16924,7 +20800,14 @@ func (c *Client) sendGetReverseGeocodingState(ctx context.Context) (res *Reverse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetReverseGeocodingStateResponse(resp)
@@ -16937,7 +20820,8 @@ func (c *Client) sendGetReverseGeocodingState(ctx context.Context) (res *Reverse
 
 // GetSearchSuggestions invokes getSearchSuggestions operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve search suggestions based on partial input. This endpoint is used for typeahead search
+// features.
 //
 // GET /search/suggestions
 func (c *Client) GetSearchSuggestions(ctx context.Context, params GetSearchSuggestionsParams) ([]string, error) {
@@ -17174,7 +21058,14 @@ func (c *Client) sendGetSearchSuggestions(ctx context.Context, params GetSearchS
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetSearchSuggestionsResponse(resp)
@@ -17185,7 +21076,276 @@ func (c *Client) sendGetSearchSuggestions(ctx context.Context, params GetSearchS
 	return result, nil
 }
 
+// GetSegment invokes getSegment operation.
+//
+// Streams an HLS init segment (init.mp4) or media segment (seg_N.m4s).
+//
+// GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}
+func (c *Client) GetSegment(ctx context.Context, params GetSegmentParams) (GetSegmentOK, error) {
+	res, err := c.sendGetSegment(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetSegment(ctx context.Context, params GetSegmentParams) (res GetSegmentOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getSegment"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetSegmentOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/video/stream/"
+	{
+		// Encode "sessionId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "sessionId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.SessionId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/"
+	{
+		// Encode "variantIndex" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "variantIndex",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.IntToString(params.VariantIndex))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/"
+	{
+		// Encode "filename" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "filename",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Filename))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "EncodeHeaderParams"
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-immich-hls-msn",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XImmichHlsMsn.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetSegmentOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetSegmentOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetSegmentOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetSegmentResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetServerConfig invokes getServerConfig operation.
+//
+// Retrieve the current server configuration.
 //
 // GET /server/config
 func (c *Client) GetServerConfig(ctx context.Context) (*ServerConfigDto, error) {
@@ -17245,7 +21405,14 @@ func (c *Client) sendGetServerConfig(ctx context.Context) (res *ServerConfigDto,
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetServerConfigResponse(resp)
@@ -17257,6 +21424,8 @@ func (c *Client) sendGetServerConfig(ctx context.Context) (res *ServerConfigDto,
 }
 
 // GetServerFeatures invokes getServerFeatures operation.
+//
+// Retrieve available features supported by this server.
 //
 // GET /server/features
 func (c *Client) GetServerFeatures(ctx context.Context) (*ServerFeaturesDto, error) {
@@ -17316,7 +21485,14 @@ func (c *Client) sendGetServerFeatures(ctx context.Context) (res *ServerFeatures
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetServerFeaturesResponse(resp)
@@ -17329,7 +21505,7 @@ func (c *Client) sendGetServerFeatures(ctx context.Context) (res *ServerFeatures
 
 // GetServerLicense invokes getServerLicense operation.
 //
-// This endpoint is an admin-only route, and requires the `serverLicense.read` permission.
+// Retrieve information about whether the server currently has a product key registered.
 //
 // GET /server/license
 func (c *Client) GetServerLicense(ctx context.Context) (GetServerLicenseRes, error) {
@@ -17446,7 +21622,14 @@ func (c *Client) sendGetServerLicense(ctx context.Context) (res GetServerLicense
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetServerLicenseResponse(resp)
@@ -17459,7 +21642,7 @@ func (c *Client) sendGetServerLicense(ctx context.Context) (res GetServerLicense
 
 // GetServerStatistics invokes getServerStatistics operation.
 //
-// This endpoint is an admin-only route, and requires the `server.statistics` permission.
+// Retrieve statistics about the entire Immich instance such as asset counts.
 //
 // GET /server/statistics
 func (c *Client) GetServerStatistics(ctx context.Context) (*ServerStatsResponseDto, error) {
@@ -17576,7 +21759,14 @@ func (c *Client) sendGetServerStatistics(ctx context.Context) (res *ServerStatsR
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetServerStatisticsResponse(resp)
@@ -17588,6 +21778,8 @@ func (c *Client) sendGetServerStatistics(ctx context.Context) (res *ServerStatsR
 }
 
 // GetServerVersion invokes getServerVersion operation.
+//
+// Retrieve the current server version in semantic versioning (semver) format.
 //
 // GET /server/version
 func (c *Client) GetServerVersion(ctx context.Context) (*ServerVersionResponseDto, error) {
@@ -17647,7 +21839,14 @@ func (c *Client) sendGetServerVersion(ctx context.Context) (res *ServerVersionRe
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetServerVersionResponse(resp)
@@ -17660,7 +21859,7 @@ func (c *Client) sendGetServerVersion(ctx context.Context) (res *ServerVersionRe
 
 // GetSessions invokes getSessions operation.
 //
-// This endpoint requires the `session.read` permission.
+// Retrieve a list of sessions for the user.
 //
 // GET /sessions
 func (c *Client) GetSessions(ctx context.Context) ([]SessionResponseDto, error) {
@@ -17777,7 +21976,14 @@ func (c *Client) sendGetSessions(ctx context.Context) (res []SessionResponseDto,
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetSessionsResponse(resp)
@@ -17790,7 +21996,7 @@ func (c *Client) sendGetSessions(ctx context.Context) (res []SessionResponseDto,
 
 // GetSharedLinkById invokes getSharedLinkById operation.
 //
-// This endpoint requires the `sharedLink.read` permission.
+// Retrieve a specific shared link by its ID.
 //
 // GET /shared-links/{id}
 func (c *Client) GetSharedLinkById(ctx context.Context, params GetSharedLinkByIdParams) (*SharedLinkResponseDto, error) {
@@ -17925,7 +22131,14 @@ func (c *Client) sendGetSharedLinkById(ctx context.Context, params GetSharedLink
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetSharedLinkByIdResponse(resp)
@@ -17938,7 +22151,7 @@ func (c *Client) sendGetSharedLinkById(ctx context.Context, params GetSharedLink
 
 // GetStack invokes getStack operation.
 //
-// This endpoint requires the `stack.read` permission.
+// Retrieve a specific stack by its ID.
 //
 // GET /stacks/{id}
 func (c *Client) GetStack(ctx context.Context, params GetStackParams) (*StackResponseDto, error) {
@@ -18073,7 +22286,14 @@ func (c *Client) sendGetStack(ctx context.Context, params GetStackParams) (res *
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetStackResponse(resp)
@@ -18086,7 +22306,7 @@ func (c *Client) sendGetStack(ctx context.Context, params GetStackParams) (res *
 
 // GetStorage invokes getStorage operation.
 //
-// This endpoint requires the `server.storage` permission.
+// Retrieve the current storage utilization information of the server.
 //
 // GET /server/storage
 func (c *Client) GetStorage(ctx context.Context) (*ServerStorageResponseDto, error) {
@@ -18203,7 +22423,14 @@ func (c *Client) sendGetStorage(ctx context.Context) (res *ServerStorageResponse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetStorageResponse(resp)
@@ -18216,7 +22443,7 @@ func (c *Client) sendGetStorage(ctx context.Context) (res *ServerStorageResponse
 
 // GetStorageTemplateOptions invokes getStorageTemplateOptions operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.read` permission.
+// Retrieve exemplary storage template options.
 //
 // GET /system-config/storage-template-options
 func (c *Client) GetStorageTemplateOptions(ctx context.Context) (*SystemConfigTemplateStorageOptionDto, error) {
@@ -18333,7 +22560,14 @@ func (c *Client) sendGetStorageTemplateOptions(ctx context.Context) (res *System
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetStorageTemplateOptionsResponse(resp)
@@ -18345,6 +22579,8 @@ func (c *Client) sendGetStorageTemplateOptions(ctx context.Context) (res *System
 }
 
 // GetSupportedMediaTypes invokes getSupportedMediaTypes operation.
+//
+// Retrieve all media types supported by the server.
 //
 // GET /server/media-types
 func (c *Client) GetSupportedMediaTypes(ctx context.Context) (*ServerMediaTypesResponseDto, error) {
@@ -18404,7 +22640,14 @@ func (c *Client) sendGetSupportedMediaTypes(ctx context.Context) (res *ServerMed
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetSupportedMediaTypesResponse(resp)
@@ -18417,7 +22660,7 @@ func (c *Client) sendGetSupportedMediaTypes(ctx context.Context) (res *ServerMed
 
 // GetSyncAck invokes getSyncAck operation.
 //
-// This endpoint requires the `syncCheckpoint.read` permission.
+// Retrieve the synchronization acknowledgments for the current session.
 //
 // GET /sync/ack
 func (c *Client) GetSyncAck(ctx context.Context) ([]SyncAckDto, error) {
@@ -18534,7 +22777,14 @@ func (c *Client) sendGetSyncAck(ctx context.Context) (res []SyncAckDto, err erro
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetSyncAckResponse(resp)
@@ -18547,7 +22797,8 @@ func (c *Client) sendGetSyncAck(ctx context.Context) (res []SyncAckDto, err erro
 
 // GetSyncStream invokes getSyncStream operation.
 //
-// This endpoint requires the `sync.stream` permission.
+// Retrieve a JSON lines streamed response of changes for synchronization. This endpoint is used by the
+// mobile app to efficiently stay up to date with changes.
 //
 // POST /sync/stream
 func (c *Client) GetSyncStream(ctx context.Context, request *SyncStreamDto) error {
@@ -18667,7 +22918,14 @@ func (c *Client) sendGetSyncStream(ctx context.Context, request *SyncStreamDto) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetSyncStreamResponse(resp)
@@ -18680,7 +22938,7 @@ func (c *Client) sendGetSyncStream(ctx context.Context, request *SyncStreamDto) 
 
 // GetTagById invokes getTagById operation.
 //
-// This endpoint requires the `tag.read` permission.
+// Retrieve a specific tag by its ID.
 //
 // GET /tags/{id}
 func (c *Client) GetTagById(ctx context.Context, params GetTagByIdParams) (*TagResponseDto, error) {
@@ -18815,7 +23073,14 @@ func (c *Client) sendGetTagById(ctx context.Context, params GetTagByIdParams) (r
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetTagByIdResponse(resp)
@@ -18826,80 +23091,9 @@ func (c *Client) sendGetTagById(ctx context.Context, params GetTagByIdParams) (r
 	return result, nil
 }
 
-// GetTheme invokes getTheme operation.
-//
-// GET /server/theme
-func (c *Client) GetTheme(ctx context.Context) (*ServerThemeDto, error) {
-	res, err := c.sendGetTheme(ctx)
-	return res, err
-}
-
-func (c *Client) sendGetTheme(ctx context.Context) (res *ServerThemeDto, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("getTheme"),
-		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.URLTemplateKey.String("/server/theme"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, GetThemeOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/server/theme"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeGetThemeResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // GetTimeBucket invokes getTimeBucket operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a string of all asset ids in a given time bucket.
 //
 // GET /timeline/bucket
 func (c *Client) GetTimeBucket(ctx context.Context, params GetTimeBucketParams) (*TimeBucketAssetResponseDto, error) {
@@ -18968,6 +23162,23 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 		}
 	}
 	{
+		// Encode "bbox" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "bbox",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Bbox.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "isFavorite" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "isFavorite",
@@ -19028,6 +23239,23 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Order.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "orderBy" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "orderBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.OrderBy.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
@@ -19255,7 +23483,14 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetTimeBucketResponse(resp)
@@ -19268,7 +23503,7 @@ func (c *Client) sendGetTimeBucket(ctx context.Context, params GetTimeBucketPara
 
 // GetTimeBuckets invokes getTimeBuckets operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a list of all minimal time buckets.
 //
 // GET /timeline/buckets
 func (c *Client) GetTimeBuckets(ctx context.Context, params GetTimeBucketsParams) ([]TimeBucketsResponseDto, error) {
@@ -19337,6 +23572,23 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 		}
 	}
 	{
+		// Encode "bbox" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "bbox",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Bbox.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
 		// Encode "isFavorite" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
 			Name:    "isFavorite",
@@ -19397,6 +23649,23 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Order.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "orderBy" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "orderBy",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.OrderBy.Get(); ok {
 				return e.EncodeValue(conv.StringToString(string(val)))
 			}
 			return nil
@@ -19610,7 +23879,14 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetTimeBucketsResponse(resp)
@@ -19622,6 +23898,8 @@ func (c *Client) sendGetTimeBuckets(ctx context.Context, params GetTimeBucketsPa
 }
 
 // GetUniqueOriginalPaths invokes getUniqueOriginalPaths operation.
+//
+// Retrieve a list of unique folder paths from asset original paths.
 //
 // GET /view/folder/unique-paths
 func (c *Client) GetUniqueOriginalPaths(ctx context.Context) ([]string, error) {
@@ -19738,7 +24016,14 @@ func (c *Client) sendGetUniqueOriginalPaths(ctx context.Context) (res []string, 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUniqueOriginalPathsResponse(resp)
@@ -19751,7 +24036,7 @@ func (c *Client) sendGetUniqueOriginalPaths(ctx context.Context) (res []string, 
 
 // GetUser invokes getUser operation.
 //
-// This endpoint requires the `user.read` permission.
+// Retrieve a specific user by their ID.
 //
 // GET /users/{id}
 func (c *Client) GetUser(ctx context.Context, params GetUserParams) (*UserResponseDto, error) {
@@ -19886,7 +24171,14 @@ func (c *Client) sendGetUser(ctx context.Context, params GetUserParams) (res *Us
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserResponse(resp)
@@ -19899,7 +24191,7 @@ func (c *Client) sendGetUser(ctx context.Context, params GetUserParams) (res *Us
 
 // GetUserAdmin invokes getUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Retrieve a specific user by their ID.
 //
 // GET /admin/users/{id}
 func (c *Client) GetUserAdmin(ctx context.Context, params GetUserAdminParams) (*UserAdminResponseDto, error) {
@@ -20034,7 +24326,14 @@ func (c *Client) sendGetUserAdmin(ctx context.Context, params GetUserAdminParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserAdminResponse(resp)
@@ -20045,17 +24344,228 @@ func (c *Client) sendGetUserAdmin(ctx context.Context, params GetUserAdminParams
 	return result, nil
 }
 
+// GetUserCalendarHeatmapAdmin invokes getUserCalendarHeatmapAdmin operation.
+//
+// Retrieve activity counts for a specified period, in a calendar heatmap format.
+//
+// GET /admin/users/{id}/calendar-heatmap
+func (c *Client) GetUserCalendarHeatmapAdmin(ctx context.Context, params GetUserCalendarHeatmapAdminParams) (*CalendarHeatmapResponseDto, error) {
+	res, err := c.sendGetUserCalendarHeatmapAdmin(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetUserCalendarHeatmapAdmin(ctx context.Context, params GetUserCalendarHeatmapAdminParams) (res *CalendarHeatmapResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getUserCalendarHeatmapAdmin"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/users/{id}/calendar-heatmap"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetUserCalendarHeatmapAdminOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/admin/users/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/calendar-heatmap"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "from" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "from",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.From.Get(); ok {
+				return e.EncodeValue(conv.DateToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "to" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "to",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.To.Get(); ok {
+				return e.EncodeValue(conv.DateToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "type" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Type.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetUserCalendarHeatmapAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetUserCalendarHeatmapAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetUserCalendarHeatmapAdminOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetUserCalendarHeatmapAdminResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetUserLicense invokes getUserLicense operation.
 //
-// This endpoint requires the `userLicense.read` permission.
+// Retrieve information about whether the current user has a registered product key.
 //
 // GET /users/me/license
-func (c *Client) GetUserLicense(ctx context.Context) (*LicenseResponseDto, error) {
+func (c *Client) GetUserLicense(ctx context.Context) (*UserLicense, error) {
 	res, err := c.sendGetUserLicense(ctx)
 	return res, err
 }
 
-func (c *Client) sendGetUserLicense(ctx context.Context) (res *LicenseResponseDto, err error) {
+func (c *Client) sendGetUserLicense(ctx context.Context) (res *UserLicense, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("getUserLicense"),
 		semconv.HTTPRequestMethodKey.String("GET"),
@@ -20164,7 +24674,14 @@ func (c *Client) sendGetUserLicense(ctx context.Context) (res *LicenseResponseDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserLicenseResponse(resp)
@@ -20177,7 +24694,7 @@ func (c *Client) sendGetUserLicense(ctx context.Context) (res *LicenseResponseDt
 
 // GetUserOnboarding invokes getUserOnboarding operation.
 //
-// This endpoint requires the `userOnboarding.read` permission.
+// Retrieve the onboarding status of the current user.
 //
 // GET /users/me/onboarding
 func (c *Client) GetUserOnboarding(ctx context.Context) (*OnboardingResponseDto, error) {
@@ -20294,7 +24811,14 @@ func (c *Client) sendGetUserOnboarding(ctx context.Context) (res *OnboardingResp
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserOnboardingResponse(resp)
@@ -20307,7 +24831,7 @@ func (c *Client) sendGetUserOnboarding(ctx context.Context) (res *OnboardingResp
 
 // GetUserPreferencesAdmin invokes getUserPreferencesAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Retrieve the preferences of a specific user.
 //
 // GET /admin/users/{id}/preferences
 func (c *Client) GetUserPreferencesAdmin(ctx context.Context, params GetUserPreferencesAdminParams) (*UserPreferencesResponseDto, error) {
@@ -20443,7 +24967,14 @@ func (c *Client) sendGetUserPreferencesAdmin(ctx context.Context, params GetUser
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserPreferencesAdminResponse(resp)
@@ -20456,7 +24987,7 @@ func (c *Client) sendGetUserPreferencesAdmin(ctx context.Context, params GetUser
 
 // GetUserSessionsAdmin invokes getUserSessionsAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminSession.read` permission.
+// Retrieve all sessions for a specific user.
 //
 // GET /admin/users/{id}/sessions
 func (c *Client) GetUserSessionsAdmin(ctx context.Context, params GetUserSessionsAdminParams) ([]SessionResponseDto, error) {
@@ -20592,7 +25123,14 @@ func (c *Client) sendGetUserSessionsAdmin(ctx context.Context, params GetUserSes
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserSessionsAdminResponse(resp)
@@ -20605,7 +25143,7 @@ func (c *Client) sendGetUserSessionsAdmin(ctx context.Context, params GetUserSes
 
 // GetUserStatisticsAdmin invokes getUserStatisticsAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Retrieve asset statistics for a specific user.
 //
 // GET /admin/users/{id}/statistics
 func (c *Client) GetUserStatisticsAdmin(ctx context.Context, params GetUserStatisticsAdminParams) (*AssetStatsResponseDto, error) {
@@ -20796,7 +25334,14 @@ func (c *Client) sendGetUserStatisticsAdmin(ctx context.Context, params GetUserS
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetUserStatisticsAdminResponse(resp)
@@ -20809,7 +25354,7 @@ func (c *Client) sendGetUserStatisticsAdmin(ctx context.Context, params GetUserS
 
 // GetVersionCheck invokes getVersionCheck operation.
 //
-// This endpoint requires the `server.versionCheck` permission.
+// Retrieve information about the last time the version check ran.
 //
 // GET /server/version-check
 func (c *Client) GetVersionCheck(ctx context.Context) (*VersionCheckStateResponseDto, error) {
@@ -20926,7 +25471,14 @@ func (c *Client) sendGetVersionCheck(ctx context.Context) (res *VersionCheckStat
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetVersionCheckResponse(resp)
@@ -20939,7 +25491,7 @@ func (c *Client) sendGetVersionCheck(ctx context.Context) (res *VersionCheckStat
 
 // GetVersionCheckState invokes getVersionCheckState operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.read` permission.
+// Retrieve the current state of the version check process.
 //
 // GET /system-metadata/version-check-state
 func (c *Client) GetVersionCheckState(ctx context.Context) (*VersionCheckStateResponseDto, error) {
@@ -21056,7 +25608,14 @@ func (c *Client) sendGetVersionCheckState(ctx context.Context) (res *VersionChec
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetVersionCheckStateResponse(resp)
@@ -21068,6 +25627,8 @@ func (c *Client) sendGetVersionCheckState(ctx context.Context) (res *VersionChec
 }
 
 // GetVersionHistory invokes getVersionHistory operation.
+//
+// Retrieve a list of past versions the server has been on.
 //
 // GET /server/version-history
 func (c *Client) GetVersionHistory(ctx context.Context) ([]ServerVersionHistoryResponseDto, error) {
@@ -21127,7 +25688,14 @@ func (c *Client) sendGetVersionHistory(ctx context.Context) (res []ServerVersion
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeGetVersionHistoryResponse(resp)
@@ -21138,7 +25706,668 @@ func (c *Client) sendGetVersionHistory(ctx context.Context) (res []ServerVersion
 	return result, nil
 }
 
+// GetWorkflow invokes getWorkflow operation.
+//
+// Retrieve information about a specific workflow by its ID.
+//
+// GET /workflows/{id}
+func (c *Client) GetWorkflow(ctx context.Context, params GetWorkflowParams) (*WorkflowResponseDto, error) {
+	res, err := c.sendGetWorkflow(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetWorkflow(ctx context.Context, params GetWorkflowParams) (res *WorkflowResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflow"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/workflows/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/workflows/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetWorkflowResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetWorkflowForShare invokes getWorkflowForShare operation.
+//
+// Retrieve a workflow details without ids, default values, etc.
+//
+// GET /workflows/{id}/share
+func (c *Client) GetWorkflowForShare(ctx context.Context, params GetWorkflowForShareParams) (*WorkflowShareResponseDto, error) {
+	res, err := c.sendGetWorkflowForShare(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetWorkflowForShare(ctx context.Context, params GetWorkflowForShareParams) (res *WorkflowShareResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflowForShare"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/workflows/{id}/share"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWorkflowForShareOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/workflows/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/share"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetWorkflowForShareOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetWorkflowForShareOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetWorkflowForShareOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetWorkflowForShareResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetWorkflowLogs invokes getWorkflowLogs operation.
+//
+// Retrieve logs of a workflows runs by ID.
+//
+// GET /workflows/{id}/logs
+func (c *Client) GetWorkflowLogs(ctx context.Context, params GetWorkflowLogsParams) ([]WorkflowLogEntryDto, error) {
+	res, err := c.sendGetWorkflowLogs(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGetWorkflowLogs(ctx context.Context, params GetWorkflowLogsParams) (res []WorkflowLogEntryDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflowLogs"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/workflows/{id}/logs"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWorkflowLogsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/workflows/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/logs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "before" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "before",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Before.Get(); ok {
+				return e.EncodeValue(conv.DateTimeToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "result" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "result",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Result.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetWorkflowLogsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetWorkflowLogsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetWorkflowLogsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetWorkflowLogsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GetWorkflowTriggers invokes getWorkflowTriggers operation.
+//
+// Retrieve a list of all available workflow triggers.
+//
+// GET /workflows/triggers
+func (c *Client) GetWorkflowTriggers(ctx context.Context) ([]WorkflowTriggerResponseDto, error) {
+	res, err := c.sendGetWorkflowTriggers(ctx)
+	return res, err
+}
+
+func (c *Client) sendGetWorkflowTriggers(ctx context.Context) (res []WorkflowTriggerResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("getWorkflowTriggers"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/workflows/triggers"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, GetWorkflowTriggersOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/workflows/triggers"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, GetWorkflowTriggersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, GetWorkflowTriggersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, GetWorkflowTriggersOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeGetWorkflowTriggersResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // LinkOAuthAccount invokes linkOAuthAccount operation.
+//
+// Link an OAuth account to the authenticated user.
 //
 // POST /oauth/link
 func (c *Client) LinkOAuthAccount(ctx context.Context, request *OAuthCallbackDto) (*UserAdminResponseDto, error) {
@@ -21258,7 +26487,14 @@ func (c *Client) sendLinkOAuthAccount(ctx context.Context, request *OAuthCallbac
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeLinkOAuthAccountResponse(resp)
@@ -21269,7 +26505,146 @@ func (c *Client) sendLinkOAuthAccount(ctx context.Context, request *OAuthCallbac
 	return result, nil
 }
 
+// ListDatabaseBackups invokes listDatabaseBackups operation.
+//
+// Get the list of the successful and failed backups.
+//
+// GET /admin/database-backups
+func (c *Client) ListDatabaseBackups(ctx context.Context) (*DatabaseBackupListResponseDto, error) {
+	res, err := c.sendListDatabaseBackups(ctx)
+	return res, err
+}
+
+func (c *Client) sendListDatabaseBackups(ctx context.Context) (res *DatabaseBackupListResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listDatabaseBackups"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/admin/database-backups"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListDatabaseBackupsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/database-backups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, ListDatabaseBackupsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, ListDatabaseBackupsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, ListDatabaseBackupsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeListDatabaseBackupsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // LockAuthSession invokes lockAuthSession operation.
+//
+// Remove elevated access to locked assets from the current session.
 //
 // POST /auth/session/lock
 func (c *Client) LockAuthSession(ctx context.Context) error {
@@ -21386,7 +26761,14 @@ func (c *Client) sendLockAuthSession(ctx context.Context) (res *LockAuthSessionN
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeLockAuthSessionResponse(resp)
@@ -21399,7 +26781,7 @@ func (c *Client) sendLockAuthSession(ctx context.Context) (res *LockAuthSessionN
 
 // LockSession invokes lockSession operation.
 //
-// This endpoint requires the `session.lock` permission.
+// Lock a specific session by id.
 //
 // POST /sessions/{id}/lock
 func (c *Client) LockSession(ctx context.Context, params LockSessionParams) error {
@@ -21535,7 +26917,14 @@ func (c *Client) sendLockSession(ctx context.Context, params LockSessionParams) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeLockSessionResponse(resp)
@@ -21547,6 +26936,8 @@ func (c *Client) sendLockSession(ctx context.Context, params LockSessionParams) 
 }
 
 // Login invokes login operation.
+//
+// Login with username and password and receive a session token.
 //
 // POST /auth/login
 func (c *Client) Login(ctx context.Context, request *LoginCredentialDto) (*LoginResponseDto, error) {
@@ -21609,7 +27000,14 @@ func (c *Client) sendLogin(ctx context.Context, request *LoginCredentialDto) (re
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeLoginResponse(resp)
@@ -21621,6 +27019,8 @@ func (c *Client) sendLogin(ctx context.Context, request *LoginCredentialDto) (re
 }
 
 // Logout invokes logout operation.
+//
+// Logout the current user and invalidate the session token.
 //
 // POST /auth/logout
 func (c *Client) Logout(ctx context.Context) (*LogoutResponseDto, error) {
@@ -21737,7 +27137,14 @@ func (c *Client) sendLogout(ctx context.Context) (res *LogoutResponseDto, err er
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeLogoutResponse(resp)
@@ -21748,9 +27155,176 @@ func (c *Client) sendLogout(ctx context.Context) (res *LogoutResponseDto, err er
 	return result, nil
 }
 
+// LogoutOAuth invokes logoutOAuth operation.
+//
+// Logout the OAuth account and invalidate the session specified by the sid claim or all sessions if
+// the sid claim is not present.
+//
+// POST /oauth/backchannel-logout
+func (c *Client) LogoutOAuth(ctx context.Context, request *OAuthBackchannelLogoutDto) error {
+	_, err := c.sendLogoutOAuth(ctx, request)
+	return err
+}
+
+func (c *Client) sendLogoutOAuth(ctx context.Context, request *OAuthBackchannelLogoutDto) (res *LogoutOAuthOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("logoutOAuth"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/oauth/backchannel-logout"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, LogoutOAuthOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/oauth/backchannel-logout"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeLogoutOAuthRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeLogoutOAuthResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// MaintenanceLogin invokes maintenanceLogin operation.
+//
+// Login with maintenance token or cookie to receive current information and perform further actions.
+//
+// POST /admin/maintenance/login
+func (c *Client) MaintenanceLogin(ctx context.Context, request *MaintenanceLoginDto) (*MaintenanceAuthDto, error) {
+	res, err := c.sendMaintenanceLogin(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendMaintenanceLogin(ctx context.Context, request *MaintenanceLoginDto) (res *MaintenanceAuthDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("maintenanceLogin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/admin/maintenance/login"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, MaintenanceLoginOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/maintenance/login"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeMaintenanceLoginRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeMaintenanceLoginResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // MemoriesStatistics invokes memoriesStatistics operation.
 //
-// This endpoint requires the `memory.statistics` permission.
+// Retrieve statistics about memories, such as total count and other relevant metrics.
 //
 // GET /memories/statistics
 func (c *Client) MemoriesStatistics(ctx context.Context, params MemoriesStatisticsParams) (*MemoryStatisticsResponseDto, error) {
@@ -21811,7 +27385,7 @@ func (c *Client) sendMemoriesStatistics(ctx context.Context, params MemoriesStat
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.For.Get(); ok {
-				return e.EncodeValue(conv.DateTimeToString(val))
+				return e.EncodeValue(conv.DateToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -21846,6 +27420,40 @@ func (c *Client) sendMemoriesStatistics(ctx context.Context, params MemoriesStat
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.IsTrashed.Get(); ok {
 				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "order" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "order",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Order.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "size" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "size",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Size.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -21939,7 +27547,14 @@ func (c *Client) sendMemoriesStatistics(ctx context.Context, params MemoriesStat
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeMemoriesStatisticsResponse(resp)
@@ -21952,7 +27567,7 @@ func (c *Client) sendMemoriesStatistics(ctx context.Context, params MemoriesStat
 
 // MergePerson invokes mergePerson operation.
 //
-// This endpoint requires the `person.merge` permission.
+// Merge a list of people into the person specified in the path parameter.
 //
 // POST /people/{id}/merge
 func (c *Client) MergePerson(ctx context.Context, request *MergePersonDto, params MergePersonParams) ([]BulkIdResponseDto, error) {
@@ -22091,7 +27706,14 @@ func (c *Client) sendMergePerson(ctx context.Context, request *MergePersonDto, p
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeMergePersonResponse(resp)
@@ -22103,6 +27725,8 @@ func (c *Client) sendMergePerson(ctx context.Context, request *MergePersonDto, p
 }
 
 // PingServer invokes pingServer operation.
+//
+// Pong.
 //
 // GET /server/ping
 func (c *Client) PingServer(ctx context.Context) (*ServerPingResponse, error) {
@@ -22162,7 +27786,14 @@ func (c *Client) sendPingServer(ctx context.Context) (res *ServerPingResponse, e
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodePingServerResponse(resp)
@@ -22175,7 +27806,7 @@ func (c *Client) sendPingServer(ctx context.Context) (res *ServerPingResponse, e
 
 // PlayAssetVideo invokes playAssetVideo operation.
 //
-// This endpoint requires the `asset.view` permission.
+// Streams the video file for the specified asset. This endpoint also supports byte range requests.
 //
 // GET /assets/{id}/video/playback
 func (c *Client) PlayAssetVideo(ctx context.Context, params PlayAssetVideoParams) (PlayAssetVideoOK, error) {
@@ -22349,7 +27980,14 @@ func (c *Client) sendPlayAssetVideo(ctx context.Context, params PlayAssetVideoPa
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodePlayAssetVideoResponse(resp)
@@ -22362,7 +28000,7 @@ func (c *Client) sendPlayAssetVideo(ctx context.Context, params PlayAssetVideoPa
 
 // ReassignFaces invokes reassignFaces operation.
 //
-// This endpoint requires the `person.reassign` permission.
+// Bulk reassign a list of faces to a different person.
 //
 // PUT /people/{id}/reassign
 func (c *Client) ReassignFaces(ctx context.Context, request *AssetFaceUpdateDto, params ReassignFacesParams) ([]PersonResponseDto, error) {
@@ -22501,7 +28139,14 @@ func (c *Client) sendReassignFaces(ctx context.Context, request *AssetFaceUpdate
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeReassignFacesResponse(resp)
@@ -22514,7 +28159,7 @@ func (c *Client) sendReassignFaces(ctx context.Context, request *AssetFaceUpdate
 
 // ReassignFacesById invokes reassignFacesById operation.
 //
-// This endpoint requires the `face.update` permission.
+// Re-assign the face provided in the body to the person identified by the id in the path parameter.
 //
 // PUT /faces/{id}
 func (c *Client) ReassignFacesById(ctx context.Context, request *FaceDto, params ReassignFacesByIdParams) (*PersonResponseDto, error) {
@@ -22652,7 +28297,14 @@ func (c *Client) sendReassignFacesById(ctx context.Context, request *FaceDto, pa
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeReassignFacesByIdResponse(resp)
@@ -22664,6 +28316,9 @@ func (c *Client) sendReassignFacesById(ctx context.Context, request *FaceDto, pa
 }
 
 // RedirectOAuthToMobile invokes redirectOAuthToMobile operation.
+//
+// Requests to this URL are automatically forwarded to the mobile app, and is used in some cases for
+// OAuth redirecting.
 //
 // GET /oauth/mobile-redirect
 func (c *Client) RedirectOAuthToMobile(ctx context.Context) error {
@@ -22723,7 +28378,14 @@ func (c *Client) sendRedirectOAuthToMobile(ctx context.Context) (res *RedirectOA
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRedirectOAuthToMobileResponse(resp)
@@ -22734,9 +28396,165 @@ func (c *Client) sendRedirectOAuthToMobile(ctx context.Context) (res *RedirectOA
 	return result, nil
 }
 
+// RemoveAssetEdits invokes removeAssetEdits operation.
+//
+// Removes all edit actions (crop, rotate, mirror) associated with the specified asset.
+//
+// DELETE /assets/{id}/edits
+func (c *Client) RemoveAssetEdits(ctx context.Context, params RemoveAssetEditsParams) error {
+	_, err := c.sendRemoveAssetEdits(ctx, params)
+	return err
+}
+
+func (c *Client) sendRemoveAssetEdits(ctx context.Context, params RemoveAssetEditsParams) (res *RemoveAssetEditsNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("removeAssetEdits"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/assets/{id}/edits"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, RemoveAssetEditsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/assets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/edits"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, RemoveAssetEditsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, RemoveAssetEditsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, RemoveAssetEditsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeRemoveAssetEditsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // RemoveAssetFromAlbum invokes removeAssetFromAlbum operation.
 //
-// This endpoint requires the `albumAsset.delete` permission.
+// Remove multiple assets from a specific album by its ID.
 //
 // DELETE /albums/{id}/assets
 func (c *Client) RemoveAssetFromAlbum(ctx context.Context, request *BulkIdsDto, params RemoveAssetFromAlbumParams) ([]BulkIdResponseDto, error) {
@@ -22875,7 +28693,14 @@ func (c *Client) sendRemoveAssetFromAlbum(ctx context.Context, request *BulkIdsD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemoveAssetFromAlbumResponse(resp)
@@ -22888,7 +28713,7 @@ func (c *Client) sendRemoveAssetFromAlbum(ctx context.Context, request *BulkIdsD
 
 // RemoveAssetFromStack invokes removeAssetFromStack operation.
 //
-// This endpoint requires the `stack.update` permission.
+// Remove a specific asset from a stack by providing the stack ID and asset ID.
 //
 // DELETE /stacks/{id}/assets/{assetId}
 func (c *Client) RemoveAssetFromStack(ctx context.Context, params RemoveAssetFromStackParams) error {
@@ -23042,7 +28867,14 @@ func (c *Client) sendRemoveAssetFromStack(ctx context.Context, params RemoveAsse
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemoveAssetFromStackResponse(resp)
@@ -23055,7 +28887,7 @@ func (c *Client) sendRemoveAssetFromStack(ctx context.Context, params RemoveAsse
 
 // RemoveMemoryAssets invokes removeMemoryAssets operation.
 //
-// This endpoint requires the `memoryAsset.delete` permission.
+// Remove a list of asset IDs from a specific memory.
 //
 // DELETE /memories/{id}/assets
 func (c *Client) RemoveMemoryAssets(ctx context.Context, request *BulkIdsDto, params RemoveMemoryAssetsParams) ([]BulkIdResponseDto, error) {
@@ -23194,7 +29026,14 @@ func (c *Client) sendRemoveMemoryAssets(ctx context.Context, request *BulkIdsDto
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemoveMemoryAssetsResponse(resp)
@@ -23207,7 +29046,7 @@ func (c *Client) sendRemoveMemoryAssets(ctx context.Context, request *BulkIdsDto
 
 // RemovePartner invokes removePartner operation.
 //
-// This endpoint requires the `partner.delete` permission.
+// Stop sharing assets with a partner.
 //
 // DELETE /partners/{id}
 func (c *Client) RemovePartner(ctx context.Context, params RemovePartnerParams) error {
@@ -23342,7 +29181,14 @@ func (c *Client) sendRemovePartner(ctx context.Context, params RemovePartnerPara
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemovePartnerResponse(resp)
@@ -23355,7 +29201,7 @@ func (c *Client) sendRemovePartner(ctx context.Context, params RemovePartnerPara
 
 // RemoveSharedLink invokes removeSharedLink operation.
 //
-// This endpoint requires the `sharedLink.delete` permission.
+// Delete a specific shared link by its ID.
 //
 // DELETE /shared-links/{id}
 func (c *Client) RemoveSharedLink(ctx context.Context, params RemoveSharedLinkParams) error {
@@ -23490,7 +29336,14 @@ func (c *Client) sendRemoveSharedLink(ctx context.Context, params RemoveSharedLi
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemoveSharedLinkResponse(resp)
@@ -23502,6 +29355,9 @@ func (c *Client) sendRemoveSharedLink(ctx context.Context, params RemoveSharedLi
 }
 
 // RemoveSharedLinkAssets invokes removeSharedLinkAssets operation.
+//
+// Remove assets from a specific shared link by its ID. This endpoint is only relevant for shared link
+// of type individual.
 //
 // DELETE /shared-links/{id}/assets
 func (c *Client) RemoveSharedLinkAssets(ctx context.Context, request *AssetIdsDto, params RemoveSharedLinkAssetsParams) ([]AssetIdsResponseDto, error) {
@@ -23568,44 +29424,6 @@ func (c *Client) sendRemoveSharedLinkAssets(ctx context.Context, request *AssetI
 	}
 	pathParts[2] = "/assets"
 	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "key" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "key",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Key.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "slug" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "slug",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Slug.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "DELETE", u)
@@ -23678,7 +29496,14 @@ func (c *Client) sendRemoveSharedLinkAssets(ctx context.Context, request *AssetI
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemoveSharedLinkAssetsResponse(resp)
@@ -23691,7 +29516,7 @@ func (c *Client) sendRemoveSharedLinkAssets(ctx context.Context, request *AssetI
 
 // RemoveUserFromAlbum invokes removeUserFromAlbum operation.
 //
-// This endpoint requires the `albumUser.delete` permission.
+// Remove a user from an album. Use an ID of "me" to leave a shared album.
 //
 // DELETE /albums/{id}/user/{userId}
 func (c *Client) RemoveUserFromAlbum(ctx context.Context, params RemoveUserFromAlbumParams) error {
@@ -23845,7 +29670,14 @@ func (c *Client) sendRemoveUserFromAlbum(ctx context.Context, params RemoveUserF
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRemoveUserFromAlbumResponse(resp)
@@ -23856,203 +29688,9 @@ func (c *Client) sendRemoveUserFromAlbum(ctx context.Context, params RemoveUserF
 	return result, nil
 }
 
-// ReplaceAsset invokes replaceAsset operation.
-//
-// This property was deprecated in v1.142.0. Replace the asset with new file, without changing its id.
-//
-//	This endpoint requires the `asset.replace` permission.
-//
-// Deprecated: schema marks this operation as deprecated.
-//
-// PUT /assets/{id}/original
-func (c *Client) ReplaceAsset(ctx context.Context, request *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (*AssetMediaResponseDto, error) {
-	res, err := c.sendReplaceAsset(ctx, request, params)
-	return res, err
-}
-
-func (c *Client) sendReplaceAsset(ctx context.Context, request *AssetMediaReplaceDtoMultipart, params ReplaceAssetParams) (res *AssetMediaResponseDto, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("replaceAsset"),
-		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.URLTemplateKey.String("/assets/{id}/original"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, ReplaceAssetOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/assets/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.UUIDToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/original"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeQueryParams"
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "key" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "key",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Key.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "slug" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "slug",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Slug.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "PUT", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeReplaceAssetRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, ReplaceAssetOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Bearer\"")
-			}
-		}
-		{
-			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, ReplaceAssetOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 1
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"Cookie\"")
-			}
-		}
-		{
-			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, ReplaceAssetOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 2
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"APIKey\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-				{0b00000010},
-				{0b00000100},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	stage = "DecodeResponse"
-	result, err := decodeReplaceAssetResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // ResetPinCode invokes resetPinCode operation.
 //
-// This endpoint requires the `pinCode.delete` permission.
+// Reset the pin code for the current user by providing the account password.
 //
 // DELETE /auth/pin-code
 func (c *Client) ResetPinCode(ctx context.Context, request *PinCodeResetDto) error {
@@ -24172,7 +29810,14 @@ func (c *Client) sendResetPinCode(ctx context.Context, request *PinCodeResetDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeResetPinCodeResponse(resp)
@@ -24183,9 +29828,149 @@ func (c *Client) sendResetPinCode(ctx context.Context, request *PinCodeResetDto)
 	return result, nil
 }
 
+// ResolveDuplicates invokes resolveDuplicates operation.
+//
+// Resolve duplicate groups by synchronizing metadata across assets and deleting/trashing duplicates.
+//
+// POST /duplicates/resolve
+func (c *Client) ResolveDuplicates(ctx context.Context, request *DuplicateResolveDto) ([]BulkIdResponseDto, error) {
+	res, err := c.sendResolveDuplicates(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendResolveDuplicates(ctx context.Context, request *DuplicateResolveDto) (res []BulkIdResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("resolveDuplicates"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/duplicates/resolve"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ResolveDuplicatesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/duplicates/resolve"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeResolveDuplicatesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, ResolveDuplicatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, ResolveDuplicatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, ResolveDuplicatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeResolveDuplicatesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // RestoreAssets invokes restoreAssets operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Restore specific assets from the trash.
 //
 // POST /trash/restore/assets
 func (c *Client) RestoreAssets(ctx context.Context, request *BulkIdsDto) (*TrashResponseDto, error) {
@@ -24305,7 +30090,14 @@ func (c *Client) sendRestoreAssets(ctx context.Context, request *BulkIdsDto) (re
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRestoreAssetsResponse(resp)
@@ -24318,7 +30110,7 @@ func (c *Client) sendRestoreAssets(ctx context.Context, request *BulkIdsDto) (re
 
 // RestoreTrash invokes restoreTrash operation.
 //
-// This endpoint requires the `asset.delete` permission.
+// Restore all items in the trash.
 //
 // POST /trash/restore
 func (c *Client) RestoreTrash(ctx context.Context) (*TrashResponseDto, error) {
@@ -24435,7 +30227,14 @@ func (c *Client) sendRestoreTrash(ctx context.Context) (res *TrashResponseDto, e
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRestoreTrashResponse(resp)
@@ -24448,7 +30247,7 @@ func (c *Client) sendRestoreTrash(ctx context.Context) (res *TrashResponseDto, e
 
 // RestoreUserAdmin invokes restoreUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.delete` permission.
+// Restore a previously deleted user.
 //
 // POST /admin/users/{id}/restore
 func (c *Client) RestoreUserAdmin(ctx context.Context, params RestoreUserAdminParams) (*UserAdminResponseDto, error) {
@@ -24584,7 +30383,14 @@ func (c *Client) sendRestoreUserAdmin(ctx context.Context, params RestoreUserAdm
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRestoreUserAdminResponse(resp)
@@ -24596,6 +30402,8 @@ func (c *Client) sendRestoreUserAdmin(ctx context.Context, params RestoreUserAdm
 }
 
 // ReverseGeocode invokes reverseGeocode operation.
+//
+// Retrieve location information (e.g., city, country) for given latitude and longitude coordinates.
 //
 // GET /map/reverse-geocode
 func (c *Client) ReverseGeocode(ctx context.Context, params ReverseGeocodeParams) ([]MapReverseGeocodeResponseDto, error) {
@@ -24744,7 +30552,14 @@ func (c *Client) sendReverseGeocode(ctx context.Context, params ReverseGeocodePa
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeReverseGeocodeResponse(resp)
@@ -24756,6 +30571,8 @@ func (c *Client) sendReverseGeocode(ctx context.Context, params ReverseGeocodePa
 }
 
 // RunAssetJobs invokes runAssetJobs operation.
+//
+// Run a specific job on a set of assets.
 //
 // POST /assets/jobs
 func (c *Client) RunAssetJobs(ctx context.Context, request *AssetJobsDto) error {
@@ -24875,7 +30692,14 @@ func (c *Client) sendRunAssetJobs(ctx context.Context, request *AssetJobsDto) (r
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeRunAssetJobsResponse(resp)
@@ -24886,9 +30710,170 @@ func (c *Client) sendRunAssetJobs(ctx context.Context, request *AssetJobsDto) (r
 	return result, nil
 }
 
+// RunQueueCommandLegacy invokes runQueueCommandLegacy operation.
+//
+// Queue all assets for a specific job type. Defaults to only queueing assets that have not yet been
+// processed, but the force command can be used to re-process all assets.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// PUT /jobs/{name}
+func (c *Client) RunQueueCommandLegacy(ctx context.Context, request *QueueCommandDto, params RunQueueCommandLegacyParams) (*QueueResponseLegacyDto, error) {
+	res, err := c.sendRunQueueCommandLegacy(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendRunQueueCommandLegacy(ctx context.Context, request *QueueCommandDto, params RunQueueCommandLegacyParams) (res *QueueResponseLegacyDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("runQueueCommandLegacy"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/jobs/{name}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, RunQueueCommandLegacyOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/jobs/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Name)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeRunQueueCommandLegacyRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, RunQueueCommandLegacyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, RunQueueCommandLegacyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, RunQueueCommandLegacyOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeRunQueueCommandLegacyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // ScanLibrary invokes scanLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.update` permission.
+// Queue a scan for the external library to find and import new assets.
 //
 // POST /libraries/{id}/scan
 func (c *Client) ScanLibrary(ctx context.Context, params ScanLibraryParams) error {
@@ -25024,7 +31009,14 @@ func (c *Client) sendScanLibrary(ctx context.Context, params ScanLibraryParams) 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeScanLibraryResponse(resp)
@@ -25037,7 +31029,7 @@ func (c *Client) sendScanLibrary(ctx context.Context, params ScanLibraryParams) 
 
 // SearchAssetStatistics invokes searchAssetStatistics operation.
 //
-// This endpoint requires the `asset.statistics` permission.
+// Retrieve statistical data about assets based on search criteria, such as the total matching count.
 //
 // POST /search/statistics
 func (c *Client) SearchAssetStatistics(ctx context.Context, request *StatisticsSearchDto) (*SearchStatisticsResponseDto, error) {
@@ -25157,7 +31149,14 @@ func (c *Client) sendSearchAssetStatistics(ctx context.Context, request *Statist
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchAssetStatisticsResponse(resp)
@@ -25170,15 +31169,15 @@ func (c *Client) sendSearchAssetStatistics(ctx context.Context, request *Statist
 
 // SearchAssets invokes searchAssets operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Search for assets based on various metadata criteria.
 //
 // POST /search/metadata
-func (c *Client) SearchAssets(ctx context.Context, request *MetadataSearchDto) (*SearchResponseDto, error) {
-	res, err := c.sendSearchAssets(ctx, request)
+func (c *Client) SearchAssets(ctx context.Context, request *MetadataSearchDto, params SearchAssetsParams) (*SearchResponseDto, error) {
+	res, err := c.sendSearchAssets(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDto) (res *SearchResponseDto, err error) {
+func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDto, params SearchAssetsParams) (res *SearchResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("searchAssets"),
 		semconv.HTTPRequestMethodKey.String("POST"),
@@ -25218,6 +31217,44 @@ func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDt
 	var pathParts [1]string
 	pathParts[0] = "/search/metadata"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	stage = "EncodeRequest"
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -25290,7 +31327,14 @@ func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchAssetsResponse(resp)
@@ -25303,7 +31347,7 @@ func (c *Client) sendSearchAssets(ctx context.Context, request *MetadataSearchDt
 
 // SearchLargeAssets invokes searchLargeAssets operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Search for assets that are considered large based on specified criteria.
 //
 // POST /search/large-assets
 func (c *Client) SearchLargeAssets(ctx context.Context, params SearchLargeAssetsParams) ([]AssetResponseDto, error) {
@@ -25442,23 +31486,6 @@ func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAs
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.CreatedBefore.Get(); ok {
 				return e.EncodeValue(conv.DateTimeToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "deviceId" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "deviceId",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.DeviceId.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -25688,7 +31715,7 @@ func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAs
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Rating.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -25705,7 +31732,7 @@ func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAs
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.Size.Get(); ok {
-				return e.EncodeValue(conv.Float64ToString(val))
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -25995,7 +32022,14 @@ func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAs
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchLargeAssetsResponse(resp)
@@ -26008,7 +32042,8 @@ func (c *Client) sendSearchLargeAssets(ctx context.Context, params SearchLargeAs
 
 // SearchMemories invokes searchMemories operation.
 //
-// This endpoint requires the `memory.read` permission.
+// Retrieve a list of memories. Memories are sorted descending by creation date by default, although
+// they can also be sorted in ascending order, or randomly.
 //
 // GET /memories
 func (c *Client) SearchMemories(ctx context.Context, params SearchMemoriesParams) ([]MemoryResponseDto, error) {
@@ -26069,7 +32104,7 @@ func (c *Client) sendSearchMemories(ctx context.Context, params SearchMemoriesPa
 
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.For.Get(); ok {
-				return e.EncodeValue(conv.DateTimeToString(val))
+				return e.EncodeValue(conv.DateToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -26104,6 +32139,40 @@ func (c *Client) sendSearchMemories(ctx context.Context, params SearchMemoriesPa
 		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
 			if val, ok := params.IsTrashed.Get(); ok {
 				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "order" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "order",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Order.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "size" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "size",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Size.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
 			}
 			return nil
 		}); err != nil {
@@ -26197,7 +32266,14 @@ func (c *Client) sendSearchMemories(ctx context.Context, params SearchMemoriesPa
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchMemoriesResponse(resp)
@@ -26210,7 +32286,7 @@ func (c *Client) sendSearchMemories(ctx context.Context, params SearchMemoriesPa
 
 // SearchPerson invokes searchPerson operation.
 //
-// This endpoint requires the `person.read` permission.
+// Search for people by name.
 //
 // GET /search/person
 func (c *Client) SearchPerson(ctx context.Context, params SearchPersonParams) ([]PersonResponseDto, error) {
@@ -26362,7 +32438,14 @@ func (c *Client) sendSearchPerson(ctx context.Context, params SearchPersonParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchPersonResponse(resp)
@@ -26375,7 +32458,7 @@ func (c *Client) sendSearchPerson(ctx context.Context, params SearchPersonParams
 
 // SearchPlaces invokes searchPlaces operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Search for places by name.
 //
 // GET /search/places
 func (c *Client) SearchPlaces(ctx context.Context, params SearchPlacesParams) ([]PlacesResponseDto, error) {
@@ -26510,7 +32593,14 @@ func (c *Client) sendSearchPlaces(ctx context.Context, params SearchPlacesParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchPlacesResponse(resp)
@@ -26521,9 +32611,683 @@ func (c *Client) sendSearchPlaces(ctx context.Context, params SearchPlacesParams
 	return result, nil
 }
 
+// SearchPluginMethods invokes searchPluginMethods operation.
+//
+// Retrieve a list of plugin methods.
+//
+// GET /plugins/methods
+func (c *Client) SearchPluginMethods(ctx context.Context, params SearchPluginMethodsParams) ([]PluginMethodResponseDto, error) {
+	res, err := c.sendSearchPluginMethods(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendSearchPluginMethods(ctx context.Context, params SearchPluginMethodsParams) (res []PluginMethodResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchPluginMethods"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/plugins/methods"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchPluginMethodsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/plugins/methods"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "description" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "description",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Description.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "enabled" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "enabled",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Enabled.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "id" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.ID.Get(); ok {
+				return e.EncodeValue(conv.UUIDToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "name" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "name",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Name.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "pluginName" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "pluginName",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PluginName.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "pluginVersion" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "pluginVersion",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PluginVersion.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "title" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "title",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Title.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "trigger" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "trigger",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Trigger.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "type" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "type",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Type.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SearchPluginMethodsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SearchPluginMethodsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SearchPluginMethodsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeSearchPluginMethodsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// SearchPluginTemplates invokes searchPluginTemplates operation.
+//
+// Retrieve workflow templates provided by installed plugins.
+//
+// GET /plugins/templates
+func (c *Client) SearchPluginTemplates(ctx context.Context) ([]PluginTemplateResponseDto, error) {
+	res, err := c.sendSearchPluginTemplates(ctx)
+	return res, err
+}
+
+func (c *Client) sendSearchPluginTemplates(ctx context.Context) (res []PluginTemplateResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchPluginTemplates"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/plugins/templates"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchPluginTemplatesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/plugins/templates"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SearchPluginTemplatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SearchPluginTemplatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SearchPluginTemplatesOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeSearchPluginTemplatesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// SearchPlugins invokes searchPlugins operation.
+//
+// Retrieve a list of plugins available to the authenticated user.
+//
+// GET /plugins
+func (c *Client) SearchPlugins(ctx context.Context, params SearchPluginsParams) ([]PluginResponseDto, error) {
+	res, err := c.sendSearchPlugins(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendSearchPlugins(ctx context.Context, params SearchPluginsParams) (res []PluginResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("searchPlugins"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/plugins"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchPluginsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/plugins"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "description" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "description",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Description.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "enabled" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "enabled",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Enabled.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "id" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.ID.Get(); ok {
+				return e.EncodeValue(conv.UUIDToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "name" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "name",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Name.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "title" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "title",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Title.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "version" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "version",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Version.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SearchPluginsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SearchPluginsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SearchPluginsOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeSearchPluginsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // SearchRandom invokes searchRandom operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Retrieve a random selection of assets based on the provided criteria.
 //
 // POST /search/random
 func (c *Client) SearchRandom(ctx context.Context, request *RandomSearchDto) ([]AssetResponseDto, error) {
@@ -26643,7 +33407,14 @@ func (c *Client) sendSearchRandom(ctx context.Context, request *RandomSearchDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchRandomResponse(resp)
@@ -26656,7 +33427,7 @@ func (c *Client) sendSearchRandom(ctx context.Context, request *RandomSearchDto)
 
 // SearchSmart invokes searchSmart operation.
 //
-// This endpoint requires the `asset.read` permission.
+// Perform a smart search for assets by using machine learning vectors to determine relevance.
 //
 // POST /search/smart
 func (c *Client) SearchSmart(ctx context.Context, request *SmartSearchDto) (*SearchResponseDto, error) {
@@ -26776,7 +33547,14 @@ func (c *Client) sendSearchSmart(ctx context.Context, request *SmartSearchDto) (
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchSmartResponse(resp)
@@ -26789,7 +33567,7 @@ func (c *Client) sendSearchSmart(ctx context.Context, request *SmartSearchDto) (
 
 // SearchStacks invokes searchStacks operation.
 //
-// This endpoint requires the `stack.read` permission.
+// Retrieve a list of stacks.
 //
 // GET /stacks
 func (c *Client) SearchStacks(ctx context.Context, params SearchStacksParams) ([]StackResponseDto, error) {
@@ -26927,7 +33705,14 @@ func (c *Client) sendSearchStacks(ctx context.Context, params SearchStacksParams
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchStacksResponse(resp)
@@ -26940,7 +33725,7 @@ func (c *Client) sendSearchStacks(ctx context.Context, params SearchStacksParams
 
 // SearchUsers invokes searchUsers operation.
 //
-// This endpoint requires the `user.read` permission.
+// Retrieve a list of all users on the server.
 //
 // GET /users
 func (c *Client) SearchUsers(ctx context.Context) ([]UserResponseDto, error) {
@@ -27057,7 +33842,14 @@ func (c *Client) sendSearchUsers(ctx context.Context) (res []UserResponseDto, er
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchUsersResponse(resp)
@@ -27070,7 +33862,7 @@ func (c *Client) sendSearchUsers(ctx context.Context) (res []UserResponseDto, er
 
 // SearchUsersAdmin invokes searchUsersAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.read` permission.
+// Search for users.
 //
 // GET /admin/users
 func (c *Client) SearchUsersAdmin(ctx context.Context, params SearchUsersAdminParams) ([]UserAdminResponseDto, error) {
@@ -27225,7 +34017,14 @@ func (c *Client) sendSearchUsersAdmin(ctx context.Context, params SearchUsersAdm
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSearchUsersAdminResponse(resp)
@@ -27236,21 +34035,21 @@ func (c *Client) sendSearchUsersAdmin(ctx context.Context, params SearchUsersAdm
 	return result, nil
 }
 
-// SendJobCommand invokes sendJobCommand operation.
+// SearchWorkflows invokes searchWorkflows operation.
 //
-// This endpoint is an admin-only route, and requires the `job.create` permission.
+// Retrieve a list of workflows available to the authenticated user.
 //
-// PUT /jobs/{id}
-func (c *Client) SendJobCommand(ctx context.Context, request *JobCommandDto, params SendJobCommandParams) (*JobStatusDto, error) {
-	res, err := c.sendSendJobCommand(ctx, request, params)
+// GET /workflows
+func (c *Client) SearchWorkflows(ctx context.Context, params SearchWorkflowsParams) ([]WorkflowResponseDto, error) {
+	res, err := c.sendSearchWorkflows(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto, params SendJobCommandParams) (res *JobStatusDto, err error) {
+func (c *Client) sendSearchWorkflows(ctx context.Context, params SearchWorkflowsParams) (res []WorkflowResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("sendJobCommand"),
-		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.URLTemplateKey.String("/jobs/{id}"),
+		otelogen.OperationID("searchWorkflows"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/workflows"),
 	}
 	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
@@ -27266,7 +34065,7 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
 
 	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, SendJobCommandOperation,
+	ctx, span := c.cfg.Tracer.Start(ctx, SearchWorkflowsOperation,
 		trace.WithAttributes(otelAttrs...),
 		clientSpanKind,
 	)
@@ -27283,35 +34082,120 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [2]string
-	pathParts[0] = "/jobs/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.StringToString(string(params.ID)))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
+	var pathParts [1]string
+	pathParts[0] = "/workflows"
 	uri.AddPathParts(u, pathParts[:]...)
 
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "description" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "description",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Description.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "enabled" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "enabled",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Enabled.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "id" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "id",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.ID.Get(); ok {
+				return e.EncodeValue(conv.UUIDToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "logging" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "logging",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Logging.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "name" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "name",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Name.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "trigger" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "trigger",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Trigger.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
 	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "PUT", u)
+	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeSendJobCommandRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
 	}
 
 	{
@@ -27319,7 +34203,7 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 		var satisfied bitset
 		{
 			stage = "Security:Bearer"
-			switch err := c.securityBearer(ctx, SendJobCommandOperation, r); {
+			switch err := c.securityBearer(ctx, SearchWorkflowsOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -27330,7 +34214,7 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 		}
 		{
 			stage = "Security:Cookie"
-			switch err := c.securityCookie(ctx, SendJobCommandOperation, r); {
+			switch err := c.securityCookie(ctx, SearchWorkflowsOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 1
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -27341,7 +34225,7 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 		}
 		{
 			stage = "Security:APIKey"
-			switch err := c.securityAPIKey(ctx, SendJobCommandOperation, r); {
+			switch err := c.securityAPIKey(ctx, SearchWorkflowsOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 2
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -27376,10 +34260,17 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
-	result, err := decodeSendJobCommandResponse(resp)
+	result, err := decodeSearchWorkflowsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -27389,7 +34280,8 @@ func (c *Client) sendSendJobCommand(ctx context.Context, request *JobCommandDto,
 
 // SendSyncAck invokes sendSyncAck operation.
 //
-// This endpoint requires the `syncCheckpoint.update` permission.
+// Send a list of synchronization acknowledgements to confirm that the latest changes have been
+// received.
 //
 // POST /sync/ack
 func (c *Client) SendSyncAck(ctx context.Context, request *SyncAckSetDto) error {
@@ -27509,7 +34401,14 @@ func (c *Client) sendSendSyncAck(ctx context.Context, request *SyncAckSetDto) (r
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSendSyncAckResponse(resp)
@@ -27521,6 +34420,8 @@ func (c *Client) sendSendSyncAck(ctx context.Context, request *SyncAckSetDto) (r
 }
 
 // SendTestEmailAdmin invokes sendTestEmailAdmin operation.
+//
+// Send a test email using the provided SMTP configuration.
 //
 // POST /admin/notifications/test-email
 func (c *Client) SendTestEmailAdmin(ctx context.Context, request *SystemConfigSmtpDto) (*TestEmailResponseDto, error) {
@@ -27640,7 +34541,14 @@ func (c *Client) sendSendTestEmailAdmin(ctx context.Context, request *SystemConf
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSendTestEmailAdminResponse(resp)
@@ -27651,17 +34559,157 @@ func (c *Client) sendSendTestEmailAdmin(ctx context.Context, request *SystemConf
 	return result, nil
 }
 
+// SetMaintenanceMode invokes setMaintenanceMode operation.
+//
+// Put Immich into or take it out of maintenance mode.
+//
+// POST /admin/maintenance
+func (c *Client) SetMaintenanceMode(ctx context.Context, request *SetMaintenanceModeDto) error {
+	_, err := c.sendSetMaintenanceMode(ctx, request)
+	return err
+}
+
+func (c *Client) sendSetMaintenanceMode(ctx context.Context, request *SetMaintenanceModeDto) (res *SetMaintenanceModeCreated, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("setMaintenanceMode"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/admin/maintenance"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SetMaintenanceModeOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/maintenance"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeSetMaintenanceModeRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SetMaintenanceModeOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SetMaintenanceModeOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SetMaintenanceModeOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeSetMaintenanceModeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // SetServerLicense invokes setServerLicense operation.
 //
-// This endpoint is an admin-only route, and requires the `serverLicense.update` permission.
+// Validate and set the server product key if successful.
 //
 // PUT /server/license
-func (c *Client) SetServerLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error) {
+func (c *Client) SetServerLicense(ctx context.Context, request *LicenseKeyDto) (*UserLicense, error) {
 	res, err := c.sendSetServerLicense(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendSetServerLicense(ctx context.Context, request *LicenseKeyDto) (res *LicenseResponseDto, err error) {
+func (c *Client) sendSetServerLicense(ctx context.Context, request *LicenseKeyDto) (res *UserLicense, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("setServerLicense"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
@@ -27773,7 +34821,14 @@ func (c *Client) sendSetServerLicense(ctx context.Context, request *LicenseKeyDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSetServerLicenseResponse(resp)
@@ -27786,15 +34841,15 @@ func (c *Client) sendSetServerLicense(ctx context.Context, request *LicenseKeyDt
 
 // SetUserLicense invokes setUserLicense operation.
 //
-// This endpoint requires the `userLicense.update` permission.
+// Register a product key for the current user.
 //
 // PUT /users/me/license
-func (c *Client) SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*LicenseResponseDto, error) {
+func (c *Client) SetUserLicense(ctx context.Context, request *LicenseKeyDto) (*UserLicense, error) {
 	res, err := c.sendSetUserLicense(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto) (res *LicenseResponseDto, err error) {
+func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto) (res *UserLicense, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("setUserLicense"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
@@ -27906,7 +34961,14 @@ func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSetUserLicenseResponse(resp)
@@ -27919,7 +34981,7 @@ func (c *Client) sendSetUserLicense(ctx context.Context, request *LicenseKeyDto)
 
 // SetUserOnboarding invokes setUserOnboarding operation.
 //
-// This endpoint requires the `userOnboarding.update` permission.
+// Update the onboarding status of the current user.
 //
 // PUT /users/me/onboarding
 func (c *Client) SetUserOnboarding(ctx context.Context, request *OnboardingDto) (*OnboardingResponseDto, error) {
@@ -28039,7 +35101,14 @@ func (c *Client) sendSetUserOnboarding(ctx context.Context, request *OnboardingD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSetUserOnboardingResponse(resp)
@@ -28052,7 +35121,7 @@ func (c *Client) sendSetUserOnboarding(ctx context.Context, request *OnboardingD
 
 // SetupPinCode invokes setupPinCode operation.
 //
-// This endpoint requires the `pinCode.create` permission.
+// Setup a new pin code for the current user.
 //
 // POST /auth/pin-code
 func (c *Client) SetupPinCode(ctx context.Context, request *PinCodeSetupDto) error {
@@ -28172,7 +35241,14 @@ func (c *Client) sendSetupPinCode(ctx context.Context, request *PinCodeSetupDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSetupPinCodeResponse(resp)
@@ -28183,7 +35259,187 @@ func (c *Client) sendSetupPinCode(ctx context.Context, request *PinCodeSetupDto)
 	return result, nil
 }
 
+// SharedLinkLogin invokes sharedLinkLogin operation.
+//
+// Login to a password protected shared link.
+//
+// POST /shared-links/login
+func (c *Client) SharedLinkLogin(ctx context.Context, request *SharedLinkLoginDto, params SharedLinkLoginParams) (*SharedLinkResponseDto, error) {
+	res, err := c.sendSharedLinkLogin(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendSharedLinkLogin(ctx context.Context, request *SharedLinkLoginDto, params SharedLinkLoginParams) (res *SharedLinkResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("sharedLinkLogin"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/shared-links/login"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, SharedLinkLoginOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/shared-links/login"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "key" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "key",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Key.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "slug" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "slug",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Slug.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeSharedLinkLoginRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, SharedLinkLoginOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, SharedLinkLoginOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, SharedLinkLoginOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeSharedLinkLoginResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // SignUpAdmin invokes signUpAdmin operation.
+//
+// Create the first admin user in the system.
 //
 // POST /auth/admin-sign-up
 func (c *Client) SignUpAdmin(ctx context.Context, request *SignUpDto) (*UserAdminResponseDto, error) {
@@ -28246,7 +35502,14 @@ func (c *Client) sendSignUpAdmin(ctx context.Context, request *SignUpDto) (res *
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeSignUpAdminResponse(resp)
@@ -28257,7 +35520,89 @@ func (c *Client) sendSignUpAdmin(ctx context.Context, request *SignUpDto) (res *
 	return result, nil
 }
 
+// StartDatabaseRestoreFlow invokes startDatabaseRestoreFlow operation.
+//
+// Put Immich into maintenance mode to restore a backup (Immich must not be configured).
+//
+// POST /admin/database-backups/start-restore
+func (c *Client) StartDatabaseRestoreFlow(ctx context.Context) error {
+	_, err := c.sendStartDatabaseRestoreFlow(ctx)
+	return err
+}
+
+func (c *Client) sendStartDatabaseRestoreFlow(ctx context.Context) (res *StartDatabaseRestoreFlowCreated, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("startDatabaseRestoreFlow"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/admin/database-backups/start-restore"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, StartDatabaseRestoreFlowOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/database-backups/start-restore"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeStartDatabaseRestoreFlowResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // StartOAuth invokes startOAuth operation.
+//
+// Initiate the OAuth authorization process.
 //
 // POST /oauth/authorize
 func (c *Client) StartOAuth(ctx context.Context, request *OAuthConfigDto) (*OAuthAuthorizeResponseDto, error) {
@@ -28320,7 +35665,14 @@ func (c *Client) sendStartOAuth(ctx context.Context, request *OAuthConfigDto) (r
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeStartOAuthResponse(resp)
@@ -28333,7 +35685,7 @@ func (c *Client) sendStartOAuth(ctx context.Context, request *OAuthConfigDto) (r
 
 // TagAssets invokes tagAssets operation.
 //
-// This endpoint requires the `tag.asset` permission.
+// Add a tag to all the specified assets.
 //
 // PUT /tags/{id}/assets
 func (c *Client) TagAssets(ctx context.Context, request *BulkIdsDto, params TagAssetsParams) ([]BulkIdResponseDto, error) {
@@ -28472,7 +35824,14 @@ func (c *Client) sendTagAssets(ctx context.Context, request *BulkIdsDto, params 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeTagAssetsResponse(resp)
@@ -28485,7 +35844,7 @@ func (c *Client) sendTagAssets(ctx context.Context, request *BulkIdsDto, params 
 
 // UnlinkAllOAuthAccountsAdmin invokes unlinkAllOAuthAccountsAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminAuth.unlinkAll` permission.
+// Unlinks all OAuth accounts associated with user accounts in the system.
 //
 // POST /admin/auth/unlink-all
 func (c *Client) UnlinkAllOAuthAccountsAdmin(ctx context.Context) error {
@@ -28602,7 +35961,14 @@ func (c *Client) sendUnlinkAllOAuthAccountsAdmin(ctx context.Context) (res *Unli
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUnlinkAllOAuthAccountsAdminResponse(resp)
@@ -28614,6 +35980,8 @@ func (c *Client) sendUnlinkAllOAuthAccountsAdmin(ctx context.Context) (res *Unli
 }
 
 // UnlinkOAuthAccount invokes unlinkOAuthAccount operation.
+//
+// Unlink the OAuth account from the authenticated user.
 //
 // POST /oauth/unlink
 func (c *Client) UnlinkOAuthAccount(ctx context.Context) (*UserAdminResponseDto, error) {
@@ -28730,7 +36098,14 @@ func (c *Client) sendUnlinkOAuthAccount(ctx context.Context) (res *UserAdminResp
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUnlinkOAuthAccountResponse(resp)
@@ -28742,6 +36117,8 @@ func (c *Client) sendUnlinkOAuthAccount(ctx context.Context) (res *UserAdminResp
 }
 
 // UnlockAuthSession invokes unlockAuthSession operation.
+//
+// Temporarily grant the session elevated access to locked assets by providing the correct PIN code.
 //
 // POST /auth/session/unlock
 func (c *Client) UnlockAuthSession(ctx context.Context, request *SessionUnlockDto) error {
@@ -28861,7 +36238,14 @@ func (c *Client) sendUnlockAuthSession(ctx context.Context, request *SessionUnlo
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUnlockAuthSessionResponse(resp)
@@ -28874,7 +36258,7 @@ func (c *Client) sendUnlockAuthSession(ctx context.Context, request *SessionUnlo
 
 // UntagAssets invokes untagAssets operation.
 //
-// This endpoint requires the `tag.asset` permission.
+// Remove a tag from all the specified assets.
 //
 // DELETE /tags/{id}/assets
 func (c *Client) UntagAssets(ctx context.Context, request *BulkIdsDto, params UntagAssetsParams) ([]BulkIdResponseDto, error) {
@@ -29013,7 +36397,14 @@ func (c *Client) sendUntagAssets(ctx context.Context, request *BulkIdsDto, param
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUntagAssetsResponse(resp)
@@ -29026,7 +36417,7 @@ func (c *Client) sendUntagAssets(ctx context.Context, request *BulkIdsDto, param
 
 // UpdateAdminOnboarding invokes updateAdminOnboarding operation.
 //
-// This endpoint is an admin-only route, and requires the `systemMetadata.update` permission.
+// Update the admin onboarding status.
 //
 // POST /system-metadata/admin-onboarding
 func (c *Client) UpdateAdminOnboarding(ctx context.Context, request *AdminOnboardingUpdateDto) error {
@@ -29146,7 +36537,14 @@ func (c *Client) sendUpdateAdminOnboarding(ctx context.Context, request *AdminOn
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateAdminOnboardingResponse(resp)
@@ -29159,7 +36557,9 @@ func (c *Client) sendUpdateAdminOnboarding(ctx context.Context, request *AdminOn
 
 // UpdateAlbumInfo invokes updateAlbumInfo operation.
 //
-// This endpoint requires the `album.update` permission.
+// Update the information of a specific album by its ID. This endpoint can be used to update the album
+// name, description, sort order, etc. However, it is not used to add or remove assets or users from
+// the album.
 //
 // PATCH /albums/{id}
 func (c *Client) UpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDto, params UpdateAlbumInfoParams) (*AlbumResponseDto, error) {
@@ -29297,7 +36697,14 @@ func (c *Client) sendUpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateAlbumInfoResponse(resp)
@@ -29310,7 +36717,7 @@ func (c *Client) sendUpdateAlbumInfo(ctx context.Context, request *UpdateAlbumDt
 
 // UpdateAlbumUser invokes updateAlbumUser operation.
 //
-// This endpoint requires the `albumUser.update` permission.
+// Change the role for a specific user in a specific album.
 //
 // PUT /albums/{id}/user/{userId}
 func (c *Client) UpdateAlbumUser(ctx context.Context, request *UpdateAlbumUserDto, params UpdateAlbumUserParams) error {
@@ -29467,7 +36874,14 @@ func (c *Client) sendUpdateAlbumUser(ctx context.Context, request *UpdateAlbumUs
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateAlbumUserResponse(resp)
@@ -29480,15 +36894,17 @@ func (c *Client) sendUpdateAlbumUser(ctx context.Context, request *UpdateAlbumUs
 
 // UpdateApiKey invokes updateApiKey operation.
 //
-// This endpoint requires the `apiKey.update` permission.
+// Updates the name and permissions of an API key by its ID. The current user must own this API key.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /api-keys/{id}
-func (c *Client) UpdateApiKey(ctx context.Context, request *APIKeyUpdateDto, params UpdateApiKeyParams) (*APIKeyResponseDto, error) {
+func (c *Client) UpdateApiKey(ctx context.Context, request *ApiKeyUpdateDto, params UpdateApiKeyParams) (*ApiKeyResponseDto, error) {
 	res, err := c.sendUpdateApiKey(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendUpdateApiKey(ctx context.Context, request *APIKeyUpdateDto, params UpdateApiKeyParams) (res *APIKeyResponseDto, err error) {
+func (c *Client) sendUpdateApiKey(ctx context.Context, request *ApiKeyUpdateDto, params UpdateApiKeyParams) (res *ApiKeyResponseDto, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateApiKey"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
@@ -29618,7 +37034,14 @@ func (c *Client) sendUpdateApiKey(ctx context.Context, request *APIKeyUpdateDto,
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateApiKeyResponse(resp)
@@ -29631,7 +37054,9 @@ func (c *Client) sendUpdateApiKey(ctx context.Context, request *APIKeyUpdateDto,
 
 // UpdateAsset invokes updateAsset operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Update information of a specific asset.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets/{id}
 func (c *Client) UpdateAsset(ctx context.Context, request *UpdateAssetDto, params UpdateAssetParams) (*AssetResponseDto, error) {
@@ -29769,7 +37194,14 @@ func (c *Client) sendUpdateAsset(ctx context.Context, request *UpdateAssetDto, p
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateAssetResponse(resp)
@@ -29782,7 +37214,7 @@ func (c *Client) sendUpdateAsset(ctx context.Context, request *UpdateAssetDto, p
 
 // UpdateAssetMetadata invokes updateAssetMetadata operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Update or add metadata key-value pairs for the specified asset.
 //
 // PUT /assets/{id}/metadata
 func (c *Client) UpdateAssetMetadata(ctx context.Context, request *AssetMetadataUpsertDto, params UpdateAssetMetadataParams) ([]AssetMetadataResponseDto, error) {
@@ -29921,7 +37353,14 @@ func (c *Client) sendUpdateAssetMetadata(ctx context.Context, request *AssetMeta
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateAssetMetadataResponse(resp)
@@ -29934,7 +37373,9 @@ func (c *Client) sendUpdateAssetMetadata(ctx context.Context, request *AssetMeta
 
 // UpdateAssets invokes updateAssets operation.
 //
-// This endpoint requires the `asset.update` permission.
+// Updates multiple assets at the same time.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /assets
 func (c *Client) UpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) error {
@@ -29942,7 +37383,7 @@ func (c *Client) UpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) 
 	return err
 }
 
-func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) (res *UpdateAssetsOK, err error) {
+func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateDto) (res *UpdateAssetsNoContent, err error) {
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("updateAssets"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
@@ -30054,7 +37495,14 @@ func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateAssetsResponse(resp)
@@ -30065,9 +37513,149 @@ func (c *Client) sendUpdateAssets(ctx context.Context, request *AssetBulkUpdateD
 	return result, nil
 }
 
+// UpdateBulkAssetMetadata invokes updateBulkAssetMetadata operation.
+//
+// Upsert metadata key-value pairs for multiple assets.
+//
+// PUT /assets/metadata
+func (c *Client) UpdateBulkAssetMetadata(ctx context.Context, request *AssetMetadataBulkUpsertDto) ([]AssetMetadataBulkResponseDto, error) {
+	res, err := c.sendUpdateBulkAssetMetadata(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendUpdateBulkAssetMetadata(ctx context.Context, request *AssetMetadataBulkUpsertDto) (res []AssetMetadataBulkResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateBulkAssetMetadata"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/assets/metadata"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdateBulkAssetMetadataOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/assets/metadata"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdateBulkAssetMetadataRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UpdateBulkAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UpdateBulkAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UpdateBulkAssetMetadataOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdateBulkAssetMetadataResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UpdateConfig invokes updateConfig operation.
 //
-// This endpoint is an admin-only route, and requires the `systemConfig.update` permission.
+// Update the system configuration with a new system configuration.
 //
 // PUT /system-config
 func (c *Client) UpdateConfig(ctx context.Context, request *SystemConfigDto) (*SystemConfigDto, error) {
@@ -30187,7 +37775,14 @@ func (c *Client) sendUpdateConfig(ctx context.Context, request *SystemConfigDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateConfigResponse(resp)
@@ -30200,7 +37795,9 @@ func (c *Client) sendUpdateConfig(ctx context.Context, request *SystemConfigDto)
 
 // UpdateLibrary invokes updateLibrary operation.
 //
-// This endpoint is an admin-only route, and requires the `library.update` permission.
+// Update an existing external library.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /libraries/{id}
 func (c *Client) UpdateLibrary(ctx context.Context, request *UpdateLibraryDto, params UpdateLibraryParams) (*LibraryResponseDto, error) {
@@ -30338,7 +37935,14 @@ func (c *Client) sendUpdateLibrary(ctx context.Context, request *UpdateLibraryDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateLibraryResponse(resp)
@@ -30351,7 +37955,9 @@ func (c *Client) sendUpdateLibrary(ctx context.Context, request *UpdateLibraryDt
 
 // UpdateMemory invokes updateMemory operation.
 //
-// This endpoint requires the `memory.update` permission.
+// Update an existing memory by its ID.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /memories/{id}
 func (c *Client) UpdateMemory(ctx context.Context, request *MemoryUpdateDto, params UpdateMemoryParams) (*MemoryResponseDto, error) {
@@ -30489,7 +38095,14 @@ func (c *Client) sendUpdateMemory(ctx context.Context, request *MemoryUpdateDto,
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateMemoryResponse(resp)
@@ -30502,7 +38115,9 @@ func (c *Client) sendUpdateMemory(ctx context.Context, request *MemoryUpdateDto,
 
 // UpdateMyPreferences invokes updateMyPreferences operation.
 //
-// This endpoint requires the `userPreference.update` permission.
+// Update the preferences of the current user.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /users/me/preferences
 func (c *Client) UpdateMyPreferences(ctx context.Context, request *UserPreferencesUpdateDto) (*UserPreferencesResponseDto, error) {
@@ -30622,7 +38237,14 @@ func (c *Client) sendUpdateMyPreferences(ctx context.Context, request *UserPrefe
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateMyPreferencesResponse(resp)
@@ -30635,7 +38257,9 @@ func (c *Client) sendUpdateMyPreferences(ctx context.Context, request *UserPrefe
 
 // UpdateMyUser invokes updateMyUser operation.
 //
-// This endpoint requires the `user.update` permission.
+// Update the current user making the API request.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /users/me
 func (c *Client) UpdateMyUser(ctx context.Context, request *UserUpdateMeDto) (*UserAdminResponseDto, error) {
@@ -30755,7 +38379,14 @@ func (c *Client) sendUpdateMyUser(ctx context.Context, request *UserUpdateMeDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateMyUserResponse(resp)
@@ -30768,7 +38399,7 @@ func (c *Client) sendUpdateMyUser(ctx context.Context, request *UserUpdateMeDto)
 
 // UpdateNotification invokes updateNotification operation.
 //
-// This endpoint requires the `notification.update` permission.
+// Update a specific notification to set its read status.
 //
 // PUT /notifications/{id}
 func (c *Client) UpdateNotification(ctx context.Context, request *NotificationUpdateDto, params UpdateNotificationParams) (*NotificationDto, error) {
@@ -30906,7 +38537,14 @@ func (c *Client) sendUpdateNotification(ctx context.Context, request *Notificati
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateNotificationResponse(resp)
@@ -30919,7 +38557,7 @@ func (c *Client) sendUpdateNotification(ctx context.Context, request *Notificati
 
 // UpdateNotifications invokes updateNotifications operation.
 //
-// This endpoint requires the `notification.update` permission.
+// Update a list of notifications. Allows to bulk-set the read status of notifications.
 //
 // PUT /notifications
 func (c *Client) UpdateNotifications(ctx context.Context, request *NotificationUpdateAllDto) error {
@@ -31039,7 +38677,14 @@ func (c *Client) sendUpdateNotifications(ctx context.Context, request *Notificat
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateNotificationsResponse(resp)
@@ -31052,7 +38697,7 @@ func (c *Client) sendUpdateNotifications(ctx context.Context, request *Notificat
 
 // UpdatePartner invokes updatePartner operation.
 //
-// This endpoint requires the `partner.update` permission.
+// Specify whether a partner's assets should appear in the user's timeline.
 //
 // PUT /partners/{id}
 func (c *Client) UpdatePartner(ctx context.Context, request *PartnerUpdateDto, params UpdatePartnerParams) (*PartnerResponseDto, error) {
@@ -31190,7 +38835,14 @@ func (c *Client) sendUpdatePartner(ctx context.Context, request *PartnerUpdateDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdatePartnerResponse(resp)
@@ -31203,7 +38855,7 @@ func (c *Client) sendUpdatePartner(ctx context.Context, request *PartnerUpdateDt
 
 // UpdatePeople invokes updatePeople operation.
 //
-// This endpoint requires the `person.update` permission.
+// Bulk update multiple people at once.
 //
 // PUT /people
 func (c *Client) UpdatePeople(ctx context.Context, request *PeopleUpdateDto) ([]BulkIdResponseDto, error) {
@@ -31323,7 +38975,14 @@ func (c *Client) sendUpdatePeople(ctx context.Context, request *PeopleUpdateDto)
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdatePeopleResponse(resp)
@@ -31336,7 +38995,9 @@ func (c *Client) sendUpdatePeople(ctx context.Context, request *PeopleUpdateDto)
 
 // UpdatePerson invokes updatePerson operation.
 //
-// This endpoint requires the `person.update` permission.
+// Update an individual person.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /people/{id}
 func (c *Client) UpdatePerson(ctx context.Context, request *PersonUpdateDto, params UpdatePersonParams) (*PersonResponseDto, error) {
@@ -31474,7 +39135,14 @@ func (c *Client) sendUpdatePerson(ctx context.Context, request *PersonUpdateDto,
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdatePersonResponse(resp)
@@ -31485,9 +39153,169 @@ func (c *Client) sendUpdatePerson(ctx context.Context, request *PersonUpdateDto,
 	return result, nil
 }
 
+// UpdateQueue invokes updateQueue operation.
+//
+// Change the paused status of a specific queue.
+//
+// PUT /queues/{name}
+func (c *Client) UpdateQueue(ctx context.Context, request *QueueUpdateDto, params UpdateQueueParams) (*QueueResponseDto, error) {
+	res, err := c.sendUpdateQueue(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendUpdateQueue(ctx context.Context, request *QueueUpdateDto, params UpdateQueueParams) (res *QueueResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateQueue"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/queues/{name}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdateQueueOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/queues/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(string(params.Name)))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdateQueueRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UpdateQueueOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UpdateQueueOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UpdateQueueOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdateQueueResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UpdateSession invokes updateSession operation.
 //
-// This endpoint requires the `session.update` permission.
+// Update a specific session identified by id.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /sessions/{id}
 func (c *Client) UpdateSession(ctx context.Context, request *SessionUpdateDto, params UpdateSessionParams) (*SessionResponseDto, error) {
@@ -31625,7 +39453,14 @@ func (c *Client) sendUpdateSession(ctx context.Context, request *SessionUpdateDt
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateSessionResponse(resp)
@@ -31638,7 +39473,7 @@ func (c *Client) sendUpdateSession(ctx context.Context, request *SessionUpdateDt
 
 // UpdateSharedLink invokes updateSharedLink operation.
 //
-// This endpoint requires the `sharedLink.update` permission.
+// Update an existing shared link by its ID.
 //
 // PATCH /shared-links/{id}
 func (c *Client) UpdateSharedLink(ctx context.Context, request *SharedLinkEditDto, params UpdateSharedLinkParams) (*SharedLinkResponseDto, error) {
@@ -31776,7 +39611,14 @@ func (c *Client) sendUpdateSharedLink(ctx context.Context, request *SharedLinkEd
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateSharedLinkResponse(resp)
@@ -31789,7 +39631,9 @@ func (c *Client) sendUpdateSharedLink(ctx context.Context, request *SharedLinkEd
 
 // UpdateStack invokes updateStack operation.
 //
-// This endpoint requires the `stack.update` permission.
+// Update an existing stack by its ID.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /stacks/{id}
 func (c *Client) UpdateStack(ctx context.Context, request *StackUpdateDto, params UpdateStackParams) (*StackResponseDto, error) {
@@ -31927,7 +39771,14 @@ func (c *Client) sendUpdateStack(ctx context.Context, request *StackUpdateDto, p
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateStackResponse(resp)
@@ -31940,7 +39791,9 @@ func (c *Client) sendUpdateStack(ctx context.Context, request *StackUpdateDto, p
 
 // UpdateTag invokes updateTag operation.
 //
-// This endpoint requires the `tag.update` permission.
+// Update an existing tag identified by its ID.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /tags/{id}
 func (c *Client) UpdateTag(ctx context.Context, request *TagUpdateDto, params UpdateTagParams) (*TagResponseDto, error) {
@@ -32078,7 +39931,14 @@ func (c *Client) sendUpdateTag(ctx context.Context, request *TagUpdateDto, param
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateTagResponse(resp)
@@ -32091,7 +39951,9 @@ func (c *Client) sendUpdateTag(ctx context.Context, request *TagUpdateDto, param
 
 // UpdateUserAdmin invokes updateUserAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+// Update an existing user.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /admin/users/{id}
 func (c *Client) UpdateUserAdmin(ctx context.Context, request *UserAdminUpdateDto, params UpdateUserAdminParams) (*UserAdminResponseDto, error) {
@@ -32229,7 +40091,14 @@ func (c *Client) sendUpdateUserAdmin(ctx context.Context, request *UserAdminUpda
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateUserAdminResponse(resp)
@@ -32242,7 +40111,9 @@ func (c *Client) sendUpdateUserAdmin(ctx context.Context, request *UserAdminUpda
 
 // UpdateUserPreferencesAdmin invokes updateUserPreferencesAdmin operation.
 //
-// This endpoint is an admin-only route, and requires the `adminUser.update` permission.
+// Update the preferences of a specific user.
+//
+// Deprecated: schema marks this operation as deprecated.
 //
 // PUT /admin/users/{id}/preferences
 func (c *Client) UpdateUserPreferencesAdmin(ctx context.Context, request *UserPreferencesUpdateDto, params UpdateUserPreferencesAdminParams) (*UserPreferencesResponseDto, error) {
@@ -32381,7 +40252,14 @@ func (c *Client) sendUpdateUserPreferencesAdmin(ctx context.Context, request *Us
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpdateUserPreferencesAdminResponse(resp)
@@ -32392,9 +40270,170 @@ func (c *Client) sendUpdateUserPreferencesAdmin(ctx context.Context, request *Us
 	return result, nil
 }
 
+// UpdateWorkflow invokes updateWorkflow operation.
+//
+// Update the information of a specific workflow by its ID. This endpoint can be used to update the
+// workflow name, description, trigger type, filters and actions order, etc.
+//
+// Deprecated: schema marks this operation as deprecated.
+//
+// PUT /workflows/{id}
+func (c *Client) UpdateWorkflow(ctx context.Context, request *WorkflowUpdateDto, params UpdateWorkflowParams) (*WorkflowResponseDto, error) {
+	res, err := c.sendUpdateWorkflow(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendUpdateWorkflow(ctx context.Context, request *WorkflowUpdateDto, params UpdateWorkflowParams) (res *WorkflowResponseDto, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateWorkflow"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/workflows/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdateWorkflowOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/workflows/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdateWorkflowRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UpdateWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UpdateWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UpdateWorkflowOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdateWorkflowResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UploadAsset invokes uploadAsset operation.
 //
-// This endpoint requires the `asset.upload` permission.
+// Uploads a new asset to the server.
 //
 // POST /assets
 func (c *Client) UploadAsset(ctx context.Context, request *AssetMediaCreateDtoMultipart, params UploadAssetParams) (UploadAssetRes, error) {
@@ -32569,7 +40608,14 @@ func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateD
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUploadAssetResponse(resp)
@@ -32580,9 +40626,149 @@ func (c *Client) sendUploadAsset(ctx context.Context, request *AssetMediaCreateD
 	return result, nil
 }
 
+// UploadDatabaseBackup invokes uploadDatabaseBackup operation.
+//
+// Uploads .sql/.sql.gz file to restore backup from.
+//
+// POST /admin/database-backups/upload
+func (c *Client) UploadDatabaseBackup(ctx context.Context, request *DatabaseBackupUploadDtoMultipart) error {
+	_, err := c.sendUploadDatabaseBackup(ctx, request)
+	return err
+}
+
+func (c *Client) sendUploadDatabaseBackup(ctx context.Context, request *DatabaseBackupUploadDtoMultipart) (res *UploadDatabaseBackupCreated, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("uploadDatabaseBackup"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/admin/database-backups/upload"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UploadDatabaseBackupOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/admin/database-backups/upload"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUploadDatabaseBackupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			stage = "Security:Bearer"
+			switch err := c.securityBearer(ctx, UploadDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Bearer\"")
+			}
+		}
+		{
+			stage = "Security:Cookie"
+			switch err := c.securityCookie(ctx, UploadDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"Cookie\"")
+			}
+		}
+		{
+			stage = "Security:APIKey"
+			switch err := c.securityAPIKey(ctx, UploadDatabaseBackupOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"APIKey\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+				{0b00000010},
+				{0b00000100},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeUploadDatabaseBackupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // UpsertTags invokes upsertTags operation.
 //
-// This endpoint requires the `tag.create` permission.
+// Create or update multiple tags in a single request.
 //
 // PUT /tags
 func (c *Client) UpsertTags(ctx context.Context, request *TagUpsertDto) ([]TagResponseDto, error) {
@@ -32702,7 +40888,14 @@ func (c *Client) sendUpsertTags(ctx context.Context, request *TagUpsertDto) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeUpsertTagsResponse(resp)
@@ -32714,6 +40907,8 @@ func (c *Client) sendUpsertTags(ctx context.Context, request *TagUpsertDto) (res
 }
 
 // Validate invokes validate operation.
+//
+// Validate the settings of an external library.
 //
 // POST /libraries/{id}/validate
 func (c *Client) Validate(ctx context.Context, request *ValidateLibraryDto, params ValidateParams) (*ValidateLibraryResponseDto, error) {
@@ -32852,7 +41047,14 @@ func (c *Client) sendValidate(ctx context.Context, request *ValidateLibraryDto, 
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeValidateResponse(resp)
@@ -32864,6 +41066,8 @@ func (c *Client) sendValidate(ctx context.Context, request *ValidateLibraryDto, 
 }
 
 // ValidateAccessToken invokes validateAccessToken operation.
+//
+// Validate the current authorization method is still valid.
 //
 // POST /auth/validateToken
 func (c *Client) ValidateAccessToken(ctx context.Context) (*ValidateAccessTokenResponseDto, error) {
@@ -32980,7 +41184,14 @@ func (c *Client) sendValidateAccessToken(ctx context.Context) (res *ValidateAcce
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeValidateAccessTokenResponse(resp)
@@ -32993,7 +41204,8 @@ func (c *Client) sendValidateAccessToken(ctx context.Context) (res *ValidateAcce
 
 // ViewAsset invokes viewAsset operation.
 //
-// This endpoint requires the `asset.view` permission.
+// Retrieve the thumbnail image for the specified asset. Viewing the fullsize thumbnail might redirect
+// to downloadAsset, which requires a different permission.
 //
 // GET /assets/{id}/thumbnail
 func (c *Client) ViewAsset(ctx context.Context, params ViewAssetParams) (ViewAssetOK, error) {
@@ -33063,6 +41275,23 @@ func (c *Client) sendViewAsset(ctx context.Context, params ViewAssetParams) (res
 
 	stage = "EncodeQueryParams"
 	q := uri.NewQueryEncoder()
+	{
+		// Encode "edited" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "edited",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Edited.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
 	{
 		// Encode "key" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -33184,7 +41413,14 @@ func (c *Client) sendViewAsset(ctx context.Context, params ViewAssetParams) (res
 	if err != nil {
 		return res, errors.Wrap(err, "do request")
 	}
-	defer resp.Body.Close()
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
 
 	stage = "DecodeResponse"
 	result, err := decodeViewAssetResponse(resp)

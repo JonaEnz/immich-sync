@@ -1,2 +1,2 @@
 generator:
-  ignore_not_implemented: ["array defaults", "complex defaults"]
+  ignore_not_implemented: ["array defaults", "complex defaults", "complex anyOf"]

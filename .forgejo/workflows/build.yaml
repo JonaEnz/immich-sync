@@ -1,7 +1,7 @@
 on: [push]
 jobs:
   build:
-    runs-on: docker
+    runs-on: docker-builder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6

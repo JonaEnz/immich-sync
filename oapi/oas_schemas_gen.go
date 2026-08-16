@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	ht "github.com/ogen-go/ogen/http"
 )
@@ -37,147 +38,14 @@ func (s *APIKey) SetRoles(val []string) {
 	s.Roles = val
 }
 
-// Ref: #/components/schemas/APIKeyCreateDto
-type APIKeyCreateDto struct {
-	Name        OptString    `json:"name"`
-	Permissions []Permission `json:"permissions"`
-}
-
-// GetName returns the value of Name.
-func (s *APIKeyCreateDto) GetName() OptString {
-	return s.Name
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *APIKeyCreateDto) GetPermissions() []Permission {
-	return s.Permissions
-}
-
-// SetName sets the value of Name.
-func (s *APIKeyCreateDto) SetName(val OptString) {
-	s.Name = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *APIKeyCreateDto) SetPermissions(val []Permission) {
-	s.Permissions = val
-}
-
-// Ref: #/components/schemas/APIKeyCreateResponseDto
-type APIKeyCreateResponseDto struct {
-	ApiKey APIKeyResponseDto `json:"apiKey"`
-	Secret string            `json:"secret"`
-}
-
-// GetApiKey returns the value of ApiKey.
-func (s *APIKeyCreateResponseDto) GetApiKey() APIKeyResponseDto {
-	return s.ApiKey
-}
-
-// GetSecret returns the value of Secret.
-func (s *APIKeyCreateResponseDto) GetSecret() string {
-	return s.Secret
-}
-
-// SetApiKey sets the value of ApiKey.
-func (s *APIKeyCreateResponseDto) SetApiKey(val APIKeyResponseDto) {
-	s.ApiKey = val
-}
-
-// SetSecret sets the value of Secret.
-func (s *APIKeyCreateResponseDto) SetSecret(val string) {
-	s.Secret = val
-}
-
-// Ref: #/components/schemas/APIKeyResponseDto
-type APIKeyResponseDto struct {
-	CreatedAt   time.Time    `json:"createdAt"`
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Permissions []Permission `json:"permissions"`
-	UpdatedAt   time.Time    `json:"updatedAt"`
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *APIKeyResponseDto) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetID returns the value of ID.
-func (s *APIKeyResponseDto) GetID() string {
-	return s.ID
-}
-
-// GetName returns the value of Name.
-func (s *APIKeyResponseDto) GetName() string {
-	return s.Name
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *APIKeyResponseDto) GetPermissions() []Permission {
-	return s.Permissions
-}
-
-// GetUpdatedAt returns the value of UpdatedAt.
-func (s *APIKeyResponseDto) GetUpdatedAt() time.Time {
-	return s.UpdatedAt
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *APIKeyResponseDto) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetID sets the value of ID.
-func (s *APIKeyResponseDto) SetID(val string) {
-	s.ID = val
-}
-
-// SetName sets the value of Name.
-func (s *APIKeyResponseDto) SetName(val string) {
-	s.Name = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *APIKeyResponseDto) SetPermissions(val []Permission) {
-	s.Permissions = val
-}
-
-// SetUpdatedAt sets the value of UpdatedAt.
-func (s *APIKeyResponseDto) SetUpdatedAt(val time.Time) {
-	s.UpdatedAt = val
-}
-
-// Ref: #/components/schemas/APIKeyUpdateDto
-type APIKeyUpdateDto struct {
-	Name        OptString    `json:"name"`
-	Permissions []Permission `json:"permissions"`
-}
-
-// GetName returns the value of Name.
-func (s *APIKeyUpdateDto) GetName() OptString {
-	return s.Name
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *APIKeyUpdateDto) GetPermissions() []Permission {
-	return s.Permissions
-}
-
-// SetName sets the value of Name.
-func (s *APIKeyUpdateDto) SetName(val OptString) {
-	s.Name = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *APIKeyUpdateDto) SetPermissions(val []Permission) {
-	s.Permissions = val
-}
-
+// Activity create.
 // Ref: #/components/schemas/ActivityCreateDto
 type ActivityCreateDto struct {
-	AlbumId uuid.UUID    `json:"albumId"`
-	AssetId OptUUID      `json:"assetId"`
+	// Album ID.
+	AlbumId uuid.UUID `json:"albumId"`
+	// Asset ID (if activity is for an asset).
+	AssetId OptUUID `json:"assetId"`
+	// Comment text (required if type is comment).
 	Comment OptString    `json:"comment"`
 	Type    ReactionType `json:"type"`
 }
@@ -224,16 +92,20 @@ func (s *ActivityCreateDto) SetType(val ReactionType) {
 
 // Ref: #/components/schemas/ActivityResponseDto
 type ActivityResponseDto struct {
-	AssetId   NilString       `json:"assetId"`
-	Comment   OptNilString    `json:"comment"`
-	CreatedAt time.Time       `json:"createdAt"`
-	ID        string          `json:"id"`
-	Type      ReactionType    `json:"type"`
-	User      UserResponseDto `json:"user"`
+	// Asset ID (if activity is for an asset).
+	AssetId NilUUID `json:"assetId"`
+	// Comment text (for comment activities).
+	Comment OptNilString `json:"comment"`
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// Activity ID.
+	ID   uuid.UUID       `json:"id"`
+	Type ReactionType    `json:"type"`
+	User UserResponseDto `json:"user"`
 }
 
 // GetAssetId returns the value of AssetId.
-func (s *ActivityResponseDto) GetAssetId() NilString {
+func (s *ActivityResponseDto) GetAssetId() NilUUID {
 	return s.AssetId
 }
 
@@ -248,7 +120,7 @@ func (s *ActivityResponseDto) GetCreatedAt() time.Time {
 }
 
 // GetID returns the value of ID.
-func (s *ActivityResponseDto) GetID() string {
+func (s *ActivityResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -263,7 +135,7 @@ func (s *ActivityResponseDto) GetUser() UserResponseDto {
 }
 
 // SetAssetId sets the value of AssetId.
-func (s *ActivityResponseDto) SetAssetId(val NilString) {
+func (s *ActivityResponseDto) SetAssetId(val NilUUID) {
 	s.AssetId = val
 }
 
@@ -278,7 +150,7 @@ func (s *ActivityResponseDto) SetCreatedAt(val time.Time) {
 }
 
 // SetID sets the value of ID.
-func (s *ActivityResponseDto) SetID(val string) {
+func (s *ActivityResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -294,8 +166,10 @@ func (s *ActivityResponseDto) SetUser(val UserResponseDto) {
 
 // Ref: #/components/schemas/ActivityStatisticsResponseDto
 type ActivityStatisticsResponseDto struct {
+	// Number of comments.
 	Comments int `json:"comments"`
-	Likes    int `json:"likes"`
+	// Number of likes.
+	Likes int `json:"likes"`
 }
 
 // GetComments returns the value of Comments.
@@ -320,6 +194,7 @@ func (s *ActivityStatisticsResponseDto) SetLikes(val int) {
 
 // Ref: #/components/schemas/AddUsersDto
 type AddUsersDto struct {
+	// Album users to add.
 	AlbumUsers []AlbumUserAddDto `json:"albumUsers"`
 }
 
@@ -335,6 +210,7 @@ func (s *AddUsersDto) SetAlbumUsers(val []AlbumUserAddDto) {
 
 // Ref: #/components/schemas/AdminOnboardingUpdateDto
 type AdminOnboardingUpdateDto struct {
+	// Is admin onboarded.
 	IsOnboarded bool `json:"isOnboarded"`
 }
 
@@ -350,25 +226,37 @@ func (s *AdminOnboardingUpdateDto) SetIsOnboarded(val bool) {
 
 // Ref: #/components/schemas/AlbumResponseDto
 type AlbumResponseDto struct {
-	AlbumName                  string                        `json:"albumName"`
-	AlbumThumbnailAssetId      NilString                     `json:"albumThumbnailAssetId"`
-	AlbumUsers                 []AlbumUserResponseDto        `json:"albumUsers"`
-	AssetCount                 int                           `json:"assetCount"`
-	Assets                     []AssetResponseDto            `json:"assets"`
-	ContributorCounts          []ContributorCountResponseDto `json:"contributorCounts"`
-	CreatedAt                  time.Time                     `json:"createdAt"`
-	Description                string                        `json:"description"`
-	EndDate                    OptDateTime                   `json:"endDate"`
-	HasSharedLink              bool                          `json:"hasSharedLink"`
-	ID                         string                        `json:"id"`
-	IsActivityEnabled          bool                          `json:"isActivityEnabled"`
-	LastModifiedAssetTimestamp OptDateTime                   `json:"lastModifiedAssetTimestamp"`
-	Order                      OptAssetOrder                 `json:"order"`
-	Owner                      UserResponseDto               `json:"owner"`
-	OwnerId                    string                        `json:"ownerId"`
-	Shared                     bool                          `json:"shared"`
-	StartDate                  OptDateTime                   `json:"startDate"`
-	UpdatedAt                  time.Time                     `json:"updatedAt"`
+	// Album name.
+	AlbumName string `json:"albumName"`
+	// Thumbnail asset ID.
+	AlbumThumbnailAssetId NilUUID `json:"albumThumbnailAssetId"`
+	// First entry is always the album owner. Second entry is the auth user, if it differs from the owner.
+	// The rest are ordered alphabetically.
+	AlbumUsers []AlbumUserResponseDto `json:"albumUsers"`
+	// Number of assets.
+	AssetCount        int                           `json:"assetCount"`
+	ContributorCounts []ContributorCountResponseDto `json:"contributorCounts"`
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// Album description.
+	Description string `json:"description"`
+	// End date (latest asset).
+	EndDate OptDateTime `json:"endDate"`
+	// Has shared link.
+	HasSharedLink bool `json:"hasSharedLink"`
+	// Album ID.
+	ID uuid.UUID `json:"id"`
+	// Activity feed enabled.
+	IsActivityEnabled bool `json:"isActivityEnabled"`
+	// Last modified asset timestamp.
+	LastModifiedAssetTimestamp OptDateTime   `json:"lastModifiedAssetTimestamp"`
+	Order                      OptAssetOrder `json:"order"`
+	// Is shared album.
+	Shared bool `json:"shared"`
+	// Start date (earliest asset).
+	StartDate OptDateTime `json:"startDate"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GetAlbumName returns the value of AlbumName.
@@ -377,7 +265,7 @@ func (s *AlbumResponseDto) GetAlbumName() string {
 }
 
 // GetAlbumThumbnailAssetId returns the value of AlbumThumbnailAssetId.
-func (s *AlbumResponseDto) GetAlbumThumbnailAssetId() NilString {
+func (s *AlbumResponseDto) GetAlbumThumbnailAssetId() NilUUID {
 	return s.AlbumThumbnailAssetId
 }
 
@@ -389,11 +277,6 @@ func (s *AlbumResponseDto) GetAlbumUsers() []AlbumUserResponseDto {
 // GetAssetCount returns the value of AssetCount.
 func (s *AlbumResponseDto) GetAssetCount() int {
 	return s.AssetCount
-}
-
-// GetAssets returns the value of Assets.
-func (s *AlbumResponseDto) GetAssets() []AssetResponseDto {
-	return s.Assets
 }
 
 // GetContributorCounts returns the value of ContributorCounts.
@@ -422,7 +305,7 @@ func (s *AlbumResponseDto) GetHasSharedLink() bool {
 }
 
 // GetID returns the value of ID.
-func (s *AlbumResponseDto) GetID() string {
+func (s *AlbumResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -439,16 +322,6 @@ func (s *AlbumResponseDto) GetLastModifiedAssetTimestamp() OptDateTime {
 // GetOrder returns the value of Order.
 func (s *AlbumResponseDto) GetOrder() OptAssetOrder {
 	return s.Order
-}
-
-// GetOwner returns the value of Owner.
-func (s *AlbumResponseDto) GetOwner() UserResponseDto {
-	return s.Owner
-}
-
-// GetOwnerId returns the value of OwnerId.
-func (s *AlbumResponseDto) GetOwnerId() string {
-	return s.OwnerId
 }
 
 // GetShared returns the value of Shared.
@@ -472,7 +345,7 @@ func (s *AlbumResponseDto) SetAlbumName(val string) {
 }
 
 // SetAlbumThumbnailAssetId sets the value of AlbumThumbnailAssetId.
-func (s *AlbumResponseDto) SetAlbumThumbnailAssetId(val NilString) {
+func (s *AlbumResponseDto) SetAlbumThumbnailAssetId(val NilUUID) {
 	s.AlbumThumbnailAssetId = val
 }
 
@@ -484,11 +357,6 @@ func (s *AlbumResponseDto) SetAlbumUsers(val []AlbumUserResponseDto) {
 // SetAssetCount sets the value of AssetCount.
 func (s *AlbumResponseDto) SetAssetCount(val int) {
 	s.AssetCount = val
-}
-
-// SetAssets sets the value of Assets.
-func (s *AlbumResponseDto) SetAssets(val []AssetResponseDto) {
-	s.Assets = val
 }
 
 // SetContributorCounts sets the value of ContributorCounts.
@@ -517,7 +385,7 @@ func (s *AlbumResponseDto) SetHasSharedLink(val bool) {
 }
 
 // SetID sets the value of ID.
-func (s *AlbumResponseDto) SetID(val string) {
+func (s *AlbumResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -534,16 +402,6 @@ func (s *AlbumResponseDto) SetLastModifiedAssetTimestamp(val OptDateTime) {
 // SetOrder sets the value of Order.
 func (s *AlbumResponseDto) SetOrder(val OptAssetOrder) {
 	s.Order = val
-}
-
-// SetOwner sets the value of Owner.
-func (s *AlbumResponseDto) SetOwner(val UserResponseDto) {
-	s.Owner = val
-}
-
-// SetOwnerId sets the value of OwnerId.
-func (s *AlbumResponseDto) SetOwnerId(val string) {
-	s.OwnerId = val
 }
 
 // SetShared sets the value of Shared.
@@ -563,9 +421,12 @@ func (s *AlbumResponseDto) SetUpdatedAt(val time.Time) {
 
 // Ref: #/components/schemas/AlbumStatisticsResponseDto
 type AlbumStatisticsResponseDto struct {
+	// Number of non-shared albums.
 	NotShared int `json:"notShared"`
-	Owned     int `json:"owned"`
-	Shared    int `json:"shared"`
+	// Number of owned albums.
+	Owned int `json:"owned"`
+	// Number of shared albums.
+	Shared int `json:"shared"`
 }
 
 // GetNotShared returns the value of NotShared.
@@ -600,8 +461,10 @@ func (s *AlbumStatisticsResponseDto) SetShared(val int) {
 
 // Ref: #/components/schemas/AlbumUserAddDto
 type AlbumUserAddDto struct {
-	Role   OptAlbumUserRole `json:"role"`
-	UserId uuid.UUID        `json:"userId"`
+	// Album user role.
+	Role OptAlbumUserRole `json:"role"`
+	// User ID.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetRole returns the value of Role.
@@ -626,8 +489,9 @@ func (s *AlbumUserAddDto) SetUserId(val uuid.UUID) {
 
 // Ref: #/components/schemas/AlbumUserCreateDto
 type AlbumUserCreateDto struct {
-	Role   AlbumUserRole `json:"role"`
-	UserId uuid.UUID     `json:"userId"`
+	Role AlbumUserRole `json:"role"`
+	// User ID.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetRole returns the value of Role.
@@ -676,11 +540,13 @@ func (s *AlbumUserResponseDto) SetUser(val UserResponseDto) {
 	s.User = val
 }
 
+// Album user role.
 // Ref: #/components/schemas/AlbumUserRole
 type AlbumUserRole string
 
 const (
 	AlbumUserRoleEditor AlbumUserRole = "editor"
+	AlbumUserRoleOwner  AlbumUserRole = "owner"
 	AlbumUserRoleViewer AlbumUserRole = "viewer"
 )
 
@@ -688,6 +554,7 @@ const (
 func (AlbumUserRole) AllValues() []AlbumUserRole {
 	return []AlbumUserRole{
 		AlbumUserRoleEditor,
+		AlbumUserRoleOwner,
 		AlbumUserRoleViewer,
 	}
 }
@@ -696,6 +563,8 @@ func (AlbumUserRole) AllValues() []AlbumUserRole {
 func (s AlbumUserRole) MarshalText() ([]byte, error) {
 	switch s {
 	case AlbumUserRoleEditor:
+		return []byte(s), nil
+	case AlbumUserRoleOwner:
 		return []byte(s), nil
 	case AlbumUserRoleViewer:
 		return []byte(s), nil
@@ -710,6 +579,9 @@ func (s *AlbumUserRole) UnmarshalText(data []byte) error {
 	case AlbumUserRoleEditor:
 		*s = AlbumUserRoleEditor
 		return nil
+	case AlbumUserRoleOwner:
+		*s = AlbumUserRoleOwner
+		return nil
 	case AlbumUserRoleViewer:
 		*s = AlbumUserRoleViewer
 		return nil
@@ -720,7 +592,9 @@ func (s *AlbumUserRole) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/AlbumsAddAssetsDto
 type AlbumsAddAssetsDto struct {
+	// Album IDs.
 	AlbumIds []uuid.UUID `json:"albumIds"`
+	// Asset IDs.
 	AssetIds []uuid.UUID `json:"assetIds"`
 }
 
@@ -746,8 +620,9 @@ func (s *AlbumsAddAssetsDto) SetAssetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/AlbumsAddAssetsResponseDto
 type AlbumsAddAssetsResponseDto struct {
-	Error   OptBulkIdErrorReason `json:"error"`
-	Success bool                 `json:"success"`
+	Error OptBulkIdErrorReason `json:"error"`
+	// Operation success.
+	Success bool `json:"success"`
 }
 
 // GetError returns the value of Error.
@@ -785,6 +660,7 @@ func (s *AlbumsResponse) SetDefaultAssetOrder(val AssetOrder) {
 	s.DefaultAssetOrder = val
 }
 
+// Album preferences.
 // Ref: #/components/schemas/AlbumsUpdate
 type AlbumsUpdate struct {
 	DefaultAssetOrder OptAssetOrder `json:"defaultAssetOrder"`
@@ -800,190 +676,159 @@ func (s *AlbumsUpdate) SetDefaultAssetOrder(val OptAssetOrder) {
 	s.DefaultAssetOrder = val
 }
 
-// Ref: #/components/schemas/AllJobStatusResponseDto
-type AllJobStatusResponseDto struct {
-	BackgroundTask           JobStatusDto `json:"backgroundTask"`
-	BackupDatabase           JobStatusDto `json:"backupDatabase"`
-	DuplicateDetection       JobStatusDto `json:"duplicateDetection"`
-	FaceDetection            JobStatusDto `json:"faceDetection"`
-	FacialRecognition        JobStatusDto `json:"facialRecognition"`
-	Library                  JobStatusDto `json:"library"`
-	MetadataExtraction       JobStatusDto `json:"metadataExtraction"`
-	Migration                JobStatusDto `json:"migration"`
-	Notifications            JobStatusDto `json:"notifications"`
-	Ocr                      JobStatusDto `json:"ocr"`
-	Search                   JobStatusDto `json:"search"`
-	Sidecar                  JobStatusDto `json:"sidecar"`
-	SmartSearch              JobStatusDto `json:"smartSearch"`
-	StorageTemplateMigration JobStatusDto `json:"storageTemplateMigration"`
-	ThumbnailGeneration      JobStatusDto `json:"thumbnailGeneration"`
-	VideoConversion          JobStatusDto `json:"videoConversion"`
+// Ref: #/components/schemas/ApiKeyCreateDto
+type ApiKeyCreateDto struct {
+	// API key name.
+	Name OptString `json:"name"`
+	// List of permissions.
+	Permissions []Permission `json:"permissions"`
 }
 
-// GetBackgroundTask returns the value of BackgroundTask.
-func (s *AllJobStatusResponseDto) GetBackgroundTask() JobStatusDto {
-	return s.BackgroundTask
+// GetName returns the value of Name.
+func (s *ApiKeyCreateDto) GetName() OptString {
+	return s.Name
 }
 
-// GetBackupDatabase returns the value of BackupDatabase.
-func (s *AllJobStatusResponseDto) GetBackupDatabase() JobStatusDto {
-	return s.BackupDatabase
+// GetPermissions returns the value of Permissions.
+func (s *ApiKeyCreateDto) GetPermissions() []Permission {
+	return s.Permissions
 }
 
-// GetDuplicateDetection returns the value of DuplicateDetection.
-func (s *AllJobStatusResponseDto) GetDuplicateDetection() JobStatusDto {
-	return s.DuplicateDetection
+// SetName sets the value of Name.
+func (s *ApiKeyCreateDto) SetName(val OptString) {
+	s.Name = val
 }
 
-// GetFaceDetection returns the value of FaceDetection.
-func (s *AllJobStatusResponseDto) GetFaceDetection() JobStatusDto {
-	return s.FaceDetection
+// SetPermissions sets the value of Permissions.
+func (s *ApiKeyCreateDto) SetPermissions(val []Permission) {
+	s.Permissions = val
 }
 
-// GetFacialRecognition returns the value of FacialRecognition.
-func (s *AllJobStatusResponseDto) GetFacialRecognition() JobStatusDto {
-	return s.FacialRecognition
+// Ref: #/components/schemas/ApiKeyCreateResponseDto
+type ApiKeyCreateResponseDto struct {
+	ApiKey ApiKeyResponseDto `json:"apiKey"`
+	// API key secret (only shown once).
+	Secret string `json:"secret"`
 }
 
-// GetLibrary returns the value of Library.
-func (s *AllJobStatusResponseDto) GetLibrary() JobStatusDto {
-	return s.Library
+// GetApiKey returns the value of ApiKey.
+func (s *ApiKeyCreateResponseDto) GetApiKey() ApiKeyResponseDto {
+	return s.ApiKey
 }
 
-// GetMetadataExtraction returns the value of MetadataExtraction.
-func (s *AllJobStatusResponseDto) GetMetadataExtraction() JobStatusDto {
-	return s.MetadataExtraction
+// GetSecret returns the value of Secret.
+func (s *ApiKeyCreateResponseDto) GetSecret() string {
+	return s.Secret
 }
 
-// GetMigration returns the value of Migration.
-func (s *AllJobStatusResponseDto) GetMigration() JobStatusDto {
-	return s.Migration
+// SetApiKey sets the value of ApiKey.
+func (s *ApiKeyCreateResponseDto) SetApiKey(val ApiKeyResponseDto) {
+	s.ApiKey = val
 }
 
-// GetNotifications returns the value of Notifications.
-func (s *AllJobStatusResponseDto) GetNotifications() JobStatusDto {
-	return s.Notifications
+// SetSecret sets the value of Secret.
+func (s *ApiKeyCreateResponseDto) SetSecret(val string) {
+	s.Secret = val
 }
 
-// GetOcr returns the value of Ocr.
-func (s *AllJobStatusResponseDto) GetOcr() JobStatusDto {
-	return s.Ocr
+// Ref: #/components/schemas/ApiKeyResponseDto
+type ApiKeyResponseDto struct {
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// API key ID.
+	ID uuid.UUID `json:"id"`
+	// API key name.
+	Name string `json:"name"`
+	// List of permissions.
+	Permissions []Permission `json:"permissions"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// GetSearch returns the value of Search.
-func (s *AllJobStatusResponseDto) GetSearch() JobStatusDto {
-	return s.Search
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ApiKeyResponseDto) GetCreatedAt() time.Time {
+	return s.CreatedAt
 }
 
-// GetSidecar returns the value of Sidecar.
-func (s *AllJobStatusResponseDto) GetSidecar() JobStatusDto {
-	return s.Sidecar
+// GetID returns the value of ID.
+func (s *ApiKeyResponseDto) GetID() uuid.UUID {
+	return s.ID
 }
 
-// GetSmartSearch returns the value of SmartSearch.
-func (s *AllJobStatusResponseDto) GetSmartSearch() JobStatusDto {
-	return s.SmartSearch
+// GetName returns the value of Name.
+func (s *ApiKeyResponseDto) GetName() string {
+	return s.Name
 }
 
-// GetStorageTemplateMigration returns the value of StorageTemplateMigration.
-func (s *AllJobStatusResponseDto) GetStorageTemplateMigration() JobStatusDto {
-	return s.StorageTemplateMigration
+// GetPermissions returns the value of Permissions.
+func (s *ApiKeyResponseDto) GetPermissions() []Permission {
+	return s.Permissions
 }
 
-// GetThumbnailGeneration returns the value of ThumbnailGeneration.
-func (s *AllJobStatusResponseDto) GetThumbnailGeneration() JobStatusDto {
-	return s.ThumbnailGeneration
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ApiKeyResponseDto) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
 }
 
-// GetVideoConversion returns the value of VideoConversion.
-func (s *AllJobStatusResponseDto) GetVideoConversion() JobStatusDto {
-	return s.VideoConversion
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ApiKeyResponseDto) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
 }
 
-// SetBackgroundTask sets the value of BackgroundTask.
-func (s *AllJobStatusResponseDto) SetBackgroundTask(val JobStatusDto) {
-	s.BackgroundTask = val
+// SetID sets the value of ID.
+func (s *ApiKeyResponseDto) SetID(val uuid.UUID) {
+	s.ID = val
 }
 
-// SetBackupDatabase sets the value of BackupDatabase.
-func (s *AllJobStatusResponseDto) SetBackupDatabase(val JobStatusDto) {
-	s.BackupDatabase = val
+// SetName sets the value of Name.
+func (s *ApiKeyResponseDto) SetName(val string) {
+	s.Name = val
 }
 
-// SetDuplicateDetection sets the value of DuplicateDetection.
-func (s *AllJobStatusResponseDto) SetDuplicateDetection(val JobStatusDto) {
-	s.DuplicateDetection = val
+// SetPermissions sets the value of Permissions.
+func (s *ApiKeyResponseDto) SetPermissions(val []Permission) {
+	s.Permissions = val
 }
 
-// SetFaceDetection sets the value of FaceDetection.
-func (s *AllJobStatusResponseDto) SetFaceDetection(val JobStatusDto) {
-	s.FaceDetection = val
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ApiKeyResponseDto) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
 }
 
-// SetFacialRecognition sets the value of FacialRecognition.
-func (s *AllJobStatusResponseDto) SetFacialRecognition(val JobStatusDto) {
-	s.FacialRecognition = val
+// Ref: #/components/schemas/ApiKeyUpdateDto
+type ApiKeyUpdateDto struct {
+	// API key name.
+	Name OptString `json:"name"`
+	// List of permissions.
+	Permissions []Permission `json:"permissions"`
 }
 
-// SetLibrary sets the value of Library.
-func (s *AllJobStatusResponseDto) SetLibrary(val JobStatusDto) {
-	s.Library = val
+// GetName returns the value of Name.
+func (s *ApiKeyUpdateDto) GetName() OptString {
+	return s.Name
 }
 
-// SetMetadataExtraction sets the value of MetadataExtraction.
-func (s *AllJobStatusResponseDto) SetMetadataExtraction(val JobStatusDto) {
-	s.MetadataExtraction = val
+// GetPermissions returns the value of Permissions.
+func (s *ApiKeyUpdateDto) GetPermissions() []Permission {
+	return s.Permissions
 }
 
-// SetMigration sets the value of Migration.
-func (s *AllJobStatusResponseDto) SetMigration(val JobStatusDto) {
-	s.Migration = val
+// SetName sets the value of Name.
+func (s *ApiKeyUpdateDto) SetName(val OptString) {
+	s.Name = val
 }
 
-// SetNotifications sets the value of Notifications.
-func (s *AllJobStatusResponseDto) SetNotifications(val JobStatusDto) {
-	s.Notifications = val
-}
-
-// SetOcr sets the value of Ocr.
-func (s *AllJobStatusResponseDto) SetOcr(val JobStatusDto) {
-	s.Ocr = val
-}
-
-// SetSearch sets the value of Search.
-func (s *AllJobStatusResponseDto) SetSearch(val JobStatusDto) {
-	s.Search = val
-}
-
-// SetSidecar sets the value of Sidecar.
-func (s *AllJobStatusResponseDto) SetSidecar(val JobStatusDto) {
-	s.Sidecar = val
-}
-
-// SetSmartSearch sets the value of SmartSearch.
-func (s *AllJobStatusResponseDto) SetSmartSearch(val JobStatusDto) {
-	s.SmartSearch = val
-}
-
-// SetStorageTemplateMigration sets the value of StorageTemplateMigration.
-func (s *AllJobStatusResponseDto) SetStorageTemplateMigration(val JobStatusDto) {
-	s.StorageTemplateMigration = val
-}
-
-// SetThumbnailGeneration sets the value of ThumbnailGeneration.
-func (s *AllJobStatusResponseDto) SetThumbnailGeneration(val JobStatusDto) {
-	s.ThumbnailGeneration = val
-}
-
-// SetVideoConversion sets the value of VideoConversion.
-func (s *AllJobStatusResponseDto) SetVideoConversion(val JobStatusDto) {
-	s.VideoConversion = val
+// SetPermissions sets the value of Permissions.
+func (s *ApiKeyUpdateDto) SetPermissions(val []Permission) {
+	s.Permissions = val
 }
 
 // Ref: #/components/schemas/AssetBulkDeleteDto
 type AssetBulkDeleteDto struct {
-	Force OptBool     `json:"force"`
-	Ids   []uuid.UUID `json:"ids"`
+	// Force delete even if in use.
+	Force OptBool `json:"force"`
+	// IDs to process.
+	Ids []uuid.UUID `json:"ids"`
 }
 
 // GetForce returns the value of Force.
@@ -1008,17 +853,27 @@ func (s *AssetBulkDeleteDto) SetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/AssetBulkUpdateDto
 type AssetBulkUpdateDto struct {
-	DateTimeOriginal OptString          `json:"dateTimeOriginal"`
-	DateTimeRelative OptFloat64         `json:"dateTimeRelative"`
-	Description      OptString          `json:"description"`
-	DuplicateId      OptNilString       `json:"duplicateId"`
-	Ids              []uuid.UUID        `json:"ids"`
-	IsFavorite       OptBool            `json:"isFavorite"`
-	Latitude         OptFloat64         `json:"latitude"`
-	Longitude        OptFloat64         `json:"longitude"`
-	Rating           OptFloat64         `json:"rating"`
-	TimeZone         OptString          `json:"timeZone"`
-	Visibility       OptAssetVisibility `json:"visibility"`
+	// Original date and time.
+	DateTimeOriginal OptString `json:"dateTimeOriginal"`
+	// Relative time offset in minutes.
+	DateTimeRelative OptInt `json:"dateTimeRelative"`
+	// Asset description.
+	Description OptString `json:"description"`
+	// Duplicate ID.
+	DuplicateId OptNilString `json:"duplicateId"`
+	// Asset IDs to update.
+	Ids []uuid.UUID `json:"ids"`
+	// Mark as favorite.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Latitude coordinate.
+	Latitude OptFloat64 `json:"latitude"`
+	// Longitude coordinate.
+	Longitude OptFloat64 `json:"longitude"`
+	// Rating in range [1-5] (starred), -1 (rejected), or null (unrated).
+	Rating OptNilInt `json:"rating"`
+	// Time zone (IANA timezone).
+	TimeZone   OptString          `json:"timeZone"`
+	Visibility OptAssetVisibility `json:"visibility"`
 }
 
 // GetDateTimeOriginal returns the value of DateTimeOriginal.
@@ -1027,7 +882,7 @@ func (s *AssetBulkUpdateDto) GetDateTimeOriginal() OptString {
 }
 
 // GetDateTimeRelative returns the value of DateTimeRelative.
-func (s *AssetBulkUpdateDto) GetDateTimeRelative() OptFloat64 {
+func (s *AssetBulkUpdateDto) GetDateTimeRelative() OptInt {
 	return s.DateTimeRelative
 }
 
@@ -1062,7 +917,7 @@ func (s *AssetBulkUpdateDto) GetLongitude() OptFloat64 {
 }
 
 // GetRating returns the value of Rating.
-func (s *AssetBulkUpdateDto) GetRating() OptFloat64 {
+func (s *AssetBulkUpdateDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
@@ -1082,7 +937,7 @@ func (s *AssetBulkUpdateDto) SetDateTimeOriginal(val OptString) {
 }
 
 // SetDateTimeRelative sets the value of DateTimeRelative.
-func (s *AssetBulkUpdateDto) SetDateTimeRelative(val OptFloat64) {
+func (s *AssetBulkUpdateDto) SetDateTimeRelative(val OptInt) {
 	s.DateTimeRelative = val
 }
 
@@ -1117,7 +972,7 @@ func (s *AssetBulkUpdateDto) SetLongitude(val OptFloat64) {
 }
 
 // SetRating sets the value of Rating.
-func (s *AssetBulkUpdateDto) SetRating(val OptFloat64) {
+func (s *AssetBulkUpdateDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
@@ -1133,6 +988,7 @@ func (s *AssetBulkUpdateDto) SetVisibility(val OptAssetVisibility) {
 
 // Ref: #/components/schemas/AssetBulkUploadCheckDto
 type AssetBulkUploadCheckDto struct {
+	// Assets to check.
 	Assets []AssetBulkUploadCheckItem `json:"assets"`
 }
 
@@ -1148,9 +1004,10 @@ func (s *AssetBulkUploadCheckDto) SetAssets(val []AssetBulkUploadCheckItem) {
 
 // Ref: #/components/schemas/AssetBulkUploadCheckItem
 type AssetBulkUploadCheckItem struct {
-	// Base64 or hex encoded sha1 hash.
+	// Base64 or hex encoded SHA1 hash.
 	Checksum string `json:"checksum"`
-	ID       string `json:"id"`
+	// Client-side identifier echoed in the response to match results to inputs (e.g. filename).
+	ID string `json:"id"`
 }
 
 // GetChecksum returns the value of Checksum.
@@ -1175,6 +1032,7 @@ func (s *AssetBulkUploadCheckItem) SetID(val string) {
 
 // Ref: #/components/schemas/AssetBulkUploadCheckResponseDto
 type AssetBulkUploadCheckResponseDto struct {
+	// Upload check results.
 	Results []AssetBulkUploadCheckResult `json:"results"`
 }
 
@@ -1190,20 +1048,23 @@ func (s *AssetBulkUploadCheckResponseDto) SetResults(val []AssetBulkUploadCheckR
 
 // Ref: #/components/schemas/AssetBulkUploadCheckResult
 type AssetBulkUploadCheckResult struct {
-	Action    AssetBulkUploadCheckResultAction    `json:"action"`
-	AssetId   OptString                           `json:"assetId"`
-	ID        string                              `json:"id"`
-	IsTrashed OptBool                             `json:"isTrashed"`
-	Reason    OptAssetBulkUploadCheckResultReason `json:"reason"`
+	Action AssetUploadAction `json:"action"`
+	// Existing asset ID if duplicate.
+	AssetId OptUUID `json:"assetId"`
+	// Client-side identifier echoed from the request to match results to inputs.
+	ID string `json:"id"`
+	// Whether existing asset is trashed.
+	IsTrashed OptBool              `json:"isTrashed"`
+	Reason    OptAssetRejectReason `json:"reason"`
 }
 
 // GetAction returns the value of Action.
-func (s *AssetBulkUploadCheckResult) GetAction() AssetBulkUploadCheckResultAction {
+func (s *AssetBulkUploadCheckResult) GetAction() AssetUploadAction {
 	return s.Action
 }
 
 // GetAssetId returns the value of AssetId.
-func (s *AssetBulkUploadCheckResult) GetAssetId() OptString {
+func (s *AssetBulkUploadCheckResult) GetAssetId() OptUUID {
 	return s.AssetId
 }
 
@@ -1218,17 +1079,17 @@ func (s *AssetBulkUploadCheckResult) GetIsTrashed() OptBool {
 }
 
 // GetReason returns the value of Reason.
-func (s *AssetBulkUploadCheckResult) GetReason() OptAssetBulkUploadCheckResultReason {
+func (s *AssetBulkUploadCheckResult) GetReason() OptAssetRejectReason {
 	return s.Reason
 }
 
 // SetAction sets the value of Action.
-func (s *AssetBulkUploadCheckResult) SetAction(val AssetBulkUploadCheckResultAction) {
+func (s *AssetBulkUploadCheckResult) SetAction(val AssetUploadAction) {
 	s.Action = val
 }
 
 // SetAssetId sets the value of AssetId.
-func (s *AssetBulkUploadCheckResult) SetAssetId(val OptString) {
+func (s *AssetBulkUploadCheckResult) SetAssetId(val OptUUID) {
 	s.AssetId = val
 }
 
@@ -1243,101 +1104,26 @@ func (s *AssetBulkUploadCheckResult) SetIsTrashed(val OptBool) {
 }
 
 // SetReason sets the value of Reason.
-func (s *AssetBulkUploadCheckResult) SetReason(val OptAssetBulkUploadCheckResultReason) {
+func (s *AssetBulkUploadCheckResult) SetReason(val OptAssetRejectReason) {
 	s.Reason = val
-}
-
-type AssetBulkUploadCheckResultAction string
-
-const (
-	AssetBulkUploadCheckResultActionAccept AssetBulkUploadCheckResultAction = "accept"
-	AssetBulkUploadCheckResultActionReject AssetBulkUploadCheckResultAction = "reject"
-)
-
-// AllValues returns all AssetBulkUploadCheckResultAction values.
-func (AssetBulkUploadCheckResultAction) AllValues() []AssetBulkUploadCheckResultAction {
-	return []AssetBulkUploadCheckResultAction{
-		AssetBulkUploadCheckResultActionAccept,
-		AssetBulkUploadCheckResultActionReject,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AssetBulkUploadCheckResultAction) MarshalText() ([]byte, error) {
-	switch s {
-	case AssetBulkUploadCheckResultActionAccept:
-		return []byte(s), nil
-	case AssetBulkUploadCheckResultActionReject:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AssetBulkUploadCheckResultAction) UnmarshalText(data []byte) error {
-	switch AssetBulkUploadCheckResultAction(data) {
-	case AssetBulkUploadCheckResultActionAccept:
-		*s = AssetBulkUploadCheckResultActionAccept
-		return nil
-	case AssetBulkUploadCheckResultActionReject:
-		*s = AssetBulkUploadCheckResultActionReject
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AssetBulkUploadCheckResultReason string
-
-const (
-	AssetBulkUploadCheckResultReasonDuplicate         AssetBulkUploadCheckResultReason = "duplicate"
-	AssetBulkUploadCheckResultReasonUnsupportedFormat AssetBulkUploadCheckResultReason = "unsupported-format"
-)
-
-// AllValues returns all AssetBulkUploadCheckResultReason values.
-func (AssetBulkUploadCheckResultReason) AllValues() []AssetBulkUploadCheckResultReason {
-	return []AssetBulkUploadCheckResultReason{
-		AssetBulkUploadCheckResultReasonDuplicate,
-		AssetBulkUploadCheckResultReasonUnsupportedFormat,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AssetBulkUploadCheckResultReason) MarshalText() ([]byte, error) {
-	switch s {
-	case AssetBulkUploadCheckResultReasonDuplicate:
-		return []byte(s), nil
-	case AssetBulkUploadCheckResultReasonUnsupportedFormat:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AssetBulkUploadCheckResultReason) UnmarshalText(data []byte) error {
-	switch AssetBulkUploadCheckResultReason(data) {
-	case AssetBulkUploadCheckResultReasonDuplicate:
-		*s = AssetBulkUploadCheckResultReasonDuplicate
-		return nil
-	case AssetBulkUploadCheckResultReasonUnsupportedFormat:
-		*s = AssetBulkUploadCheckResultReasonUnsupportedFormat
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 // Ref: #/components/schemas/AssetCopyDto
 type AssetCopyDto struct {
-	Albums      OptBool   `json:"albums"`
-	Favorite    OptBool   `json:"favorite"`
-	SharedLinks OptBool   `json:"sharedLinks"`
-	Sidecar     OptBool   `json:"sidecar"`
-	SourceId    uuid.UUID `json:"sourceId"`
-	Stack       OptBool   `json:"stack"`
-	TargetId    uuid.UUID `json:"targetId"`
+	// Copy album associations.
+	Albums OptBool `json:"albums"`
+	// Copy favorite status.
+	Favorite OptBool `json:"favorite"`
+	// Copy shared links.
+	SharedLinks OptBool `json:"sharedLinks"`
+	// Copy sidecar file.
+	Sidecar OptBool `json:"sidecar"`
+	// Source asset ID.
+	SourceId uuid.UUID `json:"sourceId"`
+	// Copy stack association.
+	Stack OptBool `json:"stack"`
+	// Target asset ID.
+	TargetId uuid.UUID `json:"targetId"`
 }
 
 // GetAlbums returns the value of Albums.
@@ -1410,79 +1196,24 @@ func (s *AssetCopyDto) SetTargetId(val uuid.UUID) {
 	s.TargetId = val
 }
 
-// Ref: #/components/schemas/AssetDeltaSyncDto
-type AssetDeltaSyncDto struct {
-	UpdatedAfter time.Time   `json:"updatedAfter"`
-	UserIds      []uuid.UUID `json:"userIds"`
-}
-
-// GetUpdatedAfter returns the value of UpdatedAfter.
-func (s *AssetDeltaSyncDto) GetUpdatedAfter() time.Time {
-	return s.UpdatedAfter
-}
-
-// GetUserIds returns the value of UserIds.
-func (s *AssetDeltaSyncDto) GetUserIds() []uuid.UUID {
-	return s.UserIds
-}
-
-// SetUpdatedAfter sets the value of UpdatedAfter.
-func (s *AssetDeltaSyncDto) SetUpdatedAfter(val time.Time) {
-	s.UpdatedAfter = val
-}
-
-// SetUserIds sets the value of UserIds.
-func (s *AssetDeltaSyncDto) SetUserIds(val []uuid.UUID) {
-	s.UserIds = val
-}
-
-// Ref: #/components/schemas/AssetDeltaSyncResponseDto
-type AssetDeltaSyncResponseDto struct {
-	Deleted       []string           `json:"deleted"`
-	NeedsFullSync bool               `json:"needsFullSync"`
-	Upserted      []AssetResponseDto `json:"upserted"`
-}
-
-// GetDeleted returns the value of Deleted.
-func (s *AssetDeltaSyncResponseDto) GetDeleted() []string {
-	return s.Deleted
-}
-
-// GetNeedsFullSync returns the value of NeedsFullSync.
-func (s *AssetDeltaSyncResponseDto) GetNeedsFullSync() bool {
-	return s.NeedsFullSync
-}
-
-// GetUpserted returns the value of Upserted.
-func (s *AssetDeltaSyncResponseDto) GetUpserted() []AssetResponseDto {
-	return s.Upserted
-}
-
-// SetDeleted sets the value of Deleted.
-func (s *AssetDeltaSyncResponseDto) SetDeleted(val []string) {
-	s.Deleted = val
-}
-
-// SetNeedsFullSync sets the value of NeedsFullSync.
-func (s *AssetDeltaSyncResponseDto) SetNeedsFullSync(val bool) {
-	s.NeedsFullSync = val
-}
-
-// SetUpserted sets the value of Upserted.
-func (s *AssetDeltaSyncResponseDto) SetUpserted(val []AssetResponseDto) {
-	s.Upserted = val
-}
-
 // Ref: #/components/schemas/AssetFaceCreateDto
 type AssetFaceCreateDto struct {
-	AssetId     uuid.UUID `json:"assetId"`
-	Height      int       `json:"height"`
-	ImageHeight int       `json:"imageHeight"`
-	ImageWidth  int       `json:"imageWidth"`
-	PersonId    uuid.UUID `json:"personId"`
-	Width       int       `json:"width"`
-	X           int       `json:"x"`
-	Y           int       `json:"y"`
+	// Asset ID.
+	AssetId uuid.UUID `json:"assetId"`
+	// Face bounding box height.
+	Height int `json:"height"`
+	// Image height in pixels.
+	ImageHeight int `json:"imageHeight"`
+	// Image width in pixels.
+	ImageWidth int `json:"imageWidth"`
+	// Person ID.
+	PersonId uuid.UUID `json:"personId"`
+	// Face bounding box width.
+	Width int `json:"width"`
+	// Face bounding box X coordinate.
+	X int `json:"x"`
+	// Face bounding box Y coordinate.
+	Y int `json:"y"`
 }
 
 // GetAssetId returns the value of AssetId.
@@ -1567,6 +1298,7 @@ func (s *AssetFaceCreateDto) SetY(val int) {
 
 // Ref: #/components/schemas/AssetFaceDeleteDto
 type AssetFaceDeleteDto struct {
+	// Force delete even if person has other faces.
 	Force bool `json:"force"`
 }
 
@@ -1580,17 +1312,25 @@ func (s *AssetFaceDeleteDto) SetForce(val bool) {
 	s.Force = val
 }
 
+// Asset face with person.
 // Ref: #/components/schemas/AssetFaceResponseDto
 type AssetFaceResponseDto struct {
-	BoundingBoxX1 int                  `json:"boundingBoxX1"`
-	BoundingBoxX2 int                  `json:"boundingBoxX2"`
-	BoundingBoxY1 int                  `json:"boundingBoxY1"`
-	BoundingBoxY2 int                  `json:"boundingBoxY2"`
-	ID            uuid.UUID            `json:"id"`
-	ImageHeight   int                  `json:"imageHeight"`
-	ImageWidth    int                  `json:"imageWidth"`
-	Person        NilPersonResponseDto `json:"person"`
-	SourceType    OptSourceType        `json:"sourceType"`
+	// Bounding box X1 coordinate.
+	BoundingBoxX1 int `json:"boundingBoxX1"`
+	// Bounding box X2 coordinate.
+	BoundingBoxX2 int `json:"boundingBoxX2"`
+	// Bounding box Y1 coordinate.
+	BoundingBoxY1 int `json:"boundingBoxY1"`
+	// Bounding box Y2 coordinate.
+	BoundingBoxY2 int `json:"boundingBoxY2"`
+	// Face ID.
+	ID uuid.UUID `json:"id"`
+	// Image height in pixels.
+	ImageHeight int `json:"imageHeight"`
+	// Image width in pixels.
+	ImageWidth int                  `json:"imageWidth"`
+	Person     NilPersonResponseDto `json:"person"`
+	SourceType OptSourceType        `json:"sourceType"`
 }
 
 // GetBoundingBoxX1 returns the value of BoundingBoxX1.
@@ -1685,6 +1425,7 @@ func (s *AssetFaceResponseDto) SetSourceType(val OptSourceType) {
 
 // Ref: #/components/schemas/AssetFaceUpdateDto
 type AssetFaceUpdateDto struct {
+	// Face update items.
 	Data []AssetFaceUpdateItem `json:"data"`
 }
 
@@ -1700,7 +1441,9 @@ func (s *AssetFaceUpdateDto) SetData(val []AssetFaceUpdateItem) {
 
 // Ref: #/components/schemas/AssetFaceUpdateItem
 type AssetFaceUpdateItem struct {
-	AssetId  uuid.UUID `json:"assetId"`
+	// Asset ID.
+	AssetId uuid.UUID `json:"assetId"`
+	// Person ID.
 	PersonId uuid.UUID `json:"personId"`
 }
 
@@ -1724,148 +1467,59 @@ func (s *AssetFaceUpdateItem) SetPersonId(val uuid.UUID) {
 	s.PersonId = val
 }
 
-// Ref: #/components/schemas/AssetFaceWithoutPersonResponseDto
-type AssetFaceWithoutPersonResponseDto struct {
-	BoundingBoxX1 int           `json:"boundingBoxX1"`
-	BoundingBoxX2 int           `json:"boundingBoxX2"`
-	BoundingBoxY1 int           `json:"boundingBoxY1"`
-	BoundingBoxY2 int           `json:"boundingBoxY2"`
-	ID            uuid.UUID     `json:"id"`
-	ImageHeight   int           `json:"imageHeight"`
-	ImageWidth    int           `json:"imageWidth"`
-	SourceType    OptSourceType `json:"sourceType"`
+// Error reason if failed.
+// Ref: #/components/schemas/AssetIdErrorReason
+type AssetIdErrorReason string
+
+const (
+	AssetIdErrorReasonDuplicate    AssetIdErrorReason = "duplicate"
+	AssetIdErrorReasonNoPermission AssetIdErrorReason = "no_permission"
+	AssetIdErrorReasonNotFound     AssetIdErrorReason = "not_found"
+)
+
+// AllValues returns all AssetIdErrorReason values.
+func (AssetIdErrorReason) AllValues() []AssetIdErrorReason {
+	return []AssetIdErrorReason{
+		AssetIdErrorReasonDuplicate,
+		AssetIdErrorReasonNoPermission,
+		AssetIdErrorReasonNotFound,
+	}
 }
 
-// GetBoundingBoxX1 returns the value of BoundingBoxX1.
-func (s *AssetFaceWithoutPersonResponseDto) GetBoundingBoxX1() int {
-	return s.BoundingBoxX1
+// MarshalText implements encoding.TextMarshaler.
+func (s AssetIdErrorReason) MarshalText() ([]byte, error) {
+	switch s {
+	case AssetIdErrorReasonDuplicate:
+		return []byte(s), nil
+	case AssetIdErrorReasonNoPermission:
+		return []byte(s), nil
+	case AssetIdErrorReasonNotFound:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
 }
 
-// GetBoundingBoxX2 returns the value of BoundingBoxX2.
-func (s *AssetFaceWithoutPersonResponseDto) GetBoundingBoxX2() int {
-	return s.BoundingBoxX2
-}
-
-// GetBoundingBoxY1 returns the value of BoundingBoxY1.
-func (s *AssetFaceWithoutPersonResponseDto) GetBoundingBoxY1() int {
-	return s.BoundingBoxY1
-}
-
-// GetBoundingBoxY2 returns the value of BoundingBoxY2.
-func (s *AssetFaceWithoutPersonResponseDto) GetBoundingBoxY2() int {
-	return s.BoundingBoxY2
-}
-
-// GetID returns the value of ID.
-func (s *AssetFaceWithoutPersonResponseDto) GetID() uuid.UUID {
-	return s.ID
-}
-
-// GetImageHeight returns the value of ImageHeight.
-func (s *AssetFaceWithoutPersonResponseDto) GetImageHeight() int {
-	return s.ImageHeight
-}
-
-// GetImageWidth returns the value of ImageWidth.
-func (s *AssetFaceWithoutPersonResponseDto) GetImageWidth() int {
-	return s.ImageWidth
-}
-
-// GetSourceType returns the value of SourceType.
-func (s *AssetFaceWithoutPersonResponseDto) GetSourceType() OptSourceType {
-	return s.SourceType
-}
-
-// SetBoundingBoxX1 sets the value of BoundingBoxX1.
-func (s *AssetFaceWithoutPersonResponseDto) SetBoundingBoxX1(val int) {
-	s.BoundingBoxX1 = val
-}
-
-// SetBoundingBoxX2 sets the value of BoundingBoxX2.
-func (s *AssetFaceWithoutPersonResponseDto) SetBoundingBoxX2(val int) {
-	s.BoundingBoxX2 = val
-}
-
-// SetBoundingBoxY1 sets the value of BoundingBoxY1.
-func (s *AssetFaceWithoutPersonResponseDto) SetBoundingBoxY1(val int) {
-	s.BoundingBoxY1 = val
-}
-
-// SetBoundingBoxY2 sets the value of BoundingBoxY2.
-func (s *AssetFaceWithoutPersonResponseDto) SetBoundingBoxY2(val int) {
-	s.BoundingBoxY2 = val
-}
-
-// SetID sets the value of ID.
-func (s *AssetFaceWithoutPersonResponseDto) SetID(val uuid.UUID) {
-	s.ID = val
-}
-
-// SetImageHeight sets the value of ImageHeight.
-func (s *AssetFaceWithoutPersonResponseDto) SetImageHeight(val int) {
-	s.ImageHeight = val
-}
-
-// SetImageWidth sets the value of ImageWidth.
-func (s *AssetFaceWithoutPersonResponseDto) SetImageWidth(val int) {
-	s.ImageWidth = val
-}
-
-// SetSourceType sets the value of SourceType.
-func (s *AssetFaceWithoutPersonResponseDto) SetSourceType(val OptSourceType) {
-	s.SourceType = val
-}
-
-// Ref: #/components/schemas/AssetFullSyncDto
-type AssetFullSyncDto struct {
-	LastId       OptUUID   `json:"lastId"`
-	Limit        int       `json:"limit"`
-	UpdatedUntil time.Time `json:"updatedUntil"`
-	UserId       OptUUID   `json:"userId"`
-}
-
-// GetLastId returns the value of LastId.
-func (s *AssetFullSyncDto) GetLastId() OptUUID {
-	return s.LastId
-}
-
-// GetLimit returns the value of Limit.
-func (s *AssetFullSyncDto) GetLimit() int {
-	return s.Limit
-}
-
-// GetUpdatedUntil returns the value of UpdatedUntil.
-func (s *AssetFullSyncDto) GetUpdatedUntil() time.Time {
-	return s.UpdatedUntil
-}
-
-// GetUserId returns the value of UserId.
-func (s *AssetFullSyncDto) GetUserId() OptUUID {
-	return s.UserId
-}
-
-// SetLastId sets the value of LastId.
-func (s *AssetFullSyncDto) SetLastId(val OptUUID) {
-	s.LastId = val
-}
-
-// SetLimit sets the value of Limit.
-func (s *AssetFullSyncDto) SetLimit(val int) {
-	s.Limit = val
-}
-
-// SetUpdatedUntil sets the value of UpdatedUntil.
-func (s *AssetFullSyncDto) SetUpdatedUntil(val time.Time) {
-	s.UpdatedUntil = val
-}
-
-// SetUserId sets the value of UserId.
-func (s *AssetFullSyncDto) SetUserId(val OptUUID) {
-	s.UserId = val
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AssetIdErrorReason) UnmarshalText(data []byte) error {
+	switch AssetIdErrorReason(data) {
+	case AssetIdErrorReasonDuplicate:
+		*s = AssetIdErrorReasonDuplicate
+		return nil
+	case AssetIdErrorReasonNoPermission:
+		*s = AssetIdErrorReasonNoPermission
+		return nil
+	case AssetIdErrorReasonNotFound:
+		*s = AssetIdErrorReasonNotFound
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/AssetIdsDto
 type AssetIdsDto struct {
+	// Asset IDs.
 	AssetIds []uuid.UUID `json:"assetIds"`
 }
 
@@ -1881,18 +1535,20 @@ func (s *AssetIdsDto) SetAssetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/AssetIdsResponseDto
 type AssetIdsResponseDto struct {
-	AssetId string                      `json:"assetId"`
-	Error   OptAssetIdsResponseDtoError `json:"error"`
-	Success bool                        `json:"success"`
+	// Asset ID.
+	AssetId uuid.UUID             `json:"assetId"`
+	Error   OptAssetIdErrorReason `json:"error"`
+	// Whether operation succeeded.
+	Success bool `json:"success"`
 }
 
 // GetAssetId returns the value of AssetId.
-func (s *AssetIdsResponseDto) GetAssetId() string {
+func (s *AssetIdsResponseDto) GetAssetId() uuid.UUID {
 	return s.AssetId
 }
 
 // GetError returns the value of Error.
-func (s *AssetIdsResponseDto) GetError() OptAssetIdsResponseDtoError {
+func (s *AssetIdsResponseDto) GetError() OptAssetIdErrorReason {
 	return s.Error
 }
 
@@ -1902,12 +1558,12 @@ func (s *AssetIdsResponseDto) GetSuccess() bool {
 }
 
 // SetAssetId sets the value of AssetId.
-func (s *AssetIdsResponseDto) SetAssetId(val string) {
+func (s *AssetIdsResponseDto) SetAssetId(val uuid.UUID) {
 	s.AssetId = val
 }
 
 // SetError sets the value of Error.
-func (s *AssetIdsResponseDto) SetError(val OptAssetIdsResponseDtoError) {
+func (s *AssetIdsResponseDto) SetError(val OptAssetIdErrorReason) {
 	s.Error = val
 }
 
@@ -1916,54 +1572,7 @@ func (s *AssetIdsResponseDto) SetSuccess(val bool) {
 	s.Success = val
 }
 
-type AssetIdsResponseDtoError string
-
-const (
-	AssetIdsResponseDtoErrorDuplicate    AssetIdsResponseDtoError = "duplicate"
-	AssetIdsResponseDtoErrorNoPermission AssetIdsResponseDtoError = "no_permission"
-	AssetIdsResponseDtoErrorNotFound     AssetIdsResponseDtoError = "not_found"
-)
-
-// AllValues returns all AssetIdsResponseDtoError values.
-func (AssetIdsResponseDtoError) AllValues() []AssetIdsResponseDtoError {
-	return []AssetIdsResponseDtoError{
-		AssetIdsResponseDtoErrorDuplicate,
-		AssetIdsResponseDtoErrorNoPermission,
-		AssetIdsResponseDtoErrorNotFound,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AssetIdsResponseDtoError) MarshalText() ([]byte, error) {
-	switch s {
-	case AssetIdsResponseDtoErrorDuplicate:
-		return []byte(s), nil
-	case AssetIdsResponseDtoErrorNoPermission:
-		return []byte(s), nil
-	case AssetIdsResponseDtoErrorNotFound:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AssetIdsResponseDtoError) UnmarshalText(data []byte) error {
-	switch AssetIdsResponseDtoError(data) {
-	case AssetIdsResponseDtoErrorDuplicate:
-		*s = AssetIdsResponseDtoErrorDuplicate
-		return nil
-	case AssetIdsResponseDtoErrorNoPermission:
-		*s = AssetIdsResponseDtoErrorNoPermission
-		return nil
-	case AssetIdsResponseDtoErrorNotFound:
-		*s = AssetIdsResponseDtoErrorNotFound
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
+// Job name.
 // Ref: #/components/schemas/AssetJobName
 type AssetJobName string
 
@@ -2022,6 +1631,7 @@ func (s *AssetJobName) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/AssetJobsDto
 type AssetJobsDto struct {
+	// Asset IDs.
 	AssetIds []uuid.UUID  `json:"assetIds"`
 	Name     AssetJobName `json:"name"`
 }
@@ -2048,18 +1658,25 @@ func (s *AssetJobsDto) SetName(val AssetJobName) {
 
 // Ref: #/components/schemas/AssetMediaCreateDto
 type AssetMediaCreateDtoMultipart struct {
-	AssetData        ht.MultipartFile             `json:"assetData"`
-	DeviceAssetId    string                       `json:"deviceAssetId"`
-	DeviceId         string                       `json:"deviceId"`
-	Duration         OptString                    `json:"duration"`
-	FileCreatedAt    time.Time                    `json:"fileCreatedAt"`
-	FileModifiedAt   time.Time                    `json:"fileModifiedAt"`
-	Filename         OptString                    `json:"filename"`
-	IsFavorite       OptBool                      `json:"isFavorite"`
-	LivePhotoVideoId OptUUID                      `json:"livePhotoVideoId"`
-	Metadata         []AssetMetadataUpsertItemDto `json:"metadata"`
-	SidecarData      OptMultipartFile             `json:"sidecarData"`
-	Visibility       OptAssetVisibility           `json:"visibility"`
+	// Asset file data.
+	AssetData ht.MultipartFile `json:"assetData"`
+	// Duration in milliseconds (for videos).
+	Duration OptInt `json:"duration"`
+	// File creation date.
+	FileCreatedAt time.Time `json:"fileCreatedAt"`
+	// File modification date.
+	FileModifiedAt time.Time `json:"fileModifiedAt"`
+	// Filename.
+	Filename OptString `json:"filename"`
+	// Mark as favorite.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Live photo video ID.
+	LivePhotoVideoId OptUUID `json:"livePhotoVideoId"`
+	// Asset metadata items.
+	Metadata []AssetMetadataUpsertItemDto `json:"metadata"`
+	// Sidecar file data.
+	SidecarData OptMultipartFile   `json:"sidecarData"`
+	Visibility  OptAssetVisibility `json:"visibility"`
 }
 
 // GetAssetData returns the value of AssetData.
@@ -2067,18 +1684,8 @@ func (s *AssetMediaCreateDtoMultipart) GetAssetData() ht.MultipartFile {
 	return s.AssetData
 }
 
-// GetDeviceAssetId returns the value of DeviceAssetId.
-func (s *AssetMediaCreateDtoMultipart) GetDeviceAssetId() string {
-	return s.DeviceAssetId
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *AssetMediaCreateDtoMultipart) GetDeviceId() string {
-	return s.DeviceId
-}
-
 // GetDuration returns the value of Duration.
-func (s *AssetMediaCreateDtoMultipart) GetDuration() OptString {
+func (s *AssetMediaCreateDtoMultipart) GetDuration() OptInt {
 	return s.Duration
 }
 
@@ -2127,18 +1734,8 @@ func (s *AssetMediaCreateDtoMultipart) SetAssetData(val ht.MultipartFile) {
 	s.AssetData = val
 }
 
-// SetDeviceAssetId sets the value of DeviceAssetId.
-func (s *AssetMediaCreateDtoMultipart) SetDeviceAssetId(val string) {
-	s.DeviceAssetId = val
-}
-
-// SetDeviceId sets the value of DeviceId.
-func (s *AssetMediaCreateDtoMultipart) SetDeviceId(val string) {
-	s.DeviceId = val
-}
-
 // SetDuration sets the value of Duration.
-func (s *AssetMediaCreateDtoMultipart) SetDuration(val OptString) {
+func (s *AssetMediaCreateDtoMultipart) SetDuration(val OptInt) {
 	s.Duration = val
 }
 
@@ -2182,95 +1779,15 @@ func (s *AssetMediaCreateDtoMultipart) SetVisibility(val OptAssetVisibility) {
 	s.Visibility = val
 }
 
-// Ref: #/components/schemas/AssetMediaReplaceDto
-type AssetMediaReplaceDtoMultipart struct {
-	AssetData      ht.MultipartFile `json:"assetData"`
-	DeviceAssetId  string           `json:"deviceAssetId"`
-	DeviceId       string           `json:"deviceId"`
-	Duration       OptString        `json:"duration"`
-	FileCreatedAt  time.Time        `json:"fileCreatedAt"`
-	FileModifiedAt time.Time        `json:"fileModifiedAt"`
-	Filename       OptString        `json:"filename"`
-}
-
-// GetAssetData returns the value of AssetData.
-func (s *AssetMediaReplaceDtoMultipart) GetAssetData() ht.MultipartFile {
-	return s.AssetData
-}
-
-// GetDeviceAssetId returns the value of DeviceAssetId.
-func (s *AssetMediaReplaceDtoMultipart) GetDeviceAssetId() string {
-	return s.DeviceAssetId
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *AssetMediaReplaceDtoMultipart) GetDeviceId() string {
-	return s.DeviceId
-}
-
-// GetDuration returns the value of Duration.
-func (s *AssetMediaReplaceDtoMultipart) GetDuration() OptString {
-	return s.Duration
-}
-
-// GetFileCreatedAt returns the value of FileCreatedAt.
-func (s *AssetMediaReplaceDtoMultipart) GetFileCreatedAt() time.Time {
-	return s.FileCreatedAt
-}
-
-// GetFileModifiedAt returns the value of FileModifiedAt.
-func (s *AssetMediaReplaceDtoMultipart) GetFileModifiedAt() time.Time {
-	return s.FileModifiedAt
-}
-
-// GetFilename returns the value of Filename.
-func (s *AssetMediaReplaceDtoMultipart) GetFilename() OptString {
-	return s.Filename
-}
-
-// SetAssetData sets the value of AssetData.
-func (s *AssetMediaReplaceDtoMultipart) SetAssetData(val ht.MultipartFile) {
-	s.AssetData = val
-}
-
-// SetDeviceAssetId sets the value of DeviceAssetId.
-func (s *AssetMediaReplaceDtoMultipart) SetDeviceAssetId(val string) {
-	s.DeviceAssetId = val
-}
-
-// SetDeviceId sets the value of DeviceId.
-func (s *AssetMediaReplaceDtoMultipart) SetDeviceId(val string) {
-	s.DeviceId = val
-}
-
-// SetDuration sets the value of Duration.
-func (s *AssetMediaReplaceDtoMultipart) SetDuration(val OptString) {
-	s.Duration = val
-}
-
-// SetFileCreatedAt sets the value of FileCreatedAt.
-func (s *AssetMediaReplaceDtoMultipart) SetFileCreatedAt(val time.Time) {
-	s.FileCreatedAt = val
-}
-
-// SetFileModifiedAt sets the value of FileModifiedAt.
-func (s *AssetMediaReplaceDtoMultipart) SetFileModifiedAt(val time.Time) {
-	s.FileModifiedAt = val
-}
-
-// SetFilename sets the value of Filename.
-func (s *AssetMediaReplaceDtoMultipart) SetFilename(val OptString) {
-	s.Filename = val
-}
-
 // Ref: #/components/schemas/AssetMediaResponseDto
 type AssetMediaResponseDto struct {
-	ID     string           `json:"id"`
+	// Asset media ID.
+	ID     uuid.UUID        `json:"id"`
 	Status AssetMediaStatus `json:"status"`
 }
 
 // GetID returns the value of ID.
-func (s *AssetMediaResponseDto) GetID() string {
+func (s *AssetMediaResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -2280,7 +1797,7 @@ func (s *AssetMediaResponseDto) GetStatus() AssetMediaStatus {
 }
 
 // SetID sets the value of ID.
-func (s *AssetMediaResponseDto) SetID(val string) {
+func (s *AssetMediaResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -2289,10 +1806,12 @@ func (s *AssetMediaResponseDto) SetStatus(val AssetMediaStatus) {
 	s.Status = val
 }
 
+// Asset media size.
 // Ref: #/components/schemas/AssetMediaSize
 type AssetMediaSize string
 
 const (
+	AssetMediaSizeOriginal  AssetMediaSize = "original"
 	AssetMediaSizeFullsize  AssetMediaSize = "fullsize"
 	AssetMediaSizePreview   AssetMediaSize = "preview"
 	AssetMediaSizeThumbnail AssetMediaSize = "thumbnail"
@@ -2301,6 +1820,7 @@ const (
 // AllValues returns all AssetMediaSize values.
 func (AssetMediaSize) AllValues() []AssetMediaSize {
 	return []AssetMediaSize{
+		AssetMediaSizeOriginal,
 		AssetMediaSizeFullsize,
 		AssetMediaSizePreview,
 		AssetMediaSizeThumbnail,
@@ -2310,6 +1830,8 @@ func (AssetMediaSize) AllValues() []AssetMediaSize {
 // MarshalText implements encoding.TextMarshaler.
 func (s AssetMediaSize) MarshalText() ([]byte, error) {
 	switch s {
+	case AssetMediaSizeOriginal:
+		return []byte(s), nil
 	case AssetMediaSizeFullsize:
 		return []byte(s), nil
 	case AssetMediaSizePreview:
@@ -2324,6 +1846,9 @@ func (s AssetMediaSize) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *AssetMediaSize) UnmarshalText(data []byte) error {
 	switch AssetMediaSize(data) {
+	case AssetMediaSizeOriginal:
+		*s = AssetMediaSizeOriginal
+		return nil
 	case AssetMediaSizeFullsize:
 		*s = AssetMediaSizeFullsize
 		return nil
@@ -2338,12 +1863,12 @@ func (s *AssetMediaSize) UnmarshalText(data []byte) error {
 	}
 }
 
+// Upload status.
 // Ref: #/components/schemas/AssetMediaStatus
 type AssetMediaStatus string
 
 const (
 	AssetMediaStatusCreated   AssetMediaStatus = "created"
-	AssetMediaStatusReplaced  AssetMediaStatus = "replaced"
 	AssetMediaStatusDuplicate AssetMediaStatus = "duplicate"
 )
 
@@ -2351,7 +1876,6 @@ const (
 func (AssetMediaStatus) AllValues() []AssetMediaStatus {
 	return []AssetMediaStatus{
 		AssetMediaStatusCreated,
-		AssetMediaStatusReplaced,
 		AssetMediaStatusDuplicate,
 	}
 }
@@ -2360,8 +1884,6 @@ func (AssetMediaStatus) AllValues() []AssetMediaStatus {
 func (s AssetMediaStatus) MarshalText() ([]byte, error) {
 	switch s {
 	case AssetMediaStatusCreated:
-		return []byte(s), nil
-	case AssetMediaStatusReplaced:
 		return []byte(s), nil
 	case AssetMediaStatusDuplicate:
 		return []byte(s), nil
@@ -2376,9 +1898,6 @@ func (s *AssetMediaStatus) UnmarshalText(data []byte) error {
 	case AssetMediaStatusCreated:
 		*s = AssetMediaStatusCreated
 		return nil
-	case AssetMediaStatusReplaced:
-		*s = AssetMediaStatusReplaced
-		return nil
 	case AssetMediaStatusDuplicate:
 		*s = AssetMediaStatusDuplicate
 		return nil
@@ -2387,50 +1906,194 @@ func (s *AssetMediaStatus) UnmarshalText(data []byte) error {
 	}
 }
 
-// Ref: #/components/schemas/AssetMetadataKey
-type AssetMetadataKey string
-
-const (
-	AssetMetadataKeyMobileApp AssetMetadataKey = "mobile-app"
-)
-
-// AllValues returns all AssetMetadataKey values.
-func (AssetMetadataKey) AllValues() []AssetMetadataKey {
-	return []AssetMetadataKey{
-		AssetMetadataKeyMobileApp,
-	}
+// Ref: #/components/schemas/AssetMetadataBulkDeleteDto
+type AssetMetadataBulkDeleteDto struct {
+	// Metadata items to delete.
+	Items []AssetMetadataBulkDeleteItemDto `json:"items"`
 }
 
-// MarshalText implements encoding.TextMarshaler.
-func (s AssetMetadataKey) MarshalText() ([]byte, error) {
-	switch s {
-	case AssetMetadataKeyMobileApp:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
+// GetItems returns the value of Items.
+func (s *AssetMetadataBulkDeleteDto) GetItems() []AssetMetadataBulkDeleteItemDto {
+	return s.Items
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AssetMetadataKey) UnmarshalText(data []byte) error {
-	switch AssetMetadataKey(data) {
-	case AssetMetadataKeyMobileApp:
-		*s = AssetMetadataKeyMobileApp
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
+// SetItems sets the value of Items.
+func (s *AssetMetadataBulkDeleteDto) SetItems(val []AssetMetadataBulkDeleteItemDto) {
+	s.Items = val
+}
+
+// Ref: #/components/schemas/AssetMetadataBulkDeleteItemDto
+type AssetMetadataBulkDeleteItemDto struct {
+	// Asset ID.
+	AssetId uuid.UUID `json:"assetId"`
+	// Metadata key.
+	Key string `json:"key"`
+}
+
+// GetAssetId returns the value of AssetId.
+func (s *AssetMetadataBulkDeleteItemDto) GetAssetId() uuid.UUID {
+	return s.AssetId
+}
+
+// GetKey returns the value of Key.
+func (s *AssetMetadataBulkDeleteItemDto) GetKey() string {
+	return s.Key
+}
+
+// SetAssetId sets the value of AssetId.
+func (s *AssetMetadataBulkDeleteItemDto) SetAssetId(val uuid.UUID) {
+	s.AssetId = val
+}
+
+// SetKey sets the value of Key.
+func (s *AssetMetadataBulkDeleteItemDto) SetKey(val string) {
+	s.Key = val
+}
+
+// Ref: #/components/schemas/AssetMetadataBulkResponseDto
+type AssetMetadataBulkResponseDto struct {
+	// Asset ID.
+	AssetId uuid.UUID `json:"assetId"`
+	// Metadata key.
+	Key string `json:"key"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
+	// Metadata value (object).
+	Value AssetMetadataBulkResponseDtoValue `json:"value"`
+}
+
+// GetAssetId returns the value of AssetId.
+func (s *AssetMetadataBulkResponseDto) GetAssetId() uuid.UUID {
+	return s.AssetId
+}
+
+// GetKey returns the value of Key.
+func (s *AssetMetadataBulkResponseDto) GetKey() string {
+	return s.Key
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *AssetMetadataBulkResponseDto) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetValue returns the value of Value.
+func (s *AssetMetadataBulkResponseDto) GetValue() AssetMetadataBulkResponseDtoValue {
+	return s.Value
+}
+
+// SetAssetId sets the value of AssetId.
+func (s *AssetMetadataBulkResponseDto) SetAssetId(val uuid.UUID) {
+	s.AssetId = val
+}
+
+// SetKey sets the value of Key.
+func (s *AssetMetadataBulkResponseDto) SetKey(val string) {
+	s.Key = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *AssetMetadataBulkResponseDto) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetValue sets the value of Value.
+func (s *AssetMetadataBulkResponseDto) SetValue(val AssetMetadataBulkResponseDtoValue) {
+	s.Value = val
+}
+
+// Metadata value (object).
+type AssetMetadataBulkResponseDtoValue map[string]jx.Raw
+
+func (s *AssetMetadataBulkResponseDtoValue) init() AssetMetadataBulkResponseDtoValue {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
 	}
+	return m
+}
+
+// Ref: #/components/schemas/AssetMetadataBulkUpsertDto
+type AssetMetadataBulkUpsertDto struct {
+	// Metadata items to upsert.
+	Items []AssetMetadataBulkUpsertItemDto `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *AssetMetadataBulkUpsertDto) GetItems() []AssetMetadataBulkUpsertItemDto {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *AssetMetadataBulkUpsertDto) SetItems(val []AssetMetadataBulkUpsertItemDto) {
+	s.Items = val
+}
+
+// Ref: #/components/schemas/AssetMetadataBulkUpsertItemDto
+type AssetMetadataBulkUpsertItemDto struct {
+	// Asset ID.
+	AssetId uuid.UUID `json:"assetId"`
+	// Metadata key.
+	Key string `json:"key"`
+	// Metadata value (object).
+	Value AssetMetadataBulkUpsertItemDtoValue `json:"value"`
+}
+
+// GetAssetId returns the value of AssetId.
+func (s *AssetMetadataBulkUpsertItemDto) GetAssetId() uuid.UUID {
+	return s.AssetId
+}
+
+// GetKey returns the value of Key.
+func (s *AssetMetadataBulkUpsertItemDto) GetKey() string {
+	return s.Key
+}
+
+// GetValue returns the value of Value.
+func (s *AssetMetadataBulkUpsertItemDto) GetValue() AssetMetadataBulkUpsertItemDtoValue {
+	return s.Value
+}
+
+// SetAssetId sets the value of AssetId.
+func (s *AssetMetadataBulkUpsertItemDto) SetAssetId(val uuid.UUID) {
+	s.AssetId = val
+}
+
+// SetKey sets the value of Key.
+func (s *AssetMetadataBulkUpsertItemDto) SetKey(val string) {
+	s.Key = val
+}
+
+// SetValue sets the value of Value.
+func (s *AssetMetadataBulkUpsertItemDto) SetValue(val AssetMetadataBulkUpsertItemDtoValue) {
+	s.Value = val
+}
+
+// Metadata value (object).
+type AssetMetadataBulkUpsertItemDtoValue map[string]jx.Raw
+
+func (s *AssetMetadataBulkUpsertItemDtoValue) init() AssetMetadataBulkUpsertItemDtoValue {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
 }
 
 // Ref: #/components/schemas/AssetMetadataResponseDto
 type AssetMetadataResponseDto struct {
-	Key       AssetMetadataKey              `json:"key"`
-	UpdatedAt time.Time                     `json:"updatedAt"`
-	Value     AssetMetadataResponseDtoValue `json:"value"`
+	// Metadata key.
+	Key string `json:"key"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
+	// Metadata value (object).
+	Value AssetMetadataResponseDtoValue `json:"value"`
 }
 
 // GetKey returns the value of Key.
-func (s *AssetMetadataResponseDto) GetKey() AssetMetadataKey {
+func (s *AssetMetadataResponseDto) GetKey() string {
 	return s.Key
 }
 
@@ -2445,7 +2108,7 @@ func (s *AssetMetadataResponseDto) GetValue() AssetMetadataResponseDtoValue {
 }
 
 // SetKey sets the value of Key.
-func (s *AssetMetadataResponseDto) SetKey(val AssetMetadataKey) {
+func (s *AssetMetadataResponseDto) SetKey(val string) {
 	s.Key = val
 }
 
@@ -2459,10 +2122,21 @@ func (s *AssetMetadataResponseDto) SetValue(val AssetMetadataResponseDtoValue) {
 	s.Value = val
 }
 
-type AssetMetadataResponseDtoValue struct{}
+// Metadata value (object).
+type AssetMetadataResponseDtoValue map[string]jx.Raw
+
+func (s *AssetMetadataResponseDtoValue) init() AssetMetadataResponseDtoValue {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
 
 // Ref: #/components/schemas/AssetMetadataUpsertDto
 type AssetMetadataUpsertDto struct {
+	// Metadata items to upsert.
 	Items []AssetMetadataUpsertItemDto `json:"items"`
 }
 
@@ -2478,12 +2152,14 @@ func (s *AssetMetadataUpsertDto) SetItems(val []AssetMetadataUpsertItemDto) {
 
 // Ref: #/components/schemas/AssetMetadataUpsertItemDto
 type AssetMetadataUpsertItemDto struct {
-	Key   AssetMetadataKey                `json:"key"`
+	// Metadata key.
+	Key string `json:"key"`
+	// Metadata value (object).
 	Value AssetMetadataUpsertItemDtoValue `json:"value"`
 }
 
 // GetKey returns the value of Key.
-func (s *AssetMetadataUpsertItemDto) GetKey() AssetMetadataKey {
+func (s *AssetMetadataUpsertItemDto) GetKey() string {
 	return s.Key
 }
 
@@ -2493,7 +2169,7 @@ func (s *AssetMetadataUpsertItemDto) GetValue() AssetMetadataUpsertItemDtoValue 
 }
 
 // SetKey sets the value of Key.
-func (s *AssetMetadataUpsertItemDto) SetKey(val AssetMetadataKey) {
+func (s *AssetMetadataUpsertItemDto) SetKey(val string) {
 	s.Key = val
 }
 
@@ -2502,7 +2178,17 @@ func (s *AssetMetadataUpsertItemDto) SetValue(val AssetMetadataUpsertItemDtoValu
 	s.Value = val
 }
 
-type AssetMetadataUpsertItemDtoValue struct{}
+// Metadata value (object).
+type AssetMetadataUpsertItemDtoValue map[string]jx.Raw
+
+func (s *AssetMetadataUpsertItemDtoValue) init() AssetMetadataUpsertItemDtoValue {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
 
 // Ref: #/components/schemas/AssetOcrResponseDto
 type AssetOcrResponseDto struct {
@@ -2662,6 +2348,7 @@ func (s *AssetOcrResponseDto) SetY4(val float64) {
 	s.Y4 = val
 }
 
+// Asset sort order.
 // Ref: #/components/schemas/AssetOrder
 type AssetOrder string
 
@@ -2704,58 +2391,158 @@ func (s *AssetOrder) UnmarshalText(data []byte) error {
 	}
 }
 
+// Asset sorting property.
+// Ref: #/components/schemas/AssetOrderBy
+type AssetOrderBy string
+
+const (
+	AssetOrderByTakenAt   AssetOrderBy = "takenAt"
+	AssetOrderByCreatedAt AssetOrderBy = "createdAt"
+)
+
+// AllValues returns all AssetOrderBy values.
+func (AssetOrderBy) AllValues() []AssetOrderBy {
+	return []AssetOrderBy{
+		AssetOrderByTakenAt,
+		AssetOrderByCreatedAt,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AssetOrderBy) MarshalText() ([]byte, error) {
+	switch s {
+	case AssetOrderByTakenAt:
+		return []byte(s), nil
+	case AssetOrderByCreatedAt:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AssetOrderBy) UnmarshalText(data []byte) error {
+	switch AssetOrderBy(data) {
+	case AssetOrderByTakenAt:
+		*s = AssetOrderByTakenAt
+		return nil
+	case AssetOrderByCreatedAt:
+		*s = AssetOrderByCreatedAt
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Rejection reason if rejected.
+// Ref: #/components/schemas/AssetRejectReason
+type AssetRejectReason string
+
+const (
+	AssetRejectReasonDuplicate         AssetRejectReason = "duplicate"
+	AssetRejectReasonUnsupportedFormat AssetRejectReason = "unsupported-format"
+)
+
+// AllValues returns all AssetRejectReason values.
+func (AssetRejectReason) AllValues() []AssetRejectReason {
+	return []AssetRejectReason{
+		AssetRejectReasonDuplicate,
+		AssetRejectReasonUnsupportedFormat,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AssetRejectReason) MarshalText() ([]byte, error) {
+	switch s {
+	case AssetRejectReasonDuplicate:
+		return []byte(s), nil
+	case AssetRejectReasonUnsupportedFormat:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AssetRejectReason) UnmarshalText(data []byte) error {
+	switch AssetRejectReason(data) {
+	case AssetRejectReasonDuplicate:
+		*s = AssetRejectReasonDuplicate
+		return nil
+	case AssetRejectReasonUnsupportedFormat:
+		*s = AssetRejectReasonUnsupportedFormat
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/AssetResponseDto
 type AssetResponseDto struct {
-	// Base64 encoded sha1 hash.
+	// Base64 encoded SHA1 hash.
 	Checksum string `json:"checksum"`
 	// The UTC timestamp when the asset was originally uploaded to Immich.
-	CreatedAt     time.Time          `json:"createdAt"`
-	DeviceAssetId string             `json:"deviceAssetId"`
-	DeviceId      string             `json:"deviceId"`
-	DuplicateId   OptNilString       `json:"duplicateId"`
-	Duration      string             `json:"duration"`
-	ExifInfo      OptExifResponseDto `json:"exifInfo"`
+	CreatedAt time.Time `json:"createdAt"`
+	// Duplicate group ID.
+	DuplicateId OptNilUUID `json:"duplicateId"`
+	// Video/gif duration in milliseconds (null for static images).
+	Duration NilInt             `json:"duration"`
+	ExifInfo OptExifResponseDto `json:"exifInfo"`
 	// The actual UTC timestamp when the file was created/captured, preserving timezone information. This
 	// is the authoritative timestamp for chronological sorting within timeline groups. Combined with
 	// timezone data, this can be used to determine the exact moment the photo was taken.
 	FileCreatedAt time.Time `json:"fileCreatedAt"`
-	// The UTC timestamp when the file was last modified on the filesystem. This reflects the last time
-	// the physical file was changed, which may be different from when the photo was originally taken.
+	// The UTC timestamp when the file was last modified on the filesystem. This reflects the last time the
+	// physical file was changed, which may be different from when the photo was originally taken.
 	FileModifiedAt time.Time `json:"fileModifiedAt"`
-	HasMetadata    bool      `json:"hasMetadata"`
-	ID             string    `json:"id"`
-	IsArchived     bool      `json:"isArchived"`
-	IsFavorite     bool      `json:"isFavorite"`
-	IsOffline      bool      `json:"isOffline"`
-	IsTrashed      bool      `json:"isTrashed"`
-	// This property was deprecated in v1.106.0.
-	//
-	// Deprecated: schema marks this property as deprecated.
-	LibraryId        OptNilString `json:"libraryId"`
+	// Whether asset has metadata.
+	HasMetadata bool `json:"hasMetadata"`
+	// Asset height.
+	Height NilInt `json:"height"`
+	// Asset ID.
+	ID uuid.UUID `json:"id"`
+	// Is archived.
+	IsArchived bool `json:"isArchived"`
+	// Is edited.
+	IsEdited bool `json:"isEdited"`
+	// Is favorite.
+	IsFavorite bool `json:"isFavorite"`
+	// Is offline.
+	IsOffline bool `json:"isOffline"`
+	// Is trashed.
+	IsTrashed bool `json:"isTrashed"`
+	// Library ID.
+	LibraryId OptNilUUID `json:"libraryId"`
+	// Live photo video ID.
 	LivePhotoVideoId OptNilString `json:"livePhotoVideoId"`
-	// The local date and time when the photo/video was taken, derived from EXIF metadata. This
-	// represents the photographer's local time regardless of timezone, stored as a timezone-agnostic
-	// timestamp. Used for timeline grouping by "local" days and months.
-	LocalDateTime    time.Time                    `json:"localDateTime"`
-	OriginalFileName string                       `json:"originalFileName"`
-	OriginalMimeType OptString                    `json:"originalMimeType"`
-	OriginalPath     string                       `json:"originalPath"`
-	Owner            OptUserResponseDto           `json:"owner"`
-	OwnerId          string                       `json:"ownerId"`
-	People           []PersonWithFacesResponseDto `json:"people"`
-	// This property was deprecated in v1.113.0.
-	//
-	// Deprecated: schema marks this property as deprecated.
-	Resized         OptBool                             `json:"resized"`
-	Stack           OptNilAssetStackResponseDto         `json:"stack"`
-	Tags            []TagResponseDto                    `json:"tags"`
-	Thumbhash       NilString                           `json:"thumbhash"`
-	Type            AssetTypeEnum                       `json:"type"`
-	UnassignedFaces []AssetFaceWithoutPersonResponseDto `json:"unassignedFaces"`
+	// The local date and time when the photo/video was taken, derived from EXIF metadata. This represents
+	// the photographer's local time regardless of timezone, stored as a timezone-agnostic timestamp. Used
+	// for timeline grouping by "local" days and months.
+	LocalDateTime time.Time `json:"localDateTime"`
+	// Original file name.
+	OriginalFileName string `json:"originalFileName"`
+	// Original MIME type.
+	OriginalMimeType OptString `json:"originalMimeType"`
+	// Original file path.
+	OriginalPath string             `json:"originalPath"`
+	Owner        OptUserResponseDto `json:"owner"`
+	// Owner user ID.
+	OwnerId uuid.UUID           `json:"ownerId"`
+	People  []PersonResponseDto `json:"people"`
+	// Is resized.
+	Resized OptBool                     `json:"resized"`
+	Stack   OptNilAssetStackResponseDto `json:"stack"`
+	Tags    []TagResponseDto            `json:"tags"`
+	// Thumbhash for thumbnail generation (base64) also used as the c query param for thumbnail cache
+	// busting.
+	Thumbhash NilString     `json:"thumbhash"`
+	Type      AssetTypeEnum `json:"type"`
 	// The UTC timestamp when the asset record was last updated in the database. This is automatically
 	// maintained by the database and reflects when any field in the asset was last modified.
 	UpdatedAt  time.Time       `json:"updatedAt"`
 	Visibility AssetVisibility `json:"visibility"`
+	// Asset width.
+	Width NilInt `json:"width"`
 }
 
 // GetChecksum returns the value of Checksum.
@@ -2768,23 +2555,13 @@ func (s *AssetResponseDto) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
-// GetDeviceAssetId returns the value of DeviceAssetId.
-func (s *AssetResponseDto) GetDeviceAssetId() string {
-	return s.DeviceAssetId
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *AssetResponseDto) GetDeviceId() string {
-	return s.DeviceId
-}
-
 // GetDuplicateId returns the value of DuplicateId.
-func (s *AssetResponseDto) GetDuplicateId() OptNilString {
+func (s *AssetResponseDto) GetDuplicateId() OptNilUUID {
 	return s.DuplicateId
 }
 
 // GetDuration returns the value of Duration.
-func (s *AssetResponseDto) GetDuration() string {
+func (s *AssetResponseDto) GetDuration() NilInt {
 	return s.Duration
 }
 
@@ -2808,14 +2585,24 @@ func (s *AssetResponseDto) GetHasMetadata() bool {
 	return s.HasMetadata
 }
 
+// GetHeight returns the value of Height.
+func (s *AssetResponseDto) GetHeight() NilInt {
+	return s.Height
+}
+
 // GetID returns the value of ID.
-func (s *AssetResponseDto) GetID() string {
+func (s *AssetResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
 // GetIsArchived returns the value of IsArchived.
 func (s *AssetResponseDto) GetIsArchived() bool {
 	return s.IsArchived
+}
+
+// GetIsEdited returns the value of IsEdited.
+func (s *AssetResponseDto) GetIsEdited() bool {
+	return s.IsEdited
 }
 
 // GetIsFavorite returns the value of IsFavorite.
@@ -2834,7 +2621,7 @@ func (s *AssetResponseDto) GetIsTrashed() bool {
 }
 
 // GetLibraryId returns the value of LibraryId.
-func (s *AssetResponseDto) GetLibraryId() OptNilString {
+func (s *AssetResponseDto) GetLibraryId() OptNilUUID {
 	return s.LibraryId
 }
 
@@ -2869,12 +2656,12 @@ func (s *AssetResponseDto) GetOwner() OptUserResponseDto {
 }
 
 // GetOwnerId returns the value of OwnerId.
-func (s *AssetResponseDto) GetOwnerId() string {
+func (s *AssetResponseDto) GetOwnerId() uuid.UUID {
 	return s.OwnerId
 }
 
 // GetPeople returns the value of People.
-func (s *AssetResponseDto) GetPeople() []PersonWithFacesResponseDto {
+func (s *AssetResponseDto) GetPeople() []PersonResponseDto {
 	return s.People
 }
 
@@ -2903,11 +2690,6 @@ func (s *AssetResponseDto) GetType() AssetTypeEnum {
 	return s.Type
 }
 
-// GetUnassignedFaces returns the value of UnassignedFaces.
-func (s *AssetResponseDto) GetUnassignedFaces() []AssetFaceWithoutPersonResponseDto {
-	return s.UnassignedFaces
-}
-
 // GetUpdatedAt returns the value of UpdatedAt.
 func (s *AssetResponseDto) GetUpdatedAt() time.Time {
 	return s.UpdatedAt
@@ -2916,6 +2698,11 @@ func (s *AssetResponseDto) GetUpdatedAt() time.Time {
 // GetVisibility returns the value of Visibility.
 func (s *AssetResponseDto) GetVisibility() AssetVisibility {
 	return s.Visibility
+}
+
+// GetWidth returns the value of Width.
+func (s *AssetResponseDto) GetWidth() NilInt {
+	return s.Width
 }
 
 // SetChecksum sets the value of Checksum.
@@ -2928,23 +2715,13 @@ func (s *AssetResponseDto) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
-// SetDeviceAssetId sets the value of DeviceAssetId.
-func (s *AssetResponseDto) SetDeviceAssetId(val string) {
-	s.DeviceAssetId = val
-}
-
-// SetDeviceId sets the value of DeviceId.
-func (s *AssetResponseDto) SetDeviceId(val string) {
-	s.DeviceId = val
-}
-
 // SetDuplicateId sets the value of DuplicateId.
-func (s *AssetResponseDto) SetDuplicateId(val OptNilString) {
+func (s *AssetResponseDto) SetDuplicateId(val OptNilUUID) {
 	s.DuplicateId = val
 }
 
 // SetDuration sets the value of Duration.
-func (s *AssetResponseDto) SetDuration(val string) {
+func (s *AssetResponseDto) SetDuration(val NilInt) {
 	s.Duration = val
 }
 
@@ -2968,14 +2745,24 @@ func (s *AssetResponseDto) SetHasMetadata(val bool) {
 	s.HasMetadata = val
 }
 
+// SetHeight sets the value of Height.
+func (s *AssetResponseDto) SetHeight(val NilInt) {
+	s.Height = val
+}
+
 // SetID sets the value of ID.
-func (s *AssetResponseDto) SetID(val string) {
+func (s *AssetResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
 // SetIsArchived sets the value of IsArchived.
 func (s *AssetResponseDto) SetIsArchived(val bool) {
 	s.IsArchived = val
+}
+
+// SetIsEdited sets the value of IsEdited.
+func (s *AssetResponseDto) SetIsEdited(val bool) {
+	s.IsEdited = val
 }
 
 // SetIsFavorite sets the value of IsFavorite.
@@ -2994,7 +2781,7 @@ func (s *AssetResponseDto) SetIsTrashed(val bool) {
 }
 
 // SetLibraryId sets the value of LibraryId.
-func (s *AssetResponseDto) SetLibraryId(val OptNilString) {
+func (s *AssetResponseDto) SetLibraryId(val OptNilUUID) {
 	s.LibraryId = val
 }
 
@@ -3029,12 +2816,12 @@ func (s *AssetResponseDto) SetOwner(val OptUserResponseDto) {
 }
 
 // SetOwnerId sets the value of OwnerId.
-func (s *AssetResponseDto) SetOwnerId(val string) {
+func (s *AssetResponseDto) SetOwnerId(val uuid.UUID) {
 	s.OwnerId = val
 }
 
 // SetPeople sets the value of People.
-func (s *AssetResponseDto) SetPeople(val []PersonWithFacesResponseDto) {
+func (s *AssetResponseDto) SetPeople(val []PersonResponseDto) {
 	s.People = val
 }
 
@@ -3063,11 +2850,6 @@ func (s *AssetResponseDto) SetType(val AssetTypeEnum) {
 	s.Type = val
 }
 
-// SetUnassignedFaces sets the value of UnassignedFaces.
-func (s *AssetResponseDto) SetUnassignedFaces(val []AssetFaceWithoutPersonResponseDto) {
-	s.UnassignedFaces = val
-}
-
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *AssetResponseDto) SetUpdatedAt(val time.Time) {
 	s.UpdatedAt = val
@@ -3078,11 +2860,19 @@ func (s *AssetResponseDto) SetVisibility(val AssetVisibility) {
 	s.Visibility = val
 }
 
+// SetWidth sets the value of Width.
+func (s *AssetResponseDto) SetWidth(val NilInt) {
+	s.Width = val
+}
+
 // Ref: #/components/schemas/AssetStackResponseDto
 type AssetStackResponseDto struct {
-	AssetCount     int    `json:"assetCount"`
-	ID             string `json:"id"`
-	PrimaryAssetId string `json:"primaryAssetId"`
+	// Number of assets in stack.
+	AssetCount int `json:"assetCount"`
+	// Stack ID.
+	ID uuid.UUID `json:"id"`
+	// Primary asset ID.
+	PrimaryAssetId uuid.UUID `json:"primaryAssetId"`
 }
 
 // GetAssetCount returns the value of AssetCount.
@@ -3091,12 +2881,12 @@ func (s *AssetStackResponseDto) GetAssetCount() int {
 }
 
 // GetID returns the value of ID.
-func (s *AssetStackResponseDto) GetID() string {
+func (s *AssetStackResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
 // GetPrimaryAssetId returns the value of PrimaryAssetId.
-func (s *AssetStackResponseDto) GetPrimaryAssetId() string {
+func (s *AssetStackResponseDto) GetPrimaryAssetId() uuid.UUID {
 	return s.PrimaryAssetId
 }
 
@@ -3106,19 +2896,22 @@ func (s *AssetStackResponseDto) SetAssetCount(val int) {
 }
 
 // SetID sets the value of ID.
-func (s *AssetStackResponseDto) SetID(val string) {
+func (s *AssetStackResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
 // SetPrimaryAssetId sets the value of PrimaryAssetId.
-func (s *AssetStackResponseDto) SetPrimaryAssetId(val string) {
+func (s *AssetStackResponseDto) SetPrimaryAssetId(val uuid.UUID) {
 	s.PrimaryAssetId = val
 }
 
 // Ref: #/components/schemas/AssetStatsResponseDto
 type AssetStatsResponseDto struct {
+	// Number of images.
 	Images int `json:"images"`
-	Total  int `json:"total"`
+	// Total number of assets.
+	Total int `json:"total"`
+	// Number of videos.
 	Videos int `json:"videos"`
 }
 
@@ -3152,6 +2945,7 @@ func (s *AssetStatsResponseDto) SetVideos(val int) {
 	s.Videos = val
 }
 
+// Asset type.
 // Ref: #/components/schemas/AssetTypeEnum
 type AssetTypeEnum string
 
@@ -3208,6 +3002,50 @@ func (s *AssetTypeEnum) UnmarshalText(data []byte) error {
 	}
 }
 
+// Upload action.
+// Ref: #/components/schemas/AssetUploadAction
+type AssetUploadAction string
+
+const (
+	AssetUploadActionAccept AssetUploadAction = "accept"
+	AssetUploadActionReject AssetUploadAction = "reject"
+)
+
+// AllValues returns all AssetUploadAction values.
+func (AssetUploadAction) AllValues() []AssetUploadAction {
+	return []AssetUploadAction{
+		AssetUploadActionAccept,
+		AssetUploadActionReject,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AssetUploadAction) MarshalText() ([]byte, error) {
+	switch s {
+	case AssetUploadActionAccept:
+		return []byte(s), nil
+	case AssetUploadActionReject:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AssetUploadAction) UnmarshalText(data []byte) error {
+	switch AssetUploadAction(data) {
+	case AssetUploadActionAccept:
+		*s = AssetUploadActionAccept
+		return nil
+	case AssetUploadActionReject:
+		*s = AssetUploadActionReject
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Asset visibility.
 // Ref: #/components/schemas/AssetVisibility
 type AssetVisibility string
 
@@ -3264,13 +3102,14 @@ func (s *AssetVisibility) UnmarshalText(data []byte) error {
 	}
 }
 
+// Target audio codec.
 // Ref: #/components/schemas/AudioCodec
 type AudioCodec string
 
 const (
 	AudioCodecMp3      AudioCodec = "mp3"
 	AudioCodecAac      AudioCodec = "aac"
-	AudioCodecLibopus  AudioCodec = "libopus"
+	AudioCodecOpus     AudioCodec = "opus"
 	AudioCodecPcmS16le AudioCodec = "pcm_s16le"
 )
 
@@ -3279,7 +3118,7 @@ func (AudioCodec) AllValues() []AudioCodec {
 	return []AudioCodec{
 		AudioCodecMp3,
 		AudioCodecAac,
-		AudioCodecLibopus,
+		AudioCodecOpus,
 		AudioCodecPcmS16le,
 	}
 }
@@ -3291,7 +3130,7 @@ func (s AudioCodec) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case AudioCodecAac:
 		return []byte(s), nil
-	case AudioCodecLibopus:
+	case AudioCodecOpus:
 		return []byte(s), nil
 	case AudioCodecPcmS16le:
 		return []byte(s), nil
@@ -3309,8 +3148,8 @@ func (s *AudioCodec) UnmarshalText(data []byte) error {
 	case AudioCodecAac:
 		*s = AudioCodecAac
 		return nil
-	case AudioCodecLibopus:
-		*s = AudioCodecLibopus
+	case AudioCodecOpus:
+		*s = AudioCodecOpus
 		return nil
 	case AudioCodecPcmS16le:
 		*s = AudioCodecPcmS16le
@@ -3322,10 +3161,15 @@ func (s *AudioCodec) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/AuthStatusResponseDto
 type AuthStatusResponseDto struct {
-	ExpiresAt    OptString `json:"expiresAt"`
-	IsElevated   bool      `json:"isElevated"`
-	Password     bool      `json:"password"`
-	PinCode      bool      `json:"pinCode"`
+	// Session expiration date.
+	ExpiresAt OptString `json:"expiresAt"`
+	// Is elevated session.
+	IsElevated bool `json:"isElevated"`
+	// Has password set.
+	Password bool `json:"password"`
+	// Has PIN code set.
+	PinCode bool `json:"pinCode"`
+	// PIN expiration date.
 	PinExpiresAt OptString `json:"pinExpiresAt"`
 }
 
@@ -3419,6 +3263,7 @@ func (s *Bearer) SetRoles(val []string) {
 	s.Roles = val
 }
 
+// Error reason.
 // Ref: #/components/schemas/BulkIdErrorReason
 type BulkIdErrorReason string
 
@@ -3427,6 +3272,7 @@ const (
 	BulkIdErrorReasonNoPermission BulkIdErrorReason = "no_permission"
 	BulkIdErrorReasonNotFound     BulkIdErrorReason = "not_found"
 	BulkIdErrorReasonUnknown      BulkIdErrorReason = "unknown"
+	BulkIdErrorReasonValidation   BulkIdErrorReason = "validation"
 )
 
 // AllValues returns all BulkIdErrorReason values.
@@ -3436,6 +3282,7 @@ func (BulkIdErrorReason) AllValues() []BulkIdErrorReason {
 		BulkIdErrorReasonNoPermission,
 		BulkIdErrorReasonNotFound,
 		BulkIdErrorReasonUnknown,
+		BulkIdErrorReasonValidation,
 	}
 }
 
@@ -3449,6 +3296,8 @@ func (s BulkIdErrorReason) MarshalText() ([]byte, error) {
 	case BulkIdErrorReasonNotFound:
 		return []byte(s), nil
 	case BulkIdErrorReasonUnknown:
+		return []byte(s), nil
+	case BulkIdErrorReasonValidation:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -3470,6 +3319,9 @@ func (s *BulkIdErrorReason) UnmarshalText(data []byte) error {
 	case BulkIdErrorReasonUnknown:
 		*s = BulkIdErrorReasonUnknown
 		return nil
+	case BulkIdErrorReasonValidation:
+		*s = BulkIdErrorReasonValidation
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
@@ -3477,18 +3329,26 @@ func (s *BulkIdErrorReason) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/BulkIdResponseDto
 type BulkIdResponseDto struct {
-	Error   OptBulkIdResponseDtoError `json:"error"`
-	ID      string                    `json:"id"`
-	Success bool                      `json:"success"`
+	Error        OptBulkIdErrorReason `json:"error"`
+	ErrorMessage OptString            `json:"errorMessage"`
+	// ID.
+	ID uuid.UUID `json:"id"`
+	// Whether operation succeeded.
+	Success bool `json:"success"`
 }
 
 // GetError returns the value of Error.
-func (s *BulkIdResponseDto) GetError() OptBulkIdResponseDtoError {
+func (s *BulkIdResponseDto) GetError() OptBulkIdErrorReason {
 	return s.Error
 }
 
+// GetErrorMessage returns the value of ErrorMessage.
+func (s *BulkIdResponseDto) GetErrorMessage() OptString {
+	return s.ErrorMessage
+}
+
 // GetID returns the value of ID.
-func (s *BulkIdResponseDto) GetID() string {
+func (s *BulkIdResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -3498,12 +3358,17 @@ func (s *BulkIdResponseDto) GetSuccess() bool {
 }
 
 // SetError sets the value of Error.
-func (s *BulkIdResponseDto) SetError(val OptBulkIdResponseDtoError) {
+func (s *BulkIdResponseDto) SetError(val OptBulkIdErrorReason) {
 	s.Error = val
 }
 
+// SetErrorMessage sets the value of ErrorMessage.
+func (s *BulkIdResponseDto) SetErrorMessage(val OptString) {
+	s.ErrorMessage = val
+}
+
 // SetID sets the value of ID.
-func (s *BulkIdResponseDto) SetID(val string) {
+func (s *BulkIdResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -3512,63 +3377,9 @@ func (s *BulkIdResponseDto) SetSuccess(val bool) {
 	s.Success = val
 }
 
-type BulkIdResponseDtoError string
-
-const (
-	BulkIdResponseDtoErrorDuplicate    BulkIdResponseDtoError = "duplicate"
-	BulkIdResponseDtoErrorNoPermission BulkIdResponseDtoError = "no_permission"
-	BulkIdResponseDtoErrorNotFound     BulkIdResponseDtoError = "not_found"
-	BulkIdResponseDtoErrorUnknown      BulkIdResponseDtoError = "unknown"
-)
-
-// AllValues returns all BulkIdResponseDtoError values.
-func (BulkIdResponseDtoError) AllValues() []BulkIdResponseDtoError {
-	return []BulkIdResponseDtoError{
-		BulkIdResponseDtoErrorDuplicate,
-		BulkIdResponseDtoErrorNoPermission,
-		BulkIdResponseDtoErrorNotFound,
-		BulkIdResponseDtoErrorUnknown,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s BulkIdResponseDtoError) MarshalText() ([]byte, error) {
-	switch s {
-	case BulkIdResponseDtoErrorDuplicate:
-		return []byte(s), nil
-	case BulkIdResponseDtoErrorNoPermission:
-		return []byte(s), nil
-	case BulkIdResponseDtoErrorNotFound:
-		return []byte(s), nil
-	case BulkIdResponseDtoErrorUnknown:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *BulkIdResponseDtoError) UnmarshalText(data []byte) error {
-	switch BulkIdResponseDtoError(data) {
-	case BulkIdResponseDtoErrorDuplicate:
-		*s = BulkIdResponseDtoErrorDuplicate
-		return nil
-	case BulkIdResponseDtoErrorNoPermission:
-		*s = BulkIdResponseDtoErrorNoPermission
-		return nil
-	case BulkIdResponseDtoErrorNotFound:
-		*s = BulkIdResponseDtoErrorNotFound
-		return nil
-	case BulkIdResponseDtoErrorUnknown:
-		*s = BulkIdResponseDtoErrorUnknown
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 // Ref: #/components/schemas/BulkIdsDto
 type BulkIdsDto struct {
+	// IDs to process.
 	Ids []uuid.UUID `json:"ids"`
 }
 
@@ -3584,7 +3395,9 @@ func (s *BulkIdsDto) SetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/CLIPConfig
 type CLIPConfig struct {
-	Enabled   bool   `json:"enabled"`
+	// Whether the task is enabled.
+	Enabled bool `json:"enabled"`
+	// Name of the model to use.
 	ModelName string `json:"modelName"`
 }
 
@@ -3608,6 +3421,7 @@ func (s *CLIPConfig) SetModelName(val string) {
 	s.ModelName = val
 }
 
+// CQ mode.
 // Ref: #/components/schemas/CQMode
 type CQMode string
 
@@ -3657,8 +3471,130 @@ func (s *CQMode) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/CalendarHeatmapResponseDto
+type CalendarHeatmapResponseDto struct {
+	// Start date in UTC.
+	From   string                                 `json:"from"`
+	Series []CalendarHeatmapResponseDtoSeriesItem `json:"series"`
+	// End date in UTC.
+	To string `json:"to"`
+	// Total activity count over the period.
+	TotalCount int `json:"totalCount"`
+}
+
+// GetFrom returns the value of From.
+func (s *CalendarHeatmapResponseDto) GetFrom() string {
+	return s.From
+}
+
+// GetSeries returns the value of Series.
+func (s *CalendarHeatmapResponseDto) GetSeries() []CalendarHeatmapResponseDtoSeriesItem {
+	return s.Series
+}
+
+// GetTo returns the value of To.
+func (s *CalendarHeatmapResponseDto) GetTo() string {
+	return s.To
+}
+
+// GetTotalCount returns the value of TotalCount.
+func (s *CalendarHeatmapResponseDto) GetTotalCount() int {
+	return s.TotalCount
+}
+
+// SetFrom sets the value of From.
+func (s *CalendarHeatmapResponseDto) SetFrom(val string) {
+	s.From = val
+}
+
+// SetSeries sets the value of Series.
+func (s *CalendarHeatmapResponseDto) SetSeries(val []CalendarHeatmapResponseDtoSeriesItem) {
+	s.Series = val
+}
+
+// SetTo sets the value of To.
+func (s *CalendarHeatmapResponseDto) SetTo(val string) {
+	s.To = val
+}
+
+// SetTotalCount sets the value of TotalCount.
+func (s *CalendarHeatmapResponseDto) SetTotalCount(val int) {
+	s.TotalCount = val
+}
+
+type CalendarHeatmapResponseDtoSeriesItem struct {
+	// Activity count.
+	Count int `json:"count"`
+	// Date in UTC.
+	Date string `json:"date"`
+}
+
+// GetCount returns the value of Count.
+func (s *CalendarHeatmapResponseDtoSeriesItem) GetCount() int {
+	return s.Count
+}
+
+// GetDate returns the value of Date.
+func (s *CalendarHeatmapResponseDtoSeriesItem) GetDate() string {
+	return s.Date
+}
+
+// SetCount sets the value of Count.
+func (s *CalendarHeatmapResponseDtoSeriesItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetDate sets the value of Date.
+func (s *CalendarHeatmapResponseDtoSeriesItem) SetDate(val string) {
+	s.Date = val
+}
+
+// Type of calendar heatmap.
+// Ref: #/components/schemas/CalendarHeatmapType
+type CalendarHeatmapType string
+
+const (
+	CalendarHeatmapTypeUpload CalendarHeatmapType = "Upload"
+	CalendarHeatmapTypeTaken  CalendarHeatmapType = "Taken"
+)
+
+// AllValues returns all CalendarHeatmapType values.
+func (CalendarHeatmapType) AllValues() []CalendarHeatmapType {
+	return []CalendarHeatmapType{
+		CalendarHeatmapTypeUpload,
+		CalendarHeatmapTypeTaken,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CalendarHeatmapType) MarshalText() ([]byte, error) {
+	switch s {
+	case CalendarHeatmapTypeUpload:
+		return []byte(s), nil
+	case CalendarHeatmapTypeTaken:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CalendarHeatmapType) UnmarshalText(data []byte) error {
+	switch CalendarHeatmapType(data) {
+	case CalendarHeatmapTypeUpload:
+		*s = CalendarHeatmapTypeUpload
+		return nil
+	case CalendarHeatmapTypeTaken:
+		*s = CalendarHeatmapTypeTaken
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/CastResponse
 type CastResponse struct {
+	// Whether Google Cast is enabled.
 	GCastEnabled bool `json:"gCastEnabled"`
 }
 
@@ -3674,6 +3610,7 @@ func (s *CastResponse) SetGCastEnabled(val bool) {
 
 // Ref: #/components/schemas/CastUpdate
 type CastUpdate struct {
+	// Whether Google Cast is enabled.
 	GCastEnabled OptBool `json:"gCastEnabled"`
 }
 
@@ -3689,9 +3626,12 @@ func (s *CastUpdate) SetGCastEnabled(val OptBool) {
 
 // Ref: #/components/schemas/ChangePasswordDto
 type ChangePasswordDto struct {
+	// Invalidate all other sessions.
 	InvalidateSessions OptBool `json:"invalidateSessions"`
-	NewPassword        string  `json:"newPassword"`
-	Password           string  `json:"password"`
+	// New password (min 8 characters).
+	NewPassword string `json:"newPassword"`
+	// Current password.
+	Password string `json:"password"`
 }
 
 // GetInvalidateSessions returns the value of InvalidateSessions.
@@ -3727,47 +3667,7 @@ func (s *ChangePasswordDto) SetPassword(val string) {
 // ChangePinCodeNoContent is response for ChangePinCode operation.
 type ChangePinCodeNoContent struct{}
 
-// Ref: #/components/schemas/CheckExistingAssetsDto
-type CheckExistingAssetsDto struct {
-	DeviceAssetIds []string `json:"deviceAssetIds"`
-	DeviceId       string   `json:"deviceId"`
-}
-
-// GetDeviceAssetIds returns the value of DeviceAssetIds.
-func (s *CheckExistingAssetsDto) GetDeviceAssetIds() []string {
-	return s.DeviceAssetIds
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *CheckExistingAssetsDto) GetDeviceId() string {
-	return s.DeviceId
-}
-
-// SetDeviceAssetIds sets the value of DeviceAssetIds.
-func (s *CheckExistingAssetsDto) SetDeviceAssetIds(val []string) {
-	s.DeviceAssetIds = val
-}
-
-// SetDeviceId sets the value of DeviceId.
-func (s *CheckExistingAssetsDto) SetDeviceId(val string) {
-	s.DeviceId = val
-}
-
-// Ref: #/components/schemas/CheckExistingAssetsResponseDto
-type CheckExistingAssetsResponseDto struct {
-	ExistingIds []string `json:"existingIds"`
-}
-
-// GetExistingIds returns the value of ExistingIds.
-func (s *CheckExistingAssetsResponseDto) GetExistingIds() []string {
-	return s.ExistingIds
-}
-
-// SetExistingIds sets the value of ExistingIds.
-func (s *CheckExistingAssetsResponseDto) SetExistingIds(val []string) {
-	s.ExistingIds = val
-}
-
+// Colorspace.
 // Ref: #/components/schemas/Colorspace
 type Colorspace string
 
@@ -3812,8 +3712,10 @@ func (s *Colorspace) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/ContributorCountResponseDto
 type ContributorCountResponseDto struct {
-	AssetCount int    `json:"assetCount"`
-	UserId     string `json:"userId"`
+	// Number of assets contributed.
+	AssetCount int `json:"assetCount"`
+	// User ID.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetAssetCount returns the value of AssetCount.
@@ -3822,7 +3724,7 @@ func (s *ContributorCountResponseDto) GetAssetCount() int {
 }
 
 // GetUserId returns the value of UserId.
-func (s *ContributorCountResponseDto) GetUserId() string {
+func (s *ContributorCountResponseDto) GetUserId() uuid.UUID {
 	return s.UserId
 }
 
@@ -3832,7 +3734,7 @@ func (s *ContributorCountResponseDto) SetAssetCount(val int) {
 }
 
 // SetUserId sets the value of UserId.
-func (s *ContributorCountResponseDto) SetUserId(val string) {
+func (s *ContributorCountResponseDto) SetUserId(val uuid.UUID) {
 	s.UserId = val
 }
 
@@ -3866,10 +3768,14 @@ type CopyAssetNoContent struct{}
 
 // Ref: #/components/schemas/CreateAlbumDto
 type CreateAlbumDto struct {
-	AlbumName   string               `json:"albumName"`
-	AlbumUsers  []AlbumUserCreateDto `json:"albumUsers"`
-	AssetIds    []uuid.UUID          `json:"assetIds"`
-	Description OptString            `json:"description"`
+	// Album name.
+	AlbumName string `json:"albumName"`
+	// Album users.
+	AlbumUsers []AlbumUserCreateDto `json:"albumUsers"`
+	// Initial asset IDs.
+	AssetIds []uuid.UUID `json:"assetIds"`
+	// Album description.
+	Description OptNilString `json:"description"`
 }
 
 // GetAlbumName returns the value of AlbumName.
@@ -3888,7 +3794,7 @@ func (s *CreateAlbumDto) GetAssetIds() []uuid.UUID {
 }
 
 // GetDescription returns the value of Description.
-func (s *CreateAlbumDto) GetDescription() OptString {
+func (s *CreateAlbumDto) GetDescription() OptNilString {
 	return s.Description
 }
 
@@ -3908,7 +3814,7 @@ func (s *CreateAlbumDto) SetAssetIds(val []uuid.UUID) {
 }
 
 // SetDescription sets the value of Description.
-func (s *CreateAlbumDto) SetDescription(val OptString) {
+func (s *CreateAlbumDto) SetDescription(val OptNilString) {
 	s.Description = val
 }
 
@@ -3920,10 +3826,14 @@ type CreateJobNoContent struct{}
 
 // Ref: #/components/schemas/CreateLibraryDto
 type CreateLibraryDto struct {
-	ExclusionPatterns []string  `json:"exclusionPatterns"`
-	ImportPaths       []string  `json:"importPaths"`
-	Name              OptString `json:"name"`
-	OwnerId           uuid.UUID `json:"ownerId"`
+	// Exclusion patterns (max 128).
+	ExclusionPatterns []string `json:"exclusionPatterns"`
+	// Import paths (max 128).
+	ImportPaths []string `json:"importPaths"`
+	// Library name.
+	Name OptString `json:"name"`
+	// Owner user ID.
+	OwnerId uuid.UUID `json:"ownerId"`
 }
 
 // GetExclusionPatterns returns the value of ExclusionPatterns.
@@ -3968,6 +3878,7 @@ func (s *CreateLibraryDto) SetOwnerId(val uuid.UUID) {
 
 // Ref: #/components/schemas/CreateProfileImageDto
 type CreateProfileImageDtoMultipart struct {
+	// Profile image file.
 	File ht.MultipartFile `json:"file"`
 }
 
@@ -3983,9 +3894,12 @@ func (s *CreateProfileImageDtoMultipart) SetFile(val ht.MultipartFile) {
 
 // Ref: #/components/schemas/CreateProfileImageResponseDto
 type CreateProfileImageResponseDto struct {
+	// Profile image change date.
 	ProfileChangedAt time.Time `json:"profileChangedAt"`
-	ProfileImagePath string    `json:"profileImagePath"`
-	UserId           string    `json:"userId"`
+	// Profile image file path.
+	ProfileImagePath string `json:"profileImagePath"`
+	// User ID.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetProfileChangedAt returns the value of ProfileChangedAt.
@@ -3999,7 +3913,7 @@ func (s *CreateProfileImageResponseDto) GetProfileImagePath() string {
 }
 
 // GetUserId returns the value of UserId.
-func (s *CreateProfileImageResponseDto) GetUserId() string {
+func (s *CreateProfileImageResponseDto) GetUserId() uuid.UUID {
 	return s.UserId
 }
 
@@ -4014,15 +3928,18 @@ func (s *CreateProfileImageResponseDto) SetProfileImagePath(val string) {
 }
 
 // SetUserId sets the value of UserId.
-func (s *CreateProfileImageResponseDto) SetUserId(val string) {
+func (s *CreateProfileImageResponseDto) SetUserId(val uuid.UUID) {
 	s.UserId = val
 }
 
 // Ref: #/components/schemas/DatabaseBackupConfig
 type DatabaseBackupConfig struct {
-	CronExpression string  `json:"cronExpression"`
-	Enabled        bool    `json:"enabled"`
-	KeepLastAmount float64 `json:"keepLastAmount"`
+	// Cron expression.
+	CronExpression string `json:"cronExpression"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
+	// Keep last amount.
+	KeepLastAmount int `json:"keepLastAmount"`
 }
 
 // GetCronExpression returns the value of CronExpression.
@@ -4036,7 +3953,7 @@ func (s *DatabaseBackupConfig) GetEnabled() bool {
 }
 
 // GetKeepLastAmount returns the value of KeepLastAmount.
-func (s *DatabaseBackupConfig) GetKeepLastAmount() float64 {
+func (s *DatabaseBackupConfig) GetKeepLastAmount() int {
 	return s.KeepLastAmount
 }
 
@@ -4051,8 +3968,96 @@ func (s *DatabaseBackupConfig) SetEnabled(val bool) {
 }
 
 // SetKeepLastAmount sets the value of KeepLastAmount.
-func (s *DatabaseBackupConfig) SetKeepLastAmount(val float64) {
+func (s *DatabaseBackupConfig) SetKeepLastAmount(val int) {
 	s.KeepLastAmount = val
+}
+
+// Ref: #/components/schemas/DatabaseBackupDeleteDto
+type DatabaseBackupDeleteDto struct {
+	// Backup filenames to delete.
+	Backups []string `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *DatabaseBackupDeleteDto) GetBackups() []string {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *DatabaseBackupDeleteDto) SetBackups(val []string) {
+	s.Backups = val
+}
+
+// Ref: #/components/schemas/DatabaseBackupDto
+type DatabaseBackupDto struct {
+	// Backup filename.
+	Filename string `json:"filename"`
+	// Backup file size.
+	Filesize int `json:"filesize"`
+	// Backup timezone.
+	Timezone string `json:"timezone"`
+}
+
+// GetFilename returns the value of Filename.
+func (s *DatabaseBackupDto) GetFilename() string {
+	return s.Filename
+}
+
+// GetFilesize returns the value of Filesize.
+func (s *DatabaseBackupDto) GetFilesize() int {
+	return s.Filesize
+}
+
+// GetTimezone returns the value of Timezone.
+func (s *DatabaseBackupDto) GetTimezone() string {
+	return s.Timezone
+}
+
+// SetFilename sets the value of Filename.
+func (s *DatabaseBackupDto) SetFilename(val string) {
+	s.Filename = val
+}
+
+// SetFilesize sets the value of Filesize.
+func (s *DatabaseBackupDto) SetFilesize(val int) {
+	s.Filesize = val
+}
+
+// SetTimezone sets the value of Timezone.
+func (s *DatabaseBackupDto) SetTimezone(val string) {
+	s.Timezone = val
+}
+
+// Ref: #/components/schemas/DatabaseBackupListResponseDto
+type DatabaseBackupListResponseDto struct {
+	// List of backups.
+	Backups []DatabaseBackupDto `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *DatabaseBackupListResponseDto) GetBackups() []DatabaseBackupDto {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *DatabaseBackupListResponseDto) SetBackups(val []DatabaseBackupDto) {
+	s.Backups = val
+}
+
+// Ref: #/components/schemas/DatabaseBackupUploadDto
+type DatabaseBackupUploadDtoMultipart struct {
+	// Database backup file.
+	File OptMultipartFile `json:"file"`
+}
+
+// GetFile returns the value of File.
+func (s *DatabaseBackupUploadDtoMultipart) GetFile() OptMultipartFile {
+	return s.File
+}
+
+// SetFile sets the value of File.
+func (s *DatabaseBackupUploadDtoMultipart) SetFile(val OptMultipartFile) {
+	s.File = val
 }
 
 // DeleteActivityNoContent is response for DeleteActivity operation.
@@ -4073,6 +4078,12 @@ type DeleteAssetMetadataNoContent struct{}
 // DeleteAssetsNoContent is response for DeleteAssets operation.
 type DeleteAssetsNoContent struct{}
 
+// DeleteBulkAssetMetadataNoContent is response for DeleteBulkAssetMetadata operation.
+type DeleteBulkAssetMetadataNoContent struct{}
+
+// DeleteDatabaseBackupOK is response for DeleteDatabaseBackup operation.
+type DeleteDatabaseBackupOK struct{}
+
 // DeleteDuplicateNoContent is response for DeleteDuplicate operation.
 type DeleteDuplicateNoContent struct{}
 
@@ -4081,6 +4092,9 @@ type DeleteDuplicatesNoContent struct{}
 
 // DeleteFaceNoContent is response for DeleteFace operation.
 type DeleteFaceNoContent struct{}
+
+// DeleteIntegrityReportOK is response for DeleteIntegrityReport operation.
+type DeleteIntegrityReportOK struct{}
 
 // DeleteLibraryNoContent is response for DeleteLibrary operation.
 type DeleteLibraryNoContent struct{}
@@ -4127,14 +4141,47 @@ type DeleteUserLicenseNoContent struct{}
 // DeleteUserOnboardingNoContent is response for DeleteUserOnboarding operation.
 type DeleteUserOnboardingNoContent struct{}
 
-// Ref: #/components/schemas/DownloadArchiveInfo
-type DownloadArchiveInfo struct {
-	AssetIds []string `json:"assetIds"`
-	Size     int      `json:"size"`
+// DeleteWorkflowNoContent is response for DeleteWorkflow operation.
+type DeleteWorkflowNoContent struct{}
+
+// Ref: #/components/schemas/DownloadArchiveDto
+type DownloadArchiveDto struct {
+	// Asset IDs.
+	AssetIds []uuid.UUID `json:"assetIds"`
+	// Download edited asset if available.
+	Edited OptBool `json:"edited"`
 }
 
 // GetAssetIds returns the value of AssetIds.
-func (s *DownloadArchiveInfo) GetAssetIds() []string {
+func (s *DownloadArchiveDto) GetAssetIds() []uuid.UUID {
+	return s.AssetIds
+}
+
+// GetEdited returns the value of Edited.
+func (s *DownloadArchiveDto) GetEdited() OptBool {
+	return s.Edited
+}
+
+// SetAssetIds sets the value of AssetIds.
+func (s *DownloadArchiveDto) SetAssetIds(val []uuid.UUID) {
+	s.AssetIds = val
+}
+
+// SetEdited sets the value of Edited.
+func (s *DownloadArchiveDto) SetEdited(val OptBool) {
+	s.Edited = val
+}
+
+// Ref: #/components/schemas/DownloadArchiveInfo
+type DownloadArchiveInfo struct {
+	// Asset IDs in this archive.
+	AssetIds []uuid.UUID `json:"assetIds"`
+	// Archive size in bytes.
+	Size int `json:"size"`
+}
+
+// GetAssetIds returns the value of AssetIds.
+func (s *DownloadArchiveInfo) GetAssetIds() []uuid.UUID {
 	return s.AssetIds
 }
 
@@ -4144,7 +4191,7 @@ func (s *DownloadArchiveInfo) GetSize() int {
 }
 
 // SetAssetIds sets the value of AssetIds.
-func (s *DownloadArchiveInfo) SetAssetIds(val []string) {
+func (s *DownloadArchiveInfo) SetAssetIds(val []uuid.UUID) {
 	s.AssetIds = val
 }
 
@@ -4181,12 +4228,30 @@ func (s DownloadAssetOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+type DownloadDatabaseBackupOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s DownloadDatabaseBackupOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
 // Ref: #/components/schemas/DownloadInfoDto
 type DownloadInfoDto struct {
-	AlbumId     OptUUID     `json:"albumId"`
-	ArchiveSize OptInt      `json:"archiveSize"`
-	AssetIds    []uuid.UUID `json:"assetIds"`
-	UserId      OptUUID     `json:"userId"`
+	// Album ID to download.
+	AlbumId OptUUID `json:"albumId"`
+	// Archive size limit in bytes.
+	ArchiveSize OptInt `json:"archiveSize"`
+	// Asset IDs to download.
+	AssetIds []uuid.UUID `json:"assetIds"`
+	// User ID to download assets from.
+	UserId OptUUID `json:"userId"`
 }
 
 // GetAlbumId returns the value of AlbumId.
@@ -4231,7 +4296,9 @@ func (s *DownloadInfoDto) SetUserId(val OptUUID) {
 
 // Ref: #/components/schemas/DownloadResponse
 type DownloadResponse struct {
-	ArchiveSize           int  `json:"archiveSize"`
+	// Maximum archive size in bytes.
+	ArchiveSize int `json:"archiveSize"`
+	// Whether to include embedded videos in downloads.
 	IncludeEmbeddedVideos bool `json:"includeEmbeddedVideos"`
 }
 
@@ -4257,8 +4324,10 @@ func (s *DownloadResponse) SetIncludeEmbeddedVideos(val bool) {
 
 // Ref: #/components/schemas/DownloadResponseDto
 type DownloadResponseDto struct {
-	Archives  []DownloadArchiveInfo `json:"archives"`
-	TotalSize int                   `json:"totalSize"`
+	// Archive information.
+	Archives []DownloadArchiveInfo `json:"archives"`
+	// Total size in bytes.
+	TotalSize int `json:"totalSize"`
 }
 
 // GetArchives returns the value of Archives.
@@ -4283,7 +4352,9 @@ func (s *DownloadResponseDto) SetTotalSize(val int) {
 
 // Ref: #/components/schemas/DownloadUpdate
 type DownloadUpdate struct {
-	ArchiveSize           OptInt  `json:"archiveSize"`
+	// Maximum archive size in bytes.
+	ArchiveSize OptInt `json:"archiveSize"`
+	// Whether to include embedded videos in downloads.
 	IncludeEmbeddedVideos OptBool `json:"includeEmbeddedVideos"`
 }
 
@@ -4309,7 +4380,9 @@ func (s *DownloadUpdate) SetIncludeEmbeddedVideos(val OptBool) {
 
 // Ref: #/components/schemas/DuplicateDetectionConfig
 type DuplicateDetectionConfig struct {
-	Enabled     bool    `json:"enabled"`
+	// Whether the task is enabled.
+	Enabled bool `json:"enabled"`
+	// Maximum distance threshold for duplicate detection.
 	MaxDistance float64 `json:"maxDistance"`
 }
 
@@ -4333,10 +4406,69 @@ func (s *DuplicateDetectionConfig) SetMaxDistance(val float64) {
 	s.MaxDistance = val
 }
 
+// Ref: #/components/schemas/DuplicateResolveDto
+type DuplicateResolveDto struct {
+	// List of duplicate groups to resolve.
+	Groups []DuplicateResolveGroupDto `json:"groups"`
+}
+
+// GetGroups returns the value of Groups.
+func (s *DuplicateResolveDto) GetGroups() []DuplicateResolveGroupDto {
+	return s.Groups
+}
+
+// SetGroups sets the value of Groups.
+func (s *DuplicateResolveDto) SetGroups(val []DuplicateResolveGroupDto) {
+	s.Groups = val
+}
+
+// Ref: #/components/schemas/DuplicateResolveGroupDto
+type DuplicateResolveGroupDto struct {
+	DuplicateId uuid.UUID `json:"duplicateId"`
+	// Asset IDs to keep.
+	KeepAssetIds []uuid.UUID `json:"keepAssetIds"`
+	// Asset IDs to trash or delete.
+	TrashAssetIds []uuid.UUID `json:"trashAssetIds"`
+}
+
+// GetDuplicateId returns the value of DuplicateId.
+func (s *DuplicateResolveGroupDto) GetDuplicateId() uuid.UUID {
+	return s.DuplicateId
+}
+
+// GetKeepAssetIds returns the value of KeepAssetIds.
+func (s *DuplicateResolveGroupDto) GetKeepAssetIds() []uuid.UUID {
+	return s.KeepAssetIds
+}
+
+// GetTrashAssetIds returns the value of TrashAssetIds.
+func (s *DuplicateResolveGroupDto) GetTrashAssetIds() []uuid.UUID {
+	return s.TrashAssetIds
+}
+
+// SetDuplicateId sets the value of DuplicateId.
+func (s *DuplicateResolveGroupDto) SetDuplicateId(val uuid.UUID) {
+	s.DuplicateId = val
+}
+
+// SetKeepAssetIds sets the value of KeepAssetIds.
+func (s *DuplicateResolveGroupDto) SetKeepAssetIds(val []uuid.UUID) {
+	s.KeepAssetIds = val
+}
+
+// SetTrashAssetIds sets the value of TrashAssetIds.
+func (s *DuplicateResolveGroupDto) SetTrashAssetIds(val []uuid.UUID) {
+	s.TrashAssetIds = val
+}
+
 // Ref: #/components/schemas/DuplicateResponseDto
 type DuplicateResponseDto struct {
-	Assets      []AssetResponseDto `json:"assets"`
-	DuplicateId string             `json:"duplicateId"`
+	// Duplicate assets.
+	Assets []AssetResponseDto `json:"assets"`
+	// Duplicate group ID.
+	DuplicateId uuid.UUID `json:"duplicateId"`
+	// Suggested asset IDs to keep based on file size and EXIF data.
+	SuggestedKeepAssetIds []uuid.UUID `json:"suggestedKeepAssetIds"`
 }
 
 // GetAssets returns the value of Assets.
@@ -4345,8 +4477,13 @@ func (s *DuplicateResponseDto) GetAssets() []AssetResponseDto {
 }
 
 // GetDuplicateId returns the value of DuplicateId.
-func (s *DuplicateResponseDto) GetDuplicateId() string {
+func (s *DuplicateResponseDto) GetDuplicateId() uuid.UUID {
 	return s.DuplicateId
+}
+
+// GetSuggestedKeepAssetIds returns the value of SuggestedKeepAssetIds.
+func (s *DuplicateResponseDto) GetSuggestedKeepAssetIds() []uuid.UUID {
+	return s.SuggestedKeepAssetIds
 }
 
 // SetAssets sets the value of Assets.
@@ -4355,15 +4492,23 @@ func (s *DuplicateResponseDto) SetAssets(val []AssetResponseDto) {
 }
 
 // SetDuplicateId sets the value of DuplicateId.
-func (s *DuplicateResponseDto) SetDuplicateId(val string) {
+func (s *DuplicateResponseDto) SetDuplicateId(val uuid.UUID) {
 	s.DuplicateId = val
+}
+
+// SetSuggestedKeepAssetIds sets the value of SuggestedKeepAssetIds.
+func (s *DuplicateResponseDto) SetSuggestedKeepAssetIds(val []uuid.UUID) {
+	s.SuggestedKeepAssetIds = val
 }
 
 // Ref: #/components/schemas/EmailNotificationsResponse
 type EmailNotificationsResponse struct {
+	// Whether to receive email notifications for album invites.
 	AlbumInvite bool `json:"albumInvite"`
+	// Whether to receive email notifications for album updates.
 	AlbumUpdate bool `json:"albumUpdate"`
-	Enabled     bool `json:"enabled"`
+	// Whether email notifications are enabled.
+	Enabled bool `json:"enabled"`
 }
 
 // GetAlbumInvite returns the value of AlbumInvite.
@@ -4398,9 +4543,12 @@ func (s *EmailNotificationsResponse) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/EmailNotificationsUpdate
 type EmailNotificationsUpdate struct {
+	// Whether to receive email notifications for album invites.
 	AlbumInvite OptBool `json:"albumInvite"`
+	// Whether to receive email notifications for album updates.
 	AlbumUpdate OptBool `json:"albumUpdate"`
-	Enabled     OptBool `json:"enabled"`
+	// Whether email notifications are enabled.
+	Enabled OptBool `json:"enabled"`
 }
 
 // GetAlbumInvite returns the value of AlbumInvite.
@@ -4433,30 +4581,59 @@ func (s *EmailNotificationsUpdate) SetEnabled(val OptBool) {
 	s.Enabled = val
 }
 
+// EmptyQueueNoContent is response for EmptyQueue operation.
+type EmptyQueueNoContent struct{}
+
+// EndSessionNoContent is response for EndSession operation.
+type EndSessionNoContent struct{}
+
+// EXIF response.
 // Ref: #/components/schemas/ExifResponseDto
 type ExifResponseDto struct {
-	City             OptNilString   `json:"city"`
-	Country          OptNilString   `json:"country"`
+	// City name.
+	City OptNilString `json:"city"`
+	// Country name.
+	Country OptNilString `json:"country"`
+	// Original date/time.
 	DateTimeOriginal OptNilDateTime `json:"dateTimeOriginal"`
-	Description      OptNilString   `json:"description"`
-	ExifImageHeight  OptNilFloat64  `json:"exifImageHeight"`
-	ExifImageWidth   OptNilFloat64  `json:"exifImageWidth"`
-	ExposureTime     OptNilString   `json:"exposureTime"`
-	FNumber          OptNilFloat64  `json:"fNumber"`
-	FileSizeInByte   OptNilInt64    `json:"fileSizeInByte"`
-	FocalLength      OptNilFloat64  `json:"focalLength"`
-	Iso              OptNilFloat64  `json:"iso"`
-	Latitude         OptNilFloat64  `json:"latitude"`
-	LensModel        OptNilString   `json:"lensModel"`
-	Longitude        OptNilFloat64  `json:"longitude"`
-	Make             OptNilString   `json:"make"`
-	Model            OptNilString   `json:"model"`
-	ModifyDate       OptNilDateTime `json:"modifyDate"`
-	Orientation      OptNilString   `json:"orientation"`
-	ProjectionType   OptNilString   `json:"projectionType"`
-	Rating           OptNilFloat64  `json:"rating"`
-	State            OptNilString   `json:"state"`
-	TimeZone         OptNilString   `json:"timeZone"`
+	// Image description.
+	Description OptNilString `json:"description"`
+	// Image height in pixels.
+	ExifImageHeight OptNilInt `json:"exifImageHeight"`
+	// Image width in pixels.
+	ExifImageWidth OptNilInt `json:"exifImageWidth"`
+	// Exposure time.
+	ExposureTime OptNilString `json:"exposureTime"`
+	// F-number (aperture).
+	FNumber OptNilFloat64 `json:"fNumber"`
+	// File size in bytes.
+	FileSizeInByte OptNilInt `json:"fileSizeInByte"`
+	// Focal length in mm.
+	FocalLength OptNilFloat64 `json:"focalLength"`
+	// ISO sensitivity.
+	Iso OptNilInt `json:"iso"`
+	// GPS latitude.
+	Latitude OptNilFloat64 `json:"latitude"`
+	// Lens model.
+	LensModel OptNilString `json:"lensModel"`
+	// GPS longitude.
+	Longitude OptNilFloat64 `json:"longitude"`
+	// Camera make.
+	Make OptNilString `json:"make"`
+	// Camera model.
+	Model OptNilString `json:"model"`
+	// Modification date/time.
+	ModifyDate OptNilDateTime `json:"modifyDate"`
+	// Image orientation.
+	Orientation OptNilString `json:"orientation"`
+	// Projection type.
+	ProjectionType OptNilString `json:"projectionType"`
+	// Rating.
+	Rating OptNilInt `json:"rating"`
+	// State/province name.
+	State OptNilString `json:"state"`
+	// Time zone.
+	TimeZone OptNilString `json:"timeZone"`
 }
 
 // GetCity returns the value of City.
@@ -4480,12 +4657,12 @@ func (s *ExifResponseDto) GetDescription() OptNilString {
 }
 
 // GetExifImageHeight returns the value of ExifImageHeight.
-func (s *ExifResponseDto) GetExifImageHeight() OptNilFloat64 {
+func (s *ExifResponseDto) GetExifImageHeight() OptNilInt {
 	return s.ExifImageHeight
 }
 
 // GetExifImageWidth returns the value of ExifImageWidth.
-func (s *ExifResponseDto) GetExifImageWidth() OptNilFloat64 {
+func (s *ExifResponseDto) GetExifImageWidth() OptNilInt {
 	return s.ExifImageWidth
 }
 
@@ -4500,7 +4677,7 @@ func (s *ExifResponseDto) GetFNumber() OptNilFloat64 {
 }
 
 // GetFileSizeInByte returns the value of FileSizeInByte.
-func (s *ExifResponseDto) GetFileSizeInByte() OptNilInt64 {
+func (s *ExifResponseDto) GetFileSizeInByte() OptNilInt {
 	return s.FileSizeInByte
 }
 
@@ -4510,7 +4687,7 @@ func (s *ExifResponseDto) GetFocalLength() OptNilFloat64 {
 }
 
 // GetIso returns the value of Iso.
-func (s *ExifResponseDto) GetIso() OptNilFloat64 {
+func (s *ExifResponseDto) GetIso() OptNilInt {
 	return s.Iso
 }
 
@@ -4555,7 +4732,7 @@ func (s *ExifResponseDto) GetProjectionType() OptNilString {
 }
 
 // GetRating returns the value of Rating.
-func (s *ExifResponseDto) GetRating() OptNilFloat64 {
+func (s *ExifResponseDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
@@ -4590,12 +4767,12 @@ func (s *ExifResponseDto) SetDescription(val OptNilString) {
 }
 
 // SetExifImageHeight sets the value of ExifImageHeight.
-func (s *ExifResponseDto) SetExifImageHeight(val OptNilFloat64) {
+func (s *ExifResponseDto) SetExifImageHeight(val OptNilInt) {
 	s.ExifImageHeight = val
 }
 
 // SetExifImageWidth sets the value of ExifImageWidth.
-func (s *ExifResponseDto) SetExifImageWidth(val OptNilFloat64) {
+func (s *ExifResponseDto) SetExifImageWidth(val OptNilInt) {
 	s.ExifImageWidth = val
 }
 
@@ -4610,7 +4787,7 @@ func (s *ExifResponseDto) SetFNumber(val OptNilFloat64) {
 }
 
 // SetFileSizeInByte sets the value of FileSizeInByte.
-func (s *ExifResponseDto) SetFileSizeInByte(val OptNilInt64) {
+func (s *ExifResponseDto) SetFileSizeInByte(val OptNilInt) {
 	s.FileSizeInByte = val
 }
 
@@ -4620,7 +4797,7 @@ func (s *ExifResponseDto) SetFocalLength(val OptNilFloat64) {
 }
 
 // SetIso sets the value of Iso.
-func (s *ExifResponseDto) SetIso(val OptNilFloat64) {
+func (s *ExifResponseDto) SetIso(val OptNilInt) {
 	s.Iso = val
 }
 
@@ -4665,7 +4842,7 @@ func (s *ExifResponseDto) SetProjectionType(val OptNilString) {
 }
 
 // SetRating sets the value of Rating.
-func (s *ExifResponseDto) SetRating(val OptNilFloat64) {
+func (s *ExifResponseDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
@@ -4681,6 +4858,7 @@ func (s *ExifResponseDto) SetTimeZone(val OptNilString) {
 
 // Ref: #/components/schemas/FaceDto
 type FaceDto struct {
+	// Face ID.
 	ID uuid.UUID `json:"id"`
 }
 
@@ -4696,11 +4874,16 @@ func (s *FaceDto) SetID(val uuid.UUID) {
 
 // Ref: #/components/schemas/FacialRecognitionConfig
 type FacialRecognitionConfig struct {
-	Enabled     bool    `json:"enabled"`
+	// Whether the task is enabled.
+	Enabled bool `json:"enabled"`
+	// Maximum distance threshold for face recognition.
 	MaxDistance float64 `json:"maxDistance"`
-	MinFaces    int     `json:"minFaces"`
-	MinScore    float64 `json:"minScore"`
-	ModelName   string  `json:"modelName"`
+	// Minimum number of faces required for recognition.
+	MinFaces int `json:"minFaces"`
+	// Minimum confidence score for face detection.
+	MinScore float64 `json:"minScore"`
+	// Name of the model to use.
+	ModelName string `json:"modelName"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -4755,7 +4938,9 @@ func (s *FacialRecognitionConfig) SetModelName(val string) {
 
 // Ref: #/components/schemas/FoldersResponse
 type FoldersResponse struct {
-	Enabled    bool `json:"enabled"`
+	// Whether folders are enabled.
+	Enabled bool `json:"enabled"`
+	// Whether folders appear in web sidebar.
 	SidebarWeb bool `json:"sidebarWeb"`
 }
 
@@ -4781,7 +4966,9 @@ func (s *FoldersResponse) SetSidebarWeb(val bool) {
 
 // Ref: #/components/schemas/FoldersUpdate
 type FoldersUpdate struct {
-	Enabled    OptBool `json:"enabled"`
+	// Whether folders are enabled.
+	Enabled OptBool `json:"enabled"`
+	// Whether folders appear in web sidebar.
 	SidebarWeb OptBool `json:"sidebarWeb"`
 }
 
@@ -4803,6 +4990,62 @@ func (s *FoldersUpdate) SetEnabled(val OptBool) {
 // SetSidebarWeb sets the value of SidebarWeb.
 func (s *FoldersUpdate) SetSidebarWeb(val OptBool) {
 	s.SidebarWeb = val
+}
+
+type GetIntegrityReportCsvOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetIntegrityReportCsvOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type GetIntegrityReportFileOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetIntegrityReportFileOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type GetMainPlaylistOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetMainPlaylistOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type GetMediaPlaylistOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetMediaPlaylistOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
 }
 
 type GetPersonThumbnailOK struct {
@@ -4833,6 +5076,20 @@ func (s GetProfileImageOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+type GetSegmentOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetSegmentOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
 // GetServerLicenseNotFound is response for GetServerLicense operation.
 type GetServerLicenseNotFound struct{}
 
@@ -4841,6 +5098,30 @@ func (*GetServerLicenseNotFound) getServerLicenseRes() {}
 // GetSyncStreamOK is response for GetSyncStream operation.
 type GetSyncStreamOK struct{}
 
+// HLS video resolution.
+// Ref: #/components/schemas/HlsVideoResolution
+type HlsVideoResolution int
+
+const (
+	HlsVideoResolution480  HlsVideoResolution = 480
+	HlsVideoResolution720  HlsVideoResolution = 720
+	HlsVideoResolution1080 HlsVideoResolution = 1080
+	HlsVideoResolution1440 HlsVideoResolution = 1440
+	HlsVideoResolution2160 HlsVideoResolution = 2160
+)
+
+// AllValues returns all HlsVideoResolution values.
+func (HlsVideoResolution) AllValues() []HlsVideoResolution {
+	return []HlsVideoResolution{
+		HlsVideoResolution480,
+		HlsVideoResolution720,
+		HlsVideoResolution1080,
+		HlsVideoResolution1440,
+		HlsVideoResolution2160,
+	}
+}
+
+// Image format.
 // Ref: #/components/schemas/ImageFormat
 type ImageFormat string
 
@@ -4883,40 +5164,33 @@ func (s *ImageFormat) UnmarshalText(data []byte) error {
 	}
 }
 
-// Ref: #/components/schemas/JobCommand
-type JobCommand string
+// Integrity report type.
+// Ref: #/components/schemas/IntegrityReport
+type IntegrityReport string
 
 const (
-	JobCommandStart       JobCommand = "start"
-	JobCommandPause       JobCommand = "pause"
-	JobCommandResume      JobCommand = "resume"
-	JobCommandEmpty       JobCommand = "empty"
-	JobCommandClearFailed JobCommand = "clear-failed"
+	IntegrityReportUntrackedFile    IntegrityReport = "untracked_file"
+	IntegrityReportMissingFile      IntegrityReport = "missing_file"
+	IntegrityReportChecksumMismatch IntegrityReport = "checksum_mismatch"
 )
 
-// AllValues returns all JobCommand values.
-func (JobCommand) AllValues() []JobCommand {
-	return []JobCommand{
-		JobCommandStart,
-		JobCommandPause,
-		JobCommandResume,
-		JobCommandEmpty,
-		JobCommandClearFailed,
+// AllValues returns all IntegrityReport values.
+func (IntegrityReport) AllValues() []IntegrityReport {
+	return []IntegrityReport{
+		IntegrityReportUntrackedFile,
+		IntegrityReportMissingFile,
+		IntegrityReportChecksumMismatch,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s JobCommand) MarshalText() ([]byte, error) {
+func (s IntegrityReport) MarshalText() ([]byte, error) {
 	switch s {
-	case JobCommandStart:
+	case IntegrityReportUntrackedFile:
 		return []byte(s), nil
-	case JobCommandPause:
+	case IntegrityReportMissingFile:
 		return []byte(s), nil
-	case JobCommandResume:
-		return []byte(s), nil
-	case JobCommandEmpty:
-		return []byte(s), nil
-	case JobCommandClearFailed:
+	case IntegrityReportChecksumMismatch:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -4924,122 +5198,121 @@ func (s JobCommand) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *JobCommand) UnmarshalText(data []byte) error {
-	switch JobCommand(data) {
-	case JobCommandStart:
-		*s = JobCommandStart
+func (s *IntegrityReport) UnmarshalText(data []byte) error {
+	switch IntegrityReport(data) {
+	case IntegrityReportUntrackedFile:
+		*s = IntegrityReportUntrackedFile
 		return nil
-	case JobCommandPause:
-		*s = JobCommandPause
+	case IntegrityReportMissingFile:
+		*s = IntegrityReportMissingFile
 		return nil
-	case JobCommandResume:
-		*s = JobCommandResume
-		return nil
-	case JobCommandEmpty:
-		*s = JobCommandEmpty
-		return nil
-	case JobCommandClearFailed:
-		*s = JobCommandClearFailed
+	case IntegrityReportChecksumMismatch:
+		*s = IntegrityReportChecksumMismatch
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-// Ref: #/components/schemas/JobCommandDto
-type JobCommandDto struct {
-	Command JobCommand `json:"command"`
-	Force   OptBool    `json:"force"`
+// Ref: #/components/schemas/IntegrityReportResponseDto
+type IntegrityReportResponseDto struct {
+	Items      []IntegrityReportResponseDtoItemsItem `json:"items"`
+	NextCursor OptString                             `json:"nextCursor"`
 }
 
-// GetCommand returns the value of Command.
-func (s *JobCommandDto) GetCommand() JobCommand {
-	return s.Command
+// GetItems returns the value of Items.
+func (s *IntegrityReportResponseDto) GetItems() []IntegrityReportResponseDtoItemsItem {
+	return s.Items
 }
 
-// GetForce returns the value of Force.
-func (s *JobCommandDto) GetForce() OptBool {
-	return s.Force
+// GetNextCursor returns the value of NextCursor.
+func (s *IntegrityReportResponseDto) GetNextCursor() OptString {
+	return s.NextCursor
 }
 
-// SetCommand sets the value of Command.
-func (s *JobCommandDto) SetCommand(val JobCommand) {
-	s.Command = val
+// SetItems sets the value of Items.
+func (s *IntegrityReportResponseDto) SetItems(val []IntegrityReportResponseDtoItemsItem) {
+	s.Items = val
 }
 
-// SetForce sets the value of Force.
-func (s *JobCommandDto) SetForce(val OptBool) {
-	s.Force = val
+// SetNextCursor sets the value of NextCursor.
+func (s *IntegrityReportResponseDto) SetNextCursor(val OptString) {
+	s.NextCursor = val
 }
 
-// Ref: #/components/schemas/JobCountsDto
-type JobCountsDto struct {
-	Active    int `json:"active"`
-	Completed int `json:"completed"`
-	Delayed   int `json:"delayed"`
-	Failed    int `json:"failed"`
-	Paused    int `json:"paused"`
-	Waiting   int `json:"waiting"`
+type IntegrityReportResponseDtoItemsItem struct {
+	// Integrity report item id.
+	ID uuid.UUID `json:"id"`
+	// Integrity report item path.
+	Path string          `json:"path"`
+	Type IntegrityReport `json:"type"`
 }
 
-// GetActive returns the value of Active.
-func (s *JobCountsDto) GetActive() int {
-	return s.Active
+// GetID returns the value of ID.
+func (s *IntegrityReportResponseDtoItemsItem) GetID() uuid.UUID {
+	return s.ID
 }
 
-// GetCompleted returns the value of Completed.
-func (s *JobCountsDto) GetCompleted() int {
-	return s.Completed
+// GetPath returns the value of Path.
+func (s *IntegrityReportResponseDtoItemsItem) GetPath() string {
+	return s.Path
 }
 
-// GetDelayed returns the value of Delayed.
-func (s *JobCountsDto) GetDelayed() int {
-	return s.Delayed
+// GetType returns the value of Type.
+func (s *IntegrityReportResponseDtoItemsItem) GetType() IntegrityReport {
+	return s.Type
 }
 
-// GetFailed returns the value of Failed.
-func (s *JobCountsDto) GetFailed() int {
-	return s.Failed
+// SetID sets the value of ID.
+func (s *IntegrityReportResponseDtoItemsItem) SetID(val uuid.UUID) {
+	s.ID = val
 }
 
-// GetPaused returns the value of Paused.
-func (s *JobCountsDto) GetPaused() int {
-	return s.Paused
+// SetPath sets the value of Path.
+func (s *IntegrityReportResponseDtoItemsItem) SetPath(val string) {
+	s.Path = val
 }
 
-// GetWaiting returns the value of Waiting.
-func (s *JobCountsDto) GetWaiting() int {
-	return s.Waiting
+// SetType sets the value of Type.
+func (s *IntegrityReportResponseDtoItemsItem) SetType(val IntegrityReport) {
+	s.Type = val
 }
 
-// SetActive sets the value of Active.
-func (s *JobCountsDto) SetActive(val int) {
-	s.Active = val
+// Ref: #/components/schemas/IntegrityReportSummaryResponseDto
+type IntegrityReportSummaryResponseDto struct {
+	ChecksumMismatch int `json:"checksum_mismatch"`
+	MissingFile      int `json:"missing_file"`
+	UntrackedFile    int `json:"untracked_file"`
 }
 
-// SetCompleted sets the value of Completed.
-func (s *JobCountsDto) SetCompleted(val int) {
-	s.Completed = val
+// GetChecksumMismatch returns the value of ChecksumMismatch.
+func (s *IntegrityReportSummaryResponseDto) GetChecksumMismatch() int {
+	return s.ChecksumMismatch
 }
 
-// SetDelayed sets the value of Delayed.
-func (s *JobCountsDto) SetDelayed(val int) {
-	s.Delayed = val
+// GetMissingFile returns the value of MissingFile.
+func (s *IntegrityReportSummaryResponseDto) GetMissingFile() int {
+	return s.MissingFile
 }
 
-// SetFailed sets the value of Failed.
-func (s *JobCountsDto) SetFailed(val int) {
-	s.Failed = val
+// GetUntrackedFile returns the value of UntrackedFile.
+func (s *IntegrityReportSummaryResponseDto) GetUntrackedFile() int {
+	return s.UntrackedFile
 }
 
-// SetPaused sets the value of Paused.
-func (s *JobCountsDto) SetPaused(val int) {
-	s.Paused = val
+// SetChecksumMismatch sets the value of ChecksumMismatch.
+func (s *IntegrityReportSummaryResponseDto) SetChecksumMismatch(val int) {
+	s.ChecksumMismatch = val
 }
 
-// SetWaiting sets the value of Waiting.
-func (s *JobCountsDto) SetWaiting(val int) {
-	s.Waiting = val
+// SetMissingFile sets the value of MissingFile.
+func (s *IntegrityReportSummaryResponseDto) SetMissingFile(val int) {
+	s.MissingFile = val
+}
+
+// SetUntrackedFile sets the value of UntrackedFile.
+func (s *IntegrityReportSummaryResponseDto) SetUntrackedFile(val int) {
+	s.UntrackedFile = val
 }
 
 // Ref: #/components/schemas/JobCreateDto
@@ -5057,84 +5330,285 @@ func (s *JobCreateDto) SetName(val ManualJobName) {
 	s.Name = val
 }
 
+// Job name.
 // Ref: #/components/schemas/JobName
 type JobName string
 
 const (
-	JobNameThumbnailGeneration      JobName = "thumbnailGeneration"
-	JobNameMetadataExtraction       JobName = "metadataExtraction"
-	JobNameVideoConversion          JobName = "videoConversion"
-	JobNameFaceDetection            JobName = "faceDetection"
-	JobNameFacialRecognition        JobName = "facialRecognition"
-	JobNameSmartSearch              JobName = "smartSearch"
-	JobNameDuplicateDetection       JobName = "duplicateDetection"
-	JobNameBackgroundTask           JobName = "backgroundTask"
-	JobNameStorageTemplateMigration JobName = "storageTemplateMigration"
-	JobNameMigration                JobName = "migration"
-	JobNameSearch                   JobName = "search"
-	JobNameSidecar                  JobName = "sidecar"
-	JobNameLibrary                  JobName = "library"
-	JobNameNotifications            JobName = "notifications"
-	JobNameBackupDatabase           JobName = "backupDatabase"
-	JobNameOcr                      JobName = "ocr"
+	JobNameAssetDelete                     JobName = "AssetDelete"
+	JobNameAssetDeleteCheck                JobName = "AssetDeleteCheck"
+	JobNameAssetDetectFacesQueueAll        JobName = "AssetDetectFacesQueueAll"
+	JobNameAssetDetectFaces                JobName = "AssetDetectFaces"
+	JobNameAssetDetectDuplicatesQueueAll   JobName = "AssetDetectDuplicatesQueueAll"
+	JobNameAssetDetectDuplicates           JobName = "AssetDetectDuplicates"
+	JobNameAssetEditThumbnailGeneration    JobName = "AssetEditThumbnailGeneration"
+	JobNameAssetEncodeVideoQueueAll        JobName = "AssetEncodeVideoQueueAll"
+	JobNameAssetEncodeVideo                JobName = "AssetEncodeVideo"
+	JobNameAssetEmptyTrash                 JobName = "AssetEmptyTrash"
+	JobNameAssetExtractMetadataQueueAll    JobName = "AssetExtractMetadataQueueAll"
+	JobNameAssetExtractMetadata            JobName = "AssetExtractMetadata"
+	JobNameAssetFileMigration              JobName = "AssetFileMigration"
+	JobNameAssetGenerateThumbnailsQueueAll JobName = "AssetGenerateThumbnailsQueueAll"
+	JobNameAssetGenerateThumbnails         JobName = "AssetGenerateThumbnails"
+	JobNameAuditTableCleanup               JobName = "AuditTableCleanup"
+	JobNameDatabaseBackup                  JobName = "DatabaseBackup"
+	JobNameFacialRecognitionQueueAll       JobName = "FacialRecognitionQueueAll"
+	JobNameFacialRecognition               JobName = "FacialRecognition"
+	JobNameFileDelete                      JobName = "FileDelete"
+	JobNameFileMigrationQueueAll           JobName = "FileMigrationQueueAll"
+	JobNameLibraryDeleteCheck              JobName = "LibraryDeleteCheck"
+	JobNameLibraryDelete                   JobName = "LibraryDelete"
+	JobNameLibraryRemoveAsset              JobName = "LibraryRemoveAsset"
+	JobNameLibraryScanAssetsQueueAll       JobName = "LibraryScanAssetsQueueAll"
+	JobNameLibrarySyncAssets               JobName = "LibrarySyncAssets"
+	JobNameLibrarySyncFilesQueueAll        JobName = "LibrarySyncFilesQueueAll"
+	JobNameLibrarySyncFiles                JobName = "LibrarySyncFiles"
+	JobNameLibraryScanQueueAll             JobName = "LibraryScanQueueAll"
+	JobNameHlsSessionCleanup               JobName = "HlsSessionCleanup"
+	JobNameMemoryCleanup                   JobName = "MemoryCleanup"
+	JobNameMemoryGenerate                  JobName = "MemoryGenerate"
+	JobNameNotificationsCleanup            JobName = "NotificationsCleanup"
+	JobNameNotifyUserSignup                JobName = "NotifyUserSignup"
+	JobNameNotifyAlbumInvite               JobName = "NotifyAlbumInvite"
+	JobNameNotifyAlbumUpdate               JobName = "NotifyAlbumUpdate"
+	JobNameUserDelete                      JobName = "UserDelete"
+	JobNameUserDeleteCheck                 JobName = "UserDeleteCheck"
+	JobNameUserSyncUsage                   JobName = "UserSyncUsage"
+	JobNamePersonCleanup                   JobName = "PersonCleanup"
+	JobNamePersonFileMigration             JobName = "PersonFileMigration"
+	JobNamePersonGenerateThumbnail         JobName = "PersonGenerateThumbnail"
+	JobNameSessionCleanup                  JobName = "SessionCleanup"
+	JobNameSendMail                        JobName = "SendMail"
+	JobNameSidecarQueueAll                 JobName = "SidecarQueueAll"
+	JobNameSidecarCheck                    JobName = "SidecarCheck"
+	JobNameSidecarWrite                    JobName = "SidecarWrite"
+	JobNameSmartSearchQueueAll             JobName = "SmartSearchQueueAll"
+	JobNameSmartSearch                     JobName = "SmartSearch"
+	JobNameStorageTemplateMigration        JobName = "StorageTemplateMigration"
+	JobNameStorageTemplateMigrationSingle  JobName = "StorageTemplateMigrationSingle"
+	JobNameTagCleanup                      JobName = "TagCleanup"
+	JobNameVersionCheck                    JobName = "VersionCheck"
+	JobNameOcrQueueAll                     JobName = "OcrQueueAll"
+	JobNameOcr                             JobName = "Ocr"
+	JobNameWorkflowAssetTrigger            JobName = "WorkflowAssetTrigger"
+	JobNameIntegrityUntrackedFilesQueueAll JobName = "IntegrityUntrackedFilesQueueAll"
+	JobNameIntegrityUntrackedFiles         JobName = "IntegrityUntrackedFiles"
+	JobNameIntegrityUntrackedRefresh       JobName = "IntegrityUntrackedRefresh"
+	JobNameIntegrityMissingFilesQueueAll   JobName = "IntegrityMissingFilesQueueAll"
+	JobNameIntegrityMissingFiles           JobName = "IntegrityMissingFiles"
+	JobNameIntegrityMissingFilesRefresh    JobName = "IntegrityMissingFilesRefresh"
+	JobNameIntegrityChecksumFiles          JobName = "IntegrityChecksumFiles"
+	JobNameIntegrityChecksumFilesRefresh   JobName = "IntegrityChecksumFilesRefresh"
+	JobNameIntegrityDeleteReportType       JobName = "IntegrityDeleteReportType"
+	JobNameIntegrityDeleteReports          JobName = "IntegrityDeleteReports"
 )
 
 // AllValues returns all JobName values.
 func (JobName) AllValues() []JobName {
 	return []JobName{
-		JobNameThumbnailGeneration,
-		JobNameMetadataExtraction,
-		JobNameVideoConversion,
-		JobNameFaceDetection,
+		JobNameAssetDelete,
+		JobNameAssetDeleteCheck,
+		JobNameAssetDetectFacesQueueAll,
+		JobNameAssetDetectFaces,
+		JobNameAssetDetectDuplicatesQueueAll,
+		JobNameAssetDetectDuplicates,
+		JobNameAssetEditThumbnailGeneration,
+		JobNameAssetEncodeVideoQueueAll,
+		JobNameAssetEncodeVideo,
+		JobNameAssetEmptyTrash,
+		JobNameAssetExtractMetadataQueueAll,
+		JobNameAssetExtractMetadata,
+		JobNameAssetFileMigration,
+		JobNameAssetGenerateThumbnailsQueueAll,
+		JobNameAssetGenerateThumbnails,
+		JobNameAuditTableCleanup,
+		JobNameDatabaseBackup,
+		JobNameFacialRecognitionQueueAll,
 		JobNameFacialRecognition,
+		JobNameFileDelete,
+		JobNameFileMigrationQueueAll,
+		JobNameLibraryDeleteCheck,
+		JobNameLibraryDelete,
+		JobNameLibraryRemoveAsset,
+		JobNameLibraryScanAssetsQueueAll,
+		JobNameLibrarySyncAssets,
+		JobNameLibrarySyncFilesQueueAll,
+		JobNameLibrarySyncFiles,
+		JobNameLibraryScanQueueAll,
+		JobNameHlsSessionCleanup,
+		JobNameMemoryCleanup,
+		JobNameMemoryGenerate,
+		JobNameNotificationsCleanup,
+		JobNameNotifyUserSignup,
+		JobNameNotifyAlbumInvite,
+		JobNameNotifyAlbumUpdate,
+		JobNameUserDelete,
+		JobNameUserDeleteCheck,
+		JobNameUserSyncUsage,
+		JobNamePersonCleanup,
+		JobNamePersonFileMigration,
+		JobNamePersonGenerateThumbnail,
+		JobNameSessionCleanup,
+		JobNameSendMail,
+		JobNameSidecarQueueAll,
+		JobNameSidecarCheck,
+		JobNameSidecarWrite,
+		JobNameSmartSearchQueueAll,
 		JobNameSmartSearch,
-		JobNameDuplicateDetection,
-		JobNameBackgroundTask,
 		JobNameStorageTemplateMigration,
-		JobNameMigration,
-		JobNameSearch,
-		JobNameSidecar,
-		JobNameLibrary,
-		JobNameNotifications,
-		JobNameBackupDatabase,
+		JobNameStorageTemplateMigrationSingle,
+		JobNameTagCleanup,
+		JobNameVersionCheck,
+		JobNameOcrQueueAll,
 		JobNameOcr,
+		JobNameWorkflowAssetTrigger,
+		JobNameIntegrityUntrackedFilesQueueAll,
+		JobNameIntegrityUntrackedFiles,
+		JobNameIntegrityUntrackedRefresh,
+		JobNameIntegrityMissingFilesQueueAll,
+		JobNameIntegrityMissingFiles,
+		JobNameIntegrityMissingFilesRefresh,
+		JobNameIntegrityChecksumFiles,
+		JobNameIntegrityChecksumFilesRefresh,
+		JobNameIntegrityDeleteReportType,
+		JobNameIntegrityDeleteReports,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
 func (s JobName) MarshalText() ([]byte, error) {
 	switch s {
-	case JobNameThumbnailGeneration:
+	case JobNameAssetDelete:
 		return []byte(s), nil
-	case JobNameMetadataExtraction:
+	case JobNameAssetDeleteCheck:
 		return []byte(s), nil
-	case JobNameVideoConversion:
+	case JobNameAssetDetectFacesQueueAll:
 		return []byte(s), nil
-	case JobNameFaceDetection:
+	case JobNameAssetDetectFaces:
+		return []byte(s), nil
+	case JobNameAssetDetectDuplicatesQueueAll:
+		return []byte(s), nil
+	case JobNameAssetDetectDuplicates:
+		return []byte(s), nil
+	case JobNameAssetEditThumbnailGeneration:
+		return []byte(s), nil
+	case JobNameAssetEncodeVideoQueueAll:
+		return []byte(s), nil
+	case JobNameAssetEncodeVideo:
+		return []byte(s), nil
+	case JobNameAssetEmptyTrash:
+		return []byte(s), nil
+	case JobNameAssetExtractMetadataQueueAll:
+		return []byte(s), nil
+	case JobNameAssetExtractMetadata:
+		return []byte(s), nil
+	case JobNameAssetFileMigration:
+		return []byte(s), nil
+	case JobNameAssetGenerateThumbnailsQueueAll:
+		return []byte(s), nil
+	case JobNameAssetGenerateThumbnails:
+		return []byte(s), nil
+	case JobNameAuditTableCleanup:
+		return []byte(s), nil
+	case JobNameDatabaseBackup:
+		return []byte(s), nil
+	case JobNameFacialRecognitionQueueAll:
 		return []byte(s), nil
 	case JobNameFacialRecognition:
 		return []byte(s), nil
+	case JobNameFileDelete:
+		return []byte(s), nil
+	case JobNameFileMigrationQueueAll:
+		return []byte(s), nil
+	case JobNameLibraryDeleteCheck:
+		return []byte(s), nil
+	case JobNameLibraryDelete:
+		return []byte(s), nil
+	case JobNameLibraryRemoveAsset:
+		return []byte(s), nil
+	case JobNameLibraryScanAssetsQueueAll:
+		return []byte(s), nil
+	case JobNameLibrarySyncAssets:
+		return []byte(s), nil
+	case JobNameLibrarySyncFilesQueueAll:
+		return []byte(s), nil
+	case JobNameLibrarySyncFiles:
+		return []byte(s), nil
+	case JobNameLibraryScanQueueAll:
+		return []byte(s), nil
+	case JobNameHlsSessionCleanup:
+		return []byte(s), nil
+	case JobNameMemoryCleanup:
+		return []byte(s), nil
+	case JobNameMemoryGenerate:
+		return []byte(s), nil
+	case JobNameNotificationsCleanup:
+		return []byte(s), nil
+	case JobNameNotifyUserSignup:
+		return []byte(s), nil
+	case JobNameNotifyAlbumInvite:
+		return []byte(s), nil
+	case JobNameNotifyAlbumUpdate:
+		return []byte(s), nil
+	case JobNameUserDelete:
+		return []byte(s), nil
+	case JobNameUserDeleteCheck:
+		return []byte(s), nil
+	case JobNameUserSyncUsage:
+		return []byte(s), nil
+	case JobNamePersonCleanup:
+		return []byte(s), nil
+	case JobNamePersonFileMigration:
+		return []byte(s), nil
+	case JobNamePersonGenerateThumbnail:
+		return []byte(s), nil
+	case JobNameSessionCleanup:
+		return []byte(s), nil
+	case JobNameSendMail:
+		return []byte(s), nil
+	case JobNameSidecarQueueAll:
+		return []byte(s), nil
+	case JobNameSidecarCheck:
+		return []byte(s), nil
+	case JobNameSidecarWrite:
+		return []byte(s), nil
+	case JobNameSmartSearchQueueAll:
+		return []byte(s), nil
 	case JobNameSmartSearch:
-		return []byte(s), nil
-	case JobNameDuplicateDetection:
-		return []byte(s), nil
-	case JobNameBackgroundTask:
 		return []byte(s), nil
 	case JobNameStorageTemplateMigration:
 		return []byte(s), nil
-	case JobNameMigration:
+	case JobNameStorageTemplateMigrationSingle:
 		return []byte(s), nil
-	case JobNameSearch:
+	case JobNameTagCleanup:
 		return []byte(s), nil
-	case JobNameSidecar:
+	case JobNameVersionCheck:
 		return []byte(s), nil
-	case JobNameLibrary:
-		return []byte(s), nil
-	case JobNameNotifications:
-		return []byte(s), nil
-	case JobNameBackupDatabase:
+	case JobNameOcrQueueAll:
 		return []byte(s), nil
 	case JobNameOcr:
+		return []byte(s), nil
+	case JobNameWorkflowAssetTrigger:
+		return []byte(s), nil
+	case JobNameIntegrityUntrackedFilesQueueAll:
+		return []byte(s), nil
+	case JobNameIntegrityUntrackedFiles:
+		return []byte(s), nil
+	case JobNameIntegrityUntrackedRefresh:
+		return []byte(s), nil
+	case JobNameIntegrityMissingFilesQueueAll:
+		return []byte(s), nil
+	case JobNameIntegrityMissingFiles:
+		return []byte(s), nil
+	case JobNameIntegrityMissingFilesRefresh:
+		return []byte(s), nil
+	case JobNameIntegrityChecksumFiles:
+		return []byte(s), nil
+	case JobNameIntegrityChecksumFilesRefresh:
+		return []byte(s), nil
+	case JobNameIntegrityDeleteReportType:
+		return []byte(s), nil
+	case JobNameIntegrityDeleteReports:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -5144,53 +5618,203 @@ func (s JobName) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *JobName) UnmarshalText(data []byte) error {
 	switch JobName(data) {
-	case JobNameThumbnailGeneration:
-		*s = JobNameThumbnailGeneration
+	case JobNameAssetDelete:
+		*s = JobNameAssetDelete
 		return nil
-	case JobNameMetadataExtraction:
-		*s = JobNameMetadataExtraction
+	case JobNameAssetDeleteCheck:
+		*s = JobNameAssetDeleteCheck
 		return nil
-	case JobNameVideoConversion:
-		*s = JobNameVideoConversion
+	case JobNameAssetDetectFacesQueueAll:
+		*s = JobNameAssetDetectFacesQueueAll
 		return nil
-	case JobNameFaceDetection:
-		*s = JobNameFaceDetection
+	case JobNameAssetDetectFaces:
+		*s = JobNameAssetDetectFaces
+		return nil
+	case JobNameAssetDetectDuplicatesQueueAll:
+		*s = JobNameAssetDetectDuplicatesQueueAll
+		return nil
+	case JobNameAssetDetectDuplicates:
+		*s = JobNameAssetDetectDuplicates
+		return nil
+	case JobNameAssetEditThumbnailGeneration:
+		*s = JobNameAssetEditThumbnailGeneration
+		return nil
+	case JobNameAssetEncodeVideoQueueAll:
+		*s = JobNameAssetEncodeVideoQueueAll
+		return nil
+	case JobNameAssetEncodeVideo:
+		*s = JobNameAssetEncodeVideo
+		return nil
+	case JobNameAssetEmptyTrash:
+		*s = JobNameAssetEmptyTrash
+		return nil
+	case JobNameAssetExtractMetadataQueueAll:
+		*s = JobNameAssetExtractMetadataQueueAll
+		return nil
+	case JobNameAssetExtractMetadata:
+		*s = JobNameAssetExtractMetadata
+		return nil
+	case JobNameAssetFileMigration:
+		*s = JobNameAssetFileMigration
+		return nil
+	case JobNameAssetGenerateThumbnailsQueueAll:
+		*s = JobNameAssetGenerateThumbnailsQueueAll
+		return nil
+	case JobNameAssetGenerateThumbnails:
+		*s = JobNameAssetGenerateThumbnails
+		return nil
+	case JobNameAuditTableCleanup:
+		*s = JobNameAuditTableCleanup
+		return nil
+	case JobNameDatabaseBackup:
+		*s = JobNameDatabaseBackup
+		return nil
+	case JobNameFacialRecognitionQueueAll:
+		*s = JobNameFacialRecognitionQueueAll
 		return nil
 	case JobNameFacialRecognition:
 		*s = JobNameFacialRecognition
 		return nil
+	case JobNameFileDelete:
+		*s = JobNameFileDelete
+		return nil
+	case JobNameFileMigrationQueueAll:
+		*s = JobNameFileMigrationQueueAll
+		return nil
+	case JobNameLibraryDeleteCheck:
+		*s = JobNameLibraryDeleteCheck
+		return nil
+	case JobNameLibraryDelete:
+		*s = JobNameLibraryDelete
+		return nil
+	case JobNameLibraryRemoveAsset:
+		*s = JobNameLibraryRemoveAsset
+		return nil
+	case JobNameLibraryScanAssetsQueueAll:
+		*s = JobNameLibraryScanAssetsQueueAll
+		return nil
+	case JobNameLibrarySyncAssets:
+		*s = JobNameLibrarySyncAssets
+		return nil
+	case JobNameLibrarySyncFilesQueueAll:
+		*s = JobNameLibrarySyncFilesQueueAll
+		return nil
+	case JobNameLibrarySyncFiles:
+		*s = JobNameLibrarySyncFiles
+		return nil
+	case JobNameLibraryScanQueueAll:
+		*s = JobNameLibraryScanQueueAll
+		return nil
+	case JobNameHlsSessionCleanup:
+		*s = JobNameHlsSessionCleanup
+		return nil
+	case JobNameMemoryCleanup:
+		*s = JobNameMemoryCleanup
+		return nil
+	case JobNameMemoryGenerate:
+		*s = JobNameMemoryGenerate
+		return nil
+	case JobNameNotificationsCleanup:
+		*s = JobNameNotificationsCleanup
+		return nil
+	case JobNameNotifyUserSignup:
+		*s = JobNameNotifyUserSignup
+		return nil
+	case JobNameNotifyAlbumInvite:
+		*s = JobNameNotifyAlbumInvite
+		return nil
+	case JobNameNotifyAlbumUpdate:
+		*s = JobNameNotifyAlbumUpdate
+		return nil
+	case JobNameUserDelete:
+		*s = JobNameUserDelete
+		return nil
+	case JobNameUserDeleteCheck:
+		*s = JobNameUserDeleteCheck
+		return nil
+	case JobNameUserSyncUsage:
+		*s = JobNameUserSyncUsage
+		return nil
+	case JobNamePersonCleanup:
+		*s = JobNamePersonCleanup
+		return nil
+	case JobNamePersonFileMigration:
+		*s = JobNamePersonFileMigration
+		return nil
+	case JobNamePersonGenerateThumbnail:
+		*s = JobNamePersonGenerateThumbnail
+		return nil
+	case JobNameSessionCleanup:
+		*s = JobNameSessionCleanup
+		return nil
+	case JobNameSendMail:
+		*s = JobNameSendMail
+		return nil
+	case JobNameSidecarQueueAll:
+		*s = JobNameSidecarQueueAll
+		return nil
+	case JobNameSidecarCheck:
+		*s = JobNameSidecarCheck
+		return nil
+	case JobNameSidecarWrite:
+		*s = JobNameSidecarWrite
+		return nil
+	case JobNameSmartSearchQueueAll:
+		*s = JobNameSmartSearchQueueAll
+		return nil
 	case JobNameSmartSearch:
 		*s = JobNameSmartSearch
-		return nil
-	case JobNameDuplicateDetection:
-		*s = JobNameDuplicateDetection
-		return nil
-	case JobNameBackgroundTask:
-		*s = JobNameBackgroundTask
 		return nil
 	case JobNameStorageTemplateMigration:
 		*s = JobNameStorageTemplateMigration
 		return nil
-	case JobNameMigration:
-		*s = JobNameMigration
+	case JobNameStorageTemplateMigrationSingle:
+		*s = JobNameStorageTemplateMigrationSingle
 		return nil
-	case JobNameSearch:
-		*s = JobNameSearch
+	case JobNameTagCleanup:
+		*s = JobNameTagCleanup
 		return nil
-	case JobNameSidecar:
-		*s = JobNameSidecar
+	case JobNameVersionCheck:
+		*s = JobNameVersionCheck
 		return nil
-	case JobNameLibrary:
-		*s = JobNameLibrary
-		return nil
-	case JobNameNotifications:
-		*s = JobNameNotifications
-		return nil
-	case JobNameBackupDatabase:
-		*s = JobNameBackupDatabase
+	case JobNameOcrQueueAll:
+		*s = JobNameOcrQueueAll
 		return nil
 	case JobNameOcr:
 		*s = JobNameOcr
+		return nil
+	case JobNameWorkflowAssetTrigger:
+		*s = JobNameWorkflowAssetTrigger
+		return nil
+	case JobNameIntegrityUntrackedFilesQueueAll:
+		*s = JobNameIntegrityUntrackedFilesQueueAll
+		return nil
+	case JobNameIntegrityUntrackedFiles:
+		*s = JobNameIntegrityUntrackedFiles
+		return nil
+	case JobNameIntegrityUntrackedRefresh:
+		*s = JobNameIntegrityUntrackedRefresh
+		return nil
+	case JobNameIntegrityMissingFilesQueueAll:
+		*s = JobNameIntegrityMissingFilesQueueAll
+		return nil
+	case JobNameIntegrityMissingFiles:
+		*s = JobNameIntegrityMissingFiles
+		return nil
+	case JobNameIntegrityMissingFilesRefresh:
+		*s = JobNameIntegrityMissingFilesRefresh
+		return nil
+	case JobNameIntegrityChecksumFiles:
+		*s = JobNameIntegrityChecksumFiles
+		return nil
+	case JobNameIntegrityChecksumFilesRefresh:
+		*s = JobNameIntegrityChecksumFilesRefresh
+		return nil
+	case JobNameIntegrityDeleteReportType:
+		*s = JobNameIntegrityDeleteReportType
+		return nil
+	case JobNameIntegrityDeleteReports:
+		*s = JobNameIntegrityDeleteReports
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -5199,6 +5823,7 @@ func (s *JobName) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/JobSettingsDto
 type JobSettingsDto struct {
+	// Concurrency.
 	Concurrency int `json:"concurrency"`
 }
 
@@ -5212,43 +5837,26 @@ func (s *JobSettingsDto) SetConcurrency(val int) {
 	s.Concurrency = val
 }
 
-// Ref: #/components/schemas/JobStatusDto
-type JobStatusDto struct {
-	JobCounts   JobCountsDto   `json:"jobCounts"`
-	QueueStatus QueueStatusDto `json:"queueStatus"`
-}
-
-// GetJobCounts returns the value of JobCounts.
-func (s *JobStatusDto) GetJobCounts() JobCountsDto {
-	return s.JobCounts
-}
-
-// GetQueueStatus returns the value of QueueStatus.
-func (s *JobStatusDto) GetQueueStatus() QueueStatusDto {
-	return s.QueueStatus
-}
-
-// SetJobCounts sets the value of JobCounts.
-func (s *JobStatusDto) SetJobCounts(val JobCountsDto) {
-	s.JobCounts = val
-}
-
-// SetQueueStatus sets the value of QueueStatus.
-func (s *JobStatusDto) SetQueueStatus(val QueueStatusDto) {
-	s.QueueStatus = val
-}
-
 // Ref: #/components/schemas/LibraryResponseDto
 type LibraryResponseDto struct {
-	AssetCount        int         `json:"assetCount"`
-	CreatedAt         time.Time   `json:"createdAt"`
-	ExclusionPatterns []string    `json:"exclusionPatterns"`
-	ID                string      `json:"id"`
-	ImportPaths       []string    `json:"importPaths"`
-	Name              string      `json:"name"`
-	OwnerId           string      `json:"ownerId"`
-	RefreshedAt       NilDateTime `json:"refreshedAt"`
-	UpdatedAt         time.Time   `json:"updatedAt"`
+	// Number of assets.
+	AssetCount int `json:"assetCount"`
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// Exclusion patterns.
+	ExclusionPatterns []string `json:"exclusionPatterns"`
+	// Library ID.
+	ID uuid.UUID `json:"id"`
+	// Import paths.
+	ImportPaths []string `json:"importPaths"`
+	// Library name.
+	Name string `json:"name"`
+	// Owner user ID.
+	OwnerId uuid.UUID `json:"ownerId"`
+	// Last refresh date.
+	RefreshedAt NilDateTime `json:"refreshedAt"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GetAssetCount returns the value of AssetCount.
@@ -5267,7 +5875,7 @@ func (s *LibraryResponseDto) GetExclusionPatterns() []string {
 }
 
 // GetID returns the value of ID.
-func (s *LibraryResponseDto) GetID() string {
+func (s *LibraryResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -5282,7 +5890,7 @@ func (s *LibraryResponseDto) GetName() string {
 }
 
 // GetOwnerId returns the value of OwnerId.
-func (s *LibraryResponseDto) GetOwnerId() string {
+func (s *LibraryResponseDto) GetOwnerId() uuid.UUID {
 	return s.OwnerId
 }
 
@@ -5312,7 +5920,7 @@ func (s *LibraryResponseDto) SetExclusionPatterns(val []string) {
 }
 
 // SetID sets the value of ID.
-func (s *LibraryResponseDto) SetID(val string) {
+func (s *LibraryResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -5327,7 +5935,7 @@ func (s *LibraryResponseDto) SetName(val string) {
 }
 
 // SetOwnerId sets the value of OwnerId.
-func (s *LibraryResponseDto) SetOwnerId(val string) {
+func (s *LibraryResponseDto) SetOwnerId(val uuid.UUID) {
 	s.OwnerId = val
 }
 
@@ -5343,10 +5951,14 @@ func (s *LibraryResponseDto) SetUpdatedAt(val time.Time) {
 
 // Ref: #/components/schemas/LibraryStatsResponseDto
 type LibraryStatsResponseDto struct {
-	Photos int   `json:"photos"`
-	Total  int   `json:"total"`
-	Usage  int64 `json:"usage"`
-	Videos int   `json:"videos"`
+	// Number of photos.
+	Photos int `json:"photos"`
+	// Total number of assets.
+	Total int `json:"total"`
+	// Storage usage in bytes.
+	Usage int `json:"usage"`
+	// Number of videos.
+	Videos int `json:"videos"`
 }
 
 // GetPhotos returns the value of Photos.
@@ -5360,7 +5972,7 @@ func (s *LibraryStatsResponseDto) GetTotal() int {
 }
 
 // GetUsage returns the value of Usage.
-func (s *LibraryStatsResponseDto) GetUsage() int64 {
+func (s *LibraryStatsResponseDto) GetUsage() int {
 	return s.Usage
 }
 
@@ -5380,7 +5992,7 @@ func (s *LibraryStatsResponseDto) SetTotal(val int) {
 }
 
 // SetUsage sets the value of Usage.
-func (s *LibraryStatsResponseDto) SetUsage(val int64) {
+func (s *LibraryStatsResponseDto) SetUsage(val int) {
 	s.Usage = val
 }
 
@@ -5391,8 +6003,10 @@ func (s *LibraryStatsResponseDto) SetVideos(val int) {
 
 // Ref: #/components/schemas/LicenseKeyDto
 type LicenseKeyDto struct {
+	// Activation key.
 	ActivationKey string `json:"activationKey"`
-	LicenseKey    string `json:"licenseKey"`
+	// License key (format: /^IM(SV|CL)(-[\dA-Za-z]{4}){8}$/).
+	LicenseKey string `json:"licenseKey"`
 }
 
 // GetActivationKey returns the value of ActivationKey.
@@ -5415,51 +6029,13 @@ func (s *LicenseKeyDto) SetLicenseKey(val string) {
 	s.LicenseKey = val
 }
 
-// Ref: #/components/schemas/LicenseResponseDto
-type LicenseResponseDto struct {
-	ActivatedAt   time.Time `json:"activatedAt"`
-	ActivationKey string    `json:"activationKey"`
-	LicenseKey    string    `json:"licenseKey"`
-}
-
-// GetActivatedAt returns the value of ActivatedAt.
-func (s *LicenseResponseDto) GetActivatedAt() time.Time {
-	return s.ActivatedAt
-}
-
-// GetActivationKey returns the value of ActivationKey.
-func (s *LicenseResponseDto) GetActivationKey() string {
-	return s.ActivationKey
-}
-
-// GetLicenseKey returns the value of LicenseKey.
-func (s *LicenseResponseDto) GetLicenseKey() string {
-	return s.LicenseKey
-}
-
-// SetActivatedAt sets the value of ActivatedAt.
-func (s *LicenseResponseDto) SetActivatedAt(val time.Time) {
-	s.ActivatedAt = val
-}
-
-// SetActivationKey sets the value of ActivationKey.
-func (s *LicenseResponseDto) SetActivationKey(val string) {
-	s.ActivationKey = val
-}
-
-// SetLicenseKey sets the value of LicenseKey.
-func (s *LicenseResponseDto) SetLicenseKey(val string) {
-	s.LicenseKey = val
-}
-
-func (*LicenseResponseDto) getServerLicenseRes() {}
-
 // LockAuthSessionNoContent is response for LockAuthSession operation.
 type LockAuthSessionNoContent struct{}
 
 // LockSessionNoContent is response for LockSession operation.
 type LockSessionNoContent struct{}
 
+// Log level.
 // Ref: #/components/schemas/LogLevel
 type LogLevel string
 
@@ -5532,7 +6108,9 @@ func (s *LogLevel) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/LoginCredentialDto
 type LoginCredentialDto struct {
-	Email    string `json:"email"`
+	// User email.
+	Email string `json:"email"`
+	// User password.
 	Password string `json:"password"`
 }
 
@@ -5558,14 +6136,22 @@ func (s *LoginCredentialDto) SetPassword(val string) {
 
 // Ref: #/components/schemas/LoginResponseDto
 type LoginResponseDto struct {
-	AccessToken          string `json:"accessToken"`
-	IsAdmin              bool   `json:"isAdmin"`
-	IsOnboarded          bool   `json:"isOnboarded"`
-	Name                 string `json:"name"`
-	ProfileImagePath     string `json:"profileImagePath"`
-	ShouldChangePassword bool   `json:"shouldChangePassword"`
-	UserEmail            string `json:"userEmail"`
-	UserId               string `json:"userId"`
+	// Access token.
+	AccessToken string `json:"accessToken"`
+	// Is admin user.
+	IsAdmin bool `json:"isAdmin"`
+	// Is onboarded.
+	IsOnboarded bool `json:"isOnboarded"`
+	// User name.
+	Name string `json:"name"`
+	// Profile image path.
+	ProfileImagePath string `json:"profileImagePath"`
+	// Should change password.
+	ShouldChangePassword bool `json:"shouldChangePassword"`
+	// User email.
+	UserEmail string `json:"userEmail"`
+	// User ID.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetAccessToken returns the value of AccessToken.
@@ -5604,7 +6190,7 @@ func (s *LoginResponseDto) GetUserEmail() string {
 }
 
 // GetUserId returns the value of UserId.
-func (s *LoginResponseDto) GetUserId() string {
+func (s *LoginResponseDto) GetUserId() uuid.UUID {
 	return s.UserId
 }
 
@@ -5644,14 +6230,19 @@ func (s *LoginResponseDto) SetUserEmail(val string) {
 }
 
 // SetUserId sets the value of UserId.
-func (s *LoginResponseDto) SetUserId(val string) {
+func (s *LoginResponseDto) SetUserId(val uuid.UUID) {
 	s.UserId = val
 }
 
+// LogoutOAuthOK is response for LogoutOAuth operation.
+type LogoutOAuthOK struct{}
+
 // Ref: #/components/schemas/LogoutResponseDto
 type LogoutResponseDto struct {
+	// Redirect URI.
 	RedirectUri string `json:"redirectUri"`
-	Successful  bool   `json:"successful"`
+	// Logout successful.
+	Successful bool `json:"successful"`
 }
 
 // GetRedirectUri returns the value of RedirectUri.
@@ -5676,9 +6267,10 @@ func (s *LogoutResponseDto) SetSuccessful(val bool) {
 
 // Ref: #/components/schemas/MachineLearningAvailabilityChecksDto
 type MachineLearningAvailabilityChecksDto struct {
-	Enabled  bool    `json:"enabled"`
-	Interval float64 `json:"interval"`
-	Timeout  float64 `json:"timeout"`
+	// Enabled.
+	Enabled  bool `json:"enabled"`
+	Interval int  `json:"interval"`
+	Timeout  int  `json:"timeout"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -5687,12 +6279,12 @@ func (s *MachineLearningAvailabilityChecksDto) GetEnabled() bool {
 }
 
 // GetInterval returns the value of Interval.
-func (s *MachineLearningAvailabilityChecksDto) GetInterval() float64 {
+func (s *MachineLearningAvailabilityChecksDto) GetInterval() int {
 	return s.Interval
 }
 
 // GetTimeout returns the value of Timeout.
-func (s *MachineLearningAvailabilityChecksDto) GetTimeout() float64 {
+func (s *MachineLearningAvailabilityChecksDto) GetTimeout() int {
 	return s.Timeout
 }
 
@@ -5702,25 +6294,249 @@ func (s *MachineLearningAvailabilityChecksDto) SetEnabled(val bool) {
 }
 
 // SetInterval sets the value of Interval.
-func (s *MachineLearningAvailabilityChecksDto) SetInterval(val float64) {
+func (s *MachineLearningAvailabilityChecksDto) SetInterval(val int) {
 	s.Interval = val
 }
 
 // SetTimeout sets the value of Timeout.
-func (s *MachineLearningAvailabilityChecksDto) SetTimeout(val float64) {
+func (s *MachineLearningAvailabilityChecksDto) SetTimeout(val int) {
 	s.Timeout = val
 }
 
+// Maintenance action.
+// Ref: #/components/schemas/MaintenanceAction
+type MaintenanceAction string
+
+const (
+	MaintenanceActionStart                 MaintenanceAction = "start"
+	MaintenanceActionEnd                   MaintenanceAction = "end"
+	MaintenanceActionSelectDatabaseRestore MaintenanceAction = "select_database_restore"
+	MaintenanceActionRestoreDatabase       MaintenanceAction = "restore_database"
+)
+
+// AllValues returns all MaintenanceAction values.
+func (MaintenanceAction) AllValues() []MaintenanceAction {
+	return []MaintenanceAction{
+		MaintenanceActionStart,
+		MaintenanceActionEnd,
+		MaintenanceActionSelectDatabaseRestore,
+		MaintenanceActionRestoreDatabase,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MaintenanceAction) MarshalText() ([]byte, error) {
+	switch s {
+	case MaintenanceActionStart:
+		return []byte(s), nil
+	case MaintenanceActionEnd:
+		return []byte(s), nil
+	case MaintenanceActionSelectDatabaseRestore:
+		return []byte(s), nil
+	case MaintenanceActionRestoreDatabase:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MaintenanceAction) UnmarshalText(data []byte) error {
+	switch MaintenanceAction(data) {
+	case MaintenanceActionStart:
+		*s = MaintenanceActionStart
+		return nil
+	case MaintenanceActionEnd:
+		*s = MaintenanceActionEnd
+		return nil
+	case MaintenanceActionSelectDatabaseRestore:
+		*s = MaintenanceActionSelectDatabaseRestore
+		return nil
+	case MaintenanceActionRestoreDatabase:
+		*s = MaintenanceActionRestoreDatabase
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/MaintenanceAuthDto
+type MaintenanceAuthDto struct {
+	// Maintenance username.
+	Username string `json:"username"`
+}
+
+// GetUsername returns the value of Username.
+func (s *MaintenanceAuthDto) GetUsername() string {
+	return s.Username
+}
+
+// SetUsername sets the value of Username.
+func (s *MaintenanceAuthDto) SetUsername(val string) {
+	s.Username = val
+}
+
+// Ref: #/components/schemas/MaintenanceDetectInstallResponseDto
+type MaintenanceDetectInstallResponseDto struct {
+	Storage []MaintenanceDetectInstallStorageFolderDto `json:"storage"`
+}
+
+// GetStorage returns the value of Storage.
+func (s *MaintenanceDetectInstallResponseDto) GetStorage() []MaintenanceDetectInstallStorageFolderDto {
+	return s.Storage
+}
+
+// SetStorage sets the value of Storage.
+func (s *MaintenanceDetectInstallResponseDto) SetStorage(val []MaintenanceDetectInstallStorageFolderDto) {
+	s.Storage = val
+}
+
+// Ref: #/components/schemas/MaintenanceDetectInstallStorageFolderDto
+type MaintenanceDetectInstallStorageFolderDto struct {
+	// Number of files in the folder.
+	Files  int           `json:"files"`
+	Folder StorageFolder `json:"folder"`
+	// Whether the folder is readable.
+	Readable bool `json:"readable"`
+	// Whether the folder is writable.
+	Writable bool `json:"writable"`
+}
+
+// GetFiles returns the value of Files.
+func (s *MaintenanceDetectInstallStorageFolderDto) GetFiles() int {
+	return s.Files
+}
+
+// GetFolder returns the value of Folder.
+func (s *MaintenanceDetectInstallStorageFolderDto) GetFolder() StorageFolder {
+	return s.Folder
+}
+
+// GetReadable returns the value of Readable.
+func (s *MaintenanceDetectInstallStorageFolderDto) GetReadable() bool {
+	return s.Readable
+}
+
+// GetWritable returns the value of Writable.
+func (s *MaintenanceDetectInstallStorageFolderDto) GetWritable() bool {
+	return s.Writable
+}
+
+// SetFiles sets the value of Files.
+func (s *MaintenanceDetectInstallStorageFolderDto) SetFiles(val int) {
+	s.Files = val
+}
+
+// SetFolder sets the value of Folder.
+func (s *MaintenanceDetectInstallStorageFolderDto) SetFolder(val StorageFolder) {
+	s.Folder = val
+}
+
+// SetReadable sets the value of Readable.
+func (s *MaintenanceDetectInstallStorageFolderDto) SetReadable(val bool) {
+	s.Readable = val
+}
+
+// SetWritable sets the value of Writable.
+func (s *MaintenanceDetectInstallStorageFolderDto) SetWritable(val bool) {
+	s.Writable = val
+}
+
+// Ref: #/components/schemas/MaintenanceLoginDto
+type MaintenanceLoginDto struct {
+	// Maintenance token.
+	Token OptString `json:"token"`
+}
+
+// GetToken returns the value of Token.
+func (s *MaintenanceLoginDto) GetToken() OptString {
+	return s.Token
+}
+
+// SetToken sets the value of Token.
+func (s *MaintenanceLoginDto) SetToken(val OptString) {
+	s.Token = val
+}
+
+// Ref: #/components/schemas/MaintenanceStatusResponseDto
+type MaintenanceStatusResponseDto struct {
+	Action   MaintenanceAction `json:"action"`
+	Active   bool              `json:"active"`
+	Error    OptString         `json:"error"`
+	Progress OptInt            `json:"progress"`
+	Task     OptString         `json:"task"`
+}
+
+// GetAction returns the value of Action.
+func (s *MaintenanceStatusResponseDto) GetAction() MaintenanceAction {
+	return s.Action
+}
+
+// GetActive returns the value of Active.
+func (s *MaintenanceStatusResponseDto) GetActive() bool {
+	return s.Active
+}
+
+// GetError returns the value of Error.
+func (s *MaintenanceStatusResponseDto) GetError() OptString {
+	return s.Error
+}
+
+// GetProgress returns the value of Progress.
+func (s *MaintenanceStatusResponseDto) GetProgress() OptInt {
+	return s.Progress
+}
+
+// GetTask returns the value of Task.
+func (s *MaintenanceStatusResponseDto) GetTask() OptString {
+	return s.Task
+}
+
+// SetAction sets the value of Action.
+func (s *MaintenanceStatusResponseDto) SetAction(val MaintenanceAction) {
+	s.Action = val
+}
+
+// SetActive sets the value of Active.
+func (s *MaintenanceStatusResponseDto) SetActive(val bool) {
+	s.Active = val
+}
+
+// SetError sets the value of Error.
+func (s *MaintenanceStatusResponseDto) SetError(val OptString) {
+	s.Error = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *MaintenanceStatusResponseDto) SetProgress(val OptInt) {
+	s.Progress = val
+}
+
+// SetTask sets the value of Task.
+func (s *MaintenanceStatusResponseDto) SetTask(val OptString) {
+	s.Task = val
+}
+
+// Manual job name.
 // Ref: #/components/schemas/ManualJobName
 type ManualJobName string
 
 const (
-	ManualJobNamePersonCleanup  ManualJobName = "person-cleanup"
-	ManualJobNameTagCleanup     ManualJobName = "tag-cleanup"
-	ManualJobNameUserCleanup    ManualJobName = "user-cleanup"
-	ManualJobNameMemoryCleanup  ManualJobName = "memory-cleanup"
-	ManualJobNameMemoryCreate   ManualJobName = "memory-create"
-	ManualJobNameBackupDatabase ManualJobName = "backup-database"
+	ManualJobNamePersonCleanup                      ManualJobName = "person-cleanup"
+	ManualJobNameTagCleanup                         ManualJobName = "tag-cleanup"
+	ManualJobNameUserCleanup                        ManualJobName = "user-cleanup"
+	ManualJobNameMemoryCleanup                      ManualJobName = "memory-cleanup"
+	ManualJobNameMemoryCreate                       ManualJobName = "memory-create"
+	ManualJobNameBackupDatabase                     ManualJobName = "backup-database"
+	ManualJobNameIntegrityMissingFiles              ManualJobName = "integrity-missing-files"
+	ManualJobNameIntegrityUntrackedFiles            ManualJobName = "integrity-untracked-files"
+	ManualJobNameIntegrityChecksumMismatch          ManualJobName = "integrity-checksum-mismatch"
+	ManualJobNameIntegrityMissingFilesRefresh       ManualJobName = "integrity-missing-files-refresh"
+	ManualJobNameIntegrityUntrackedFilesRefresh     ManualJobName = "integrity-untracked-files-refresh"
+	ManualJobNameIntegrityChecksumMismatchRefresh   ManualJobName = "integrity-checksum-mismatch-refresh"
+	ManualJobNameIntegrityMissingFilesDeleteAll     ManualJobName = "integrity-missing-files-delete-all"
+	ManualJobNameIntegrityUntrackedFilesDeleteAll   ManualJobName = "integrity-untracked-files-delete-all"
+	ManualJobNameIntegrityChecksumMismatchDeleteAll ManualJobName = "integrity-checksum-mismatch-delete-all"
 )
 
 // AllValues returns all ManualJobName values.
@@ -5732,6 +6548,15 @@ func (ManualJobName) AllValues() []ManualJobName {
 		ManualJobNameMemoryCleanup,
 		ManualJobNameMemoryCreate,
 		ManualJobNameBackupDatabase,
+		ManualJobNameIntegrityMissingFiles,
+		ManualJobNameIntegrityUntrackedFiles,
+		ManualJobNameIntegrityChecksumMismatch,
+		ManualJobNameIntegrityMissingFilesRefresh,
+		ManualJobNameIntegrityUntrackedFilesRefresh,
+		ManualJobNameIntegrityChecksumMismatchRefresh,
+		ManualJobNameIntegrityMissingFilesDeleteAll,
+		ManualJobNameIntegrityUntrackedFilesDeleteAll,
+		ManualJobNameIntegrityChecksumMismatchDeleteAll,
 	}
 }
 
@@ -5749,6 +6574,24 @@ func (s ManualJobName) MarshalText() ([]byte, error) {
 	case ManualJobNameMemoryCreate:
 		return []byte(s), nil
 	case ManualJobNameBackupDatabase:
+		return []byte(s), nil
+	case ManualJobNameIntegrityMissingFiles:
+		return []byte(s), nil
+	case ManualJobNameIntegrityUntrackedFiles:
+		return []byte(s), nil
+	case ManualJobNameIntegrityChecksumMismatch:
+		return []byte(s), nil
+	case ManualJobNameIntegrityMissingFilesRefresh:
+		return []byte(s), nil
+	case ManualJobNameIntegrityUntrackedFilesRefresh:
+		return []byte(s), nil
+	case ManualJobNameIntegrityChecksumMismatchRefresh:
+		return []byte(s), nil
+	case ManualJobNameIntegrityMissingFilesDeleteAll:
+		return []byte(s), nil
+	case ManualJobNameIntegrityUntrackedFilesDeleteAll:
+		return []byte(s), nil
+	case ManualJobNameIntegrityChecksumMismatchDeleteAll:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -5776,6 +6619,33 @@ func (s *ManualJobName) UnmarshalText(data []byte) error {
 	case ManualJobNameBackupDatabase:
 		*s = ManualJobNameBackupDatabase
 		return nil
+	case ManualJobNameIntegrityMissingFiles:
+		*s = ManualJobNameIntegrityMissingFiles
+		return nil
+	case ManualJobNameIntegrityUntrackedFiles:
+		*s = ManualJobNameIntegrityUntrackedFiles
+		return nil
+	case ManualJobNameIntegrityChecksumMismatch:
+		*s = ManualJobNameIntegrityChecksumMismatch
+		return nil
+	case ManualJobNameIntegrityMissingFilesRefresh:
+		*s = ManualJobNameIntegrityMissingFilesRefresh
+		return nil
+	case ManualJobNameIntegrityUntrackedFilesRefresh:
+		*s = ManualJobNameIntegrityUntrackedFilesRefresh
+		return nil
+	case ManualJobNameIntegrityChecksumMismatchRefresh:
+		*s = ManualJobNameIntegrityChecksumMismatchRefresh
+		return nil
+	case ManualJobNameIntegrityMissingFilesDeleteAll:
+		*s = ManualJobNameIntegrityMissingFilesDeleteAll
+		return nil
+	case ManualJobNameIntegrityUntrackedFilesDeleteAll:
+		*s = ManualJobNameIntegrityUntrackedFilesDeleteAll
+		return nil
+	case ManualJobNameIntegrityChecksumMismatchDeleteAll:
+		*s = ManualJobNameIntegrityChecksumMismatchDeleteAll
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
@@ -5783,12 +6653,18 @@ func (s *ManualJobName) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/MapMarkerResponseDto
 type MapMarkerResponseDto struct {
-	City    NilString `json:"city"`
+	// City name.
+	City NilString `json:"city"`
+	// Country name.
 	Country NilString `json:"country"`
-	ID      string    `json:"id"`
-	Lat     float64   `json:"lat"`
-	Lon     float64   `json:"lon"`
-	State   NilString `json:"state"`
+	// Asset ID.
+	ID uuid.UUID `json:"id"`
+	// Latitude.
+	Lat float64 `json:"lat"`
+	// Longitude.
+	Lon float64 `json:"lon"`
+	// State/Province name.
+	State NilString `json:"state"`
 }
 
 // GetCity returns the value of City.
@@ -5802,7 +6678,7 @@ func (s *MapMarkerResponseDto) GetCountry() NilString {
 }
 
 // GetID returns the value of ID.
-func (s *MapMarkerResponseDto) GetID() string {
+func (s *MapMarkerResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -5832,7 +6708,7 @@ func (s *MapMarkerResponseDto) SetCountry(val NilString) {
 }
 
 // SetID sets the value of ID.
-func (s *MapMarkerResponseDto) SetID(val string) {
+func (s *MapMarkerResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -5853,9 +6729,12 @@ func (s *MapMarkerResponseDto) SetState(val NilString) {
 
 // Ref: #/components/schemas/MapReverseGeocodeResponseDto
 type MapReverseGeocodeResponseDto struct {
-	City    NilString `json:"city"`
+	// City name.
+	City NilString `json:"city"`
+	// Country name.
 	Country NilString `json:"country"`
-	State   NilString `json:"state"`
+	// State/Province name.
+	State NilString `json:"state"`
 }
 
 // GetCity returns the value of City.
@@ -5890,12 +6769,25 @@ func (s *MapReverseGeocodeResponseDto) SetState(val NilString) {
 
 // Ref: #/components/schemas/MemoriesResponse
 type MemoriesResponse struct {
+	// Memory duration in seconds.
+	Duration int `json:"duration"`
+	// Whether memories are enabled.
 	Enabled bool `json:"enabled"`
+}
+
+// GetDuration returns the value of Duration.
+func (s *MemoriesResponse) GetDuration() int {
+	return s.Duration
 }
 
 // GetEnabled returns the value of Enabled.
 func (s *MemoriesResponse) GetEnabled() bool {
 	return s.Enabled
+}
+
+// SetDuration sets the value of Duration.
+func (s *MemoriesResponse) SetDuration(val int) {
+	s.Duration = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -5905,12 +6797,25 @@ func (s *MemoriesResponse) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/MemoriesUpdate
 type MemoriesUpdate struct {
+	// Memory duration in seconds.
+	Duration OptInt `json:"duration"`
+	// Whether memories are enabled.
 	Enabled OptBool `json:"enabled"`
+}
+
+// GetDuration returns the value of Duration.
+func (s *MemoriesUpdate) GetDuration() OptInt {
+	return s.Duration
 }
 
 // GetEnabled returns the value of Enabled.
 func (s *MemoriesUpdate) GetEnabled() OptBool {
 	return s.Enabled
+}
+
+// SetDuration sets the value of Duration.
+func (s *MemoriesUpdate) SetDuration(val OptInt) {
+	s.Duration = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -5920,12 +6825,20 @@ func (s *MemoriesUpdate) SetEnabled(val OptBool) {
 
 // Ref: #/components/schemas/MemoryCreateDto
 type MemoryCreateDto struct {
+	// Asset IDs to associate with memory.
 	AssetIds []uuid.UUID  `json:"assetIds"`
 	Data     OnThisDayDto `json:"data"`
-	IsSaved  OptBool      `json:"isSaved"`
-	MemoryAt time.Time    `json:"memoryAt"`
-	SeenAt   OptDateTime  `json:"seenAt"`
-	Type     MemoryType   `json:"type"`
+	// Date when memory should be hidden.
+	HideAt OptDateTime `json:"hideAt"`
+	// Is memory saved.
+	IsSaved OptBool `json:"isSaved"`
+	// Memory date.
+	MemoryAt time.Time `json:"memoryAt"`
+	// Date when memory was seen.
+	SeenAt OptDateTime `json:"seenAt"`
+	// Date when memory should be shown.
+	ShowAt OptDateTime `json:"showAt"`
+	Type   MemoryType  `json:"type"`
 }
 
 // GetAssetIds returns the value of AssetIds.
@@ -5936,6 +6849,11 @@ func (s *MemoryCreateDto) GetAssetIds() []uuid.UUID {
 // GetData returns the value of Data.
 func (s *MemoryCreateDto) GetData() OnThisDayDto {
 	return s.Data
+}
+
+// GetHideAt returns the value of HideAt.
+func (s *MemoryCreateDto) GetHideAt() OptDateTime {
+	return s.HideAt
 }
 
 // GetIsSaved returns the value of IsSaved.
@@ -5953,6 +6871,11 @@ func (s *MemoryCreateDto) GetSeenAt() OptDateTime {
 	return s.SeenAt
 }
 
+// GetShowAt returns the value of ShowAt.
+func (s *MemoryCreateDto) GetShowAt() OptDateTime {
+	return s.ShowAt
+}
+
 // GetType returns the value of Type.
 func (s *MemoryCreateDto) GetType() MemoryType {
 	return s.Type
@@ -5966,6 +6889,11 @@ func (s *MemoryCreateDto) SetAssetIds(val []uuid.UUID) {
 // SetData sets the value of Data.
 func (s *MemoryCreateDto) SetData(val OnThisDayDto) {
 	s.Data = val
+}
+
+// SetHideAt sets the value of HideAt.
+func (s *MemoryCreateDto) SetHideAt(val OptDateTime) {
+	s.HideAt = val
 }
 
 // SetIsSaved sets the value of IsSaved.
@@ -5983,6 +6911,11 @@ func (s *MemoryCreateDto) SetSeenAt(val OptDateTime) {
 	s.SeenAt = val
 }
 
+// SetShowAt sets the value of ShowAt.
+func (s *MemoryCreateDto) SetShowAt(val OptDateTime) {
+	s.ShowAt = val
+}
+
 // SetType sets the value of Type.
 func (s *MemoryCreateDto) SetType(val MemoryType) {
 	s.Type = val
@@ -5990,19 +6923,29 @@ func (s *MemoryCreateDto) SetType(val MemoryType) {
 
 // Ref: #/components/schemas/MemoryResponseDto
 type MemoryResponseDto struct {
-	Assets    []AssetResponseDto `json:"assets"`
-	CreatedAt time.Time          `json:"createdAt"`
-	Data      OnThisDayDto       `json:"data"`
-	DeletedAt OptDateTime        `json:"deletedAt"`
-	HideAt    OptDateTime        `json:"hideAt"`
-	ID        string             `json:"id"`
-	IsSaved   bool               `json:"isSaved"`
-	MemoryAt  time.Time          `json:"memoryAt"`
-	OwnerId   string             `json:"ownerId"`
-	SeenAt    OptDateTime        `json:"seenAt"`
-	ShowAt    OptDateTime        `json:"showAt"`
-	Type      MemoryType         `json:"type"`
-	UpdatedAt time.Time          `json:"updatedAt"`
+	Assets []AssetResponseDto `json:"assets"`
+	// Creation date.
+	CreatedAt time.Time    `json:"createdAt"`
+	Data      OnThisDayDto `json:"data"`
+	// Deletion date.
+	DeletedAt OptDateTime `json:"deletedAt"`
+	// Date when memory should be hidden.
+	HideAt OptDateTime `json:"hideAt"`
+	// Memory ID.
+	ID uuid.UUID `json:"id"`
+	// Is memory saved.
+	IsSaved bool `json:"isSaved"`
+	// Memory date.
+	MemoryAt time.Time `json:"memoryAt"`
+	// Owner user ID.
+	OwnerId uuid.UUID `json:"ownerId"`
+	// Date when memory was seen.
+	SeenAt OptDateTime `json:"seenAt"`
+	// Date when memory should be shown.
+	ShowAt OptDateTime `json:"showAt"`
+	Type   MemoryType  `json:"type"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GetAssets returns the value of Assets.
@@ -6031,7 +6974,7 @@ func (s *MemoryResponseDto) GetHideAt() OptDateTime {
 }
 
 // GetID returns the value of ID.
-func (s *MemoryResponseDto) GetID() string {
+func (s *MemoryResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -6046,7 +6989,7 @@ func (s *MemoryResponseDto) GetMemoryAt() time.Time {
 }
 
 // GetOwnerId returns the value of OwnerId.
-func (s *MemoryResponseDto) GetOwnerId() string {
+func (s *MemoryResponseDto) GetOwnerId() uuid.UUID {
 	return s.OwnerId
 }
 
@@ -6096,7 +7039,7 @@ func (s *MemoryResponseDto) SetHideAt(val OptDateTime) {
 }
 
 // SetID sets the value of ID.
-func (s *MemoryResponseDto) SetID(val string) {
+func (s *MemoryResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -6111,7 +7054,7 @@ func (s *MemoryResponseDto) SetMemoryAt(val time.Time) {
 }
 
 // SetOwnerId sets the value of OwnerId.
-func (s *MemoryResponseDto) SetOwnerId(val string) {
+func (s *MemoryResponseDto) SetOwnerId(val uuid.UUID) {
 	s.OwnerId = val
 }
 
@@ -6135,8 +7078,59 @@ func (s *MemoryResponseDto) SetUpdatedAt(val time.Time) {
 	s.UpdatedAt = val
 }
 
+// Sort order.
+// Ref: #/components/schemas/MemorySearchOrder
+type MemorySearchOrder string
+
+const (
+	MemorySearchOrderAsc    MemorySearchOrder = "asc"
+	MemorySearchOrderDesc   MemorySearchOrder = "desc"
+	MemorySearchOrderRandom MemorySearchOrder = "random"
+)
+
+// AllValues returns all MemorySearchOrder values.
+func (MemorySearchOrder) AllValues() []MemorySearchOrder {
+	return []MemorySearchOrder{
+		MemorySearchOrderAsc,
+		MemorySearchOrderDesc,
+		MemorySearchOrderRandom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s MemorySearchOrder) MarshalText() ([]byte, error) {
+	switch s {
+	case MemorySearchOrderAsc:
+		return []byte(s), nil
+	case MemorySearchOrderDesc:
+		return []byte(s), nil
+	case MemorySearchOrderRandom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *MemorySearchOrder) UnmarshalText(data []byte) error {
+	switch MemorySearchOrder(data) {
+	case MemorySearchOrderAsc:
+		*s = MemorySearchOrderAsc
+		return nil
+	case MemorySearchOrderDesc:
+		*s = MemorySearchOrderDesc
+		return nil
+	case MemorySearchOrderRandom:
+		*s = MemorySearchOrderRandom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/MemoryStatisticsResponseDto
 type MemoryStatisticsResponseDto struct {
+	// Total number of memories.
 	Total int `json:"total"`
 }
 
@@ -6150,6 +7144,7 @@ func (s *MemoryStatisticsResponseDto) SetTotal(val int) {
 	s.Total = val
 }
 
+// Memory type.
 // Ref: #/components/schemas/MemoryType
 type MemoryType string
 
@@ -6187,9 +7182,12 @@ func (s *MemoryType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/MemoryUpdateDto
 type MemoryUpdateDto struct {
-	IsSaved  OptBool     `json:"isSaved"`
+	// Is memory saved.
+	IsSaved OptBool `json:"isSaved"`
+	// Memory date.
 	MemoryAt OptDateTime `json:"memoryAt"`
-	SeenAt   OptDateTime `json:"seenAt"`
+	// Date when memory was seen.
+	SeenAt OptDateTime `json:"seenAt"`
 }
 
 // GetIsSaved returns the value of IsSaved.
@@ -6224,6 +7222,7 @@ func (s *MemoryUpdateDto) SetSeenAt(val OptDateTime) {
 
 // Ref: #/components/schemas/MergePersonDto
 type MergePersonDto struct {
+	// Person IDs to merge.
 	Ids []uuid.UUID `json:"ids"`
 }
 
@@ -6239,50 +7238,88 @@ func (s *MergePersonDto) SetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/MetadataSearchDto
 type MetadataSearchDto struct {
-	AlbumIds         []uuid.UUID        `json:"albumIds"`
-	Checksum         OptString          `json:"checksum"`
-	City             OptNilString       `json:"city"`
-	Country          OptNilString       `json:"country"`
-	CreatedAfter     OptDateTime        `json:"createdAfter"`
-	CreatedBefore    OptDateTime        `json:"createdBefore"`
-	Description      OptString          `json:"description"`
-	DeviceAssetId    OptString          `json:"deviceAssetId"`
-	DeviceId         OptString          `json:"deviceId"`
-	EncodedVideoPath OptString          `json:"encodedVideoPath"`
-	ID               OptUUID            `json:"id"`
-	IsEncoded        OptBool            `json:"isEncoded"`
-	IsFavorite       OptBool            `json:"isFavorite"`
-	IsMotion         OptBool            `json:"isMotion"`
-	IsNotInAlbum     OptBool            `json:"isNotInAlbum"`
-	IsOffline        OptBool            `json:"isOffline"`
-	LensModel        OptNilString       `json:"lensModel"`
-	LibraryId        OptNilUUID         `json:"libraryId"`
-	Make             OptString          `json:"make"`
-	Model            OptNilString       `json:"model"`
-	Ocr              OptString          `json:"ocr"`
-	Order            OptAssetOrder      `json:"order"`
-	OriginalFileName OptString          `json:"originalFileName"`
-	OriginalPath     OptString          `json:"originalPath"`
-	Page             OptFloat64         `json:"page"`
-	PersonIds        []uuid.UUID        `json:"personIds"`
-	PreviewPath      OptString          `json:"previewPath"`
-	Rating           OptFloat64         `json:"rating"`
-	Size             OptFloat64         `json:"size"`
-	State            OptNilString       `json:"state"`
-	TagIds           OptNilUUIDArray    `json:"tagIds"`
-	TakenAfter       OptDateTime        `json:"takenAfter"`
-	TakenBefore      OptDateTime        `json:"takenBefore"`
-	ThumbnailPath    OptString          `json:"thumbnailPath"`
-	TrashedAfter     OptDateTime        `json:"trashedAfter"`
-	TrashedBefore    OptDateTime        `json:"trashedBefore"`
-	Type             OptAssetTypeEnum   `json:"type"`
-	UpdatedAfter     OptDateTime        `json:"updatedAfter"`
-	UpdatedBefore    OptDateTime        `json:"updatedBefore"`
-	Visibility       OptAssetVisibility `json:"visibility"`
-	WithDeleted      OptBool            `json:"withDeleted"`
-	WithExif         OptBool            `json:"withExif"`
-	WithPeople       OptBool            `json:"withPeople"`
-	WithStacked      OptBool            `json:"withStacked"`
+	// Filter by album IDs.
+	AlbumIds []uuid.UUID `json:"albumIds"`
+	// Filter by file checksum.
+	Checksum OptString `json:"checksum"`
+	// Filter by city name.
+	City OptNilString `json:"city"`
+	// Filter by country name.
+	Country OptNilString `json:"country"`
+	// Filter by creation date (after).
+	CreatedAfter OptDateTime `json:"createdAfter"`
+	// Filter by creation date (before).
+	CreatedBefore OptDateTime `json:"createdBefore"`
+	// Filter by description text.
+	Description OptString `json:"description"`
+	// Filter by encoded video file path.
+	EncodedVideoPath OptString `json:"encodedVideoPath"`
+	// Filter by asset ID.
+	ID OptUUID `json:"id"`
+	// Filter by encoded status.
+	IsEncoded OptBool `json:"isEncoded"`
+	// Filter by favorite status.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Filter by motion photo status.
+	IsMotion OptBool `json:"isMotion"`
+	// Filter assets not in any album.
+	IsNotInAlbum OptBool `json:"isNotInAlbum"`
+	// Filter by offline status.
+	IsOffline OptBool `json:"isOffline"`
+	// Filter by lens model.
+	LensModel OptNilString `json:"lensModel"`
+	// Library ID to filter by.
+	LibraryId OptNilUUID `json:"libraryId"`
+	// Filter by camera make.
+	Make OptNilString `json:"make"`
+	// Filter by camera model.
+	Model OptNilString `json:"model"`
+	// Filter by OCR text content.
+	Ocr OptString `json:"ocr"`
+	// Sort order.
+	Order OptAssetOrder `json:"order"`
+	// Filter by original file name.
+	OriginalFileName OptString `json:"originalFileName"`
+	// Filter by original file path.
+	OriginalPath OptString `json:"originalPath"`
+	// Page number.
+	Page OptInt `json:"page"`
+	// Filter by person IDs.
+	PersonIds []uuid.UUID `json:"personIds"`
+	// Filter by preview file path.
+	PreviewPath OptString `json:"previewPath"`
+	// Filter by rating [1-5], or null for unrated.
+	Rating OptNilInt `json:"rating"`
+	// Number of results to return.
+	Size OptInt `json:"size"`
+	// Filter by state/province name.
+	State OptNilString `json:"state"`
+	// Filter by tag IDs.
+	TagIds OptNilUUIDArray `json:"tagIds"`
+	// Filter by taken date (after).
+	TakenAfter OptDateTime `json:"takenAfter"`
+	// Filter by taken date (before).
+	TakenBefore OptDateTime `json:"takenBefore"`
+	// Filter by thumbnail file path.
+	ThumbnailPath OptString `json:"thumbnailPath"`
+	// Filter by trash date (after).
+	TrashedAfter OptDateTime `json:"trashedAfter"`
+	// Filter by trash date (before).
+	TrashedBefore OptDateTime      `json:"trashedBefore"`
+	Type          OptAssetTypeEnum `json:"type"`
+	// Filter by update date (after).
+	UpdatedAfter OptDateTime `json:"updatedAfter"`
+	// Filter by update date (before).
+	UpdatedBefore OptDateTime        `json:"updatedBefore"`
+	Visibility    OptAssetVisibility `json:"visibility"`
+	// Include deleted assets.
+	WithDeleted OptBool `json:"withDeleted"`
+	// Include EXIF data in response.
+	WithExif OptBool `json:"withExif"`
+	// Include people data in response.
+	WithPeople OptBool `json:"withPeople"`
+	// Include stacked assets.
+	WithStacked OptBool `json:"withStacked"`
 }
 
 // GetAlbumIds returns the value of AlbumIds.
@@ -6318,16 +7355,6 @@ func (s *MetadataSearchDto) GetCreatedBefore() OptDateTime {
 // GetDescription returns the value of Description.
 func (s *MetadataSearchDto) GetDescription() OptString {
 	return s.Description
-}
-
-// GetDeviceAssetId returns the value of DeviceAssetId.
-func (s *MetadataSearchDto) GetDeviceAssetId() OptString {
-	return s.DeviceAssetId
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *MetadataSearchDto) GetDeviceId() OptString {
-	return s.DeviceId
 }
 
 // GetEncodedVideoPath returns the value of EncodedVideoPath.
@@ -6376,7 +7403,7 @@ func (s *MetadataSearchDto) GetLibraryId() OptNilUUID {
 }
 
 // GetMake returns the value of Make.
-func (s *MetadataSearchDto) GetMake() OptString {
+func (s *MetadataSearchDto) GetMake() OptNilString {
 	return s.Make
 }
 
@@ -6406,7 +7433,7 @@ func (s *MetadataSearchDto) GetOriginalPath() OptString {
 }
 
 // GetPage returns the value of Page.
-func (s *MetadataSearchDto) GetPage() OptFloat64 {
+func (s *MetadataSearchDto) GetPage() OptInt {
 	return s.Page
 }
 
@@ -6421,12 +7448,12 @@ func (s *MetadataSearchDto) GetPreviewPath() OptString {
 }
 
 // GetRating returns the value of Rating.
-func (s *MetadataSearchDto) GetRating() OptFloat64 {
+func (s *MetadataSearchDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
 // GetSize returns the value of Size.
-func (s *MetadataSearchDto) GetSize() OptFloat64 {
+func (s *MetadataSearchDto) GetSize() OptInt {
 	return s.Size
 }
 
@@ -6540,16 +7567,6 @@ func (s *MetadataSearchDto) SetDescription(val OptString) {
 	s.Description = val
 }
 
-// SetDeviceAssetId sets the value of DeviceAssetId.
-func (s *MetadataSearchDto) SetDeviceAssetId(val OptString) {
-	s.DeviceAssetId = val
-}
-
-// SetDeviceId sets the value of DeviceId.
-func (s *MetadataSearchDto) SetDeviceId(val OptString) {
-	s.DeviceId = val
-}
-
 // SetEncodedVideoPath sets the value of EncodedVideoPath.
 func (s *MetadataSearchDto) SetEncodedVideoPath(val OptString) {
 	s.EncodedVideoPath = val
@@ -6596,7 +7613,7 @@ func (s *MetadataSearchDto) SetLibraryId(val OptNilUUID) {
 }
 
 // SetMake sets the value of Make.
-func (s *MetadataSearchDto) SetMake(val OptString) {
+func (s *MetadataSearchDto) SetMake(val OptNilString) {
 	s.Make = val
 }
 
@@ -6626,7 +7643,7 @@ func (s *MetadataSearchDto) SetOriginalPath(val OptString) {
 }
 
 // SetPage sets the value of Page.
-func (s *MetadataSearchDto) SetPage(val OptFloat64) {
+func (s *MetadataSearchDto) SetPage(val OptInt) {
 	s.Page = val
 }
 
@@ -6641,12 +7658,12 @@ func (s *MetadataSearchDto) SetPreviewPath(val OptString) {
 }
 
 // SetRating sets the value of Rating.
-func (s *MetadataSearchDto) SetRating(val OptFloat64) {
+func (s *MetadataSearchDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
 // SetSize sets the value of Size.
-func (s *MetadataSearchDto) SetSize(val OptFloat64) {
+func (s *MetadataSearchDto) SetSize(val OptInt) {
 	s.Size = val
 }
 
@@ -6860,37 +7877,37 @@ func (o NilFloat64) Or(d float64) float64 {
 	return d
 }
 
-// NewNilInt64 returns new NilInt64 with value set to v.
-func NewNilInt64(v int64) NilInt64 {
-	return NilInt64{
+// NewNilInt returns new NilInt with value set to v.
+func NewNilInt(v int) NilInt {
+	return NilInt{
 		Value: v,
 	}
 }
 
-// NilInt64 is nullable int64.
-type NilInt64 struct {
-	Value int64
+// NilInt is nullable int.
+type NilInt struct {
+	Value int
 	Null  bool
 }
 
 // SetTo sets value to v.
-func (o *NilInt64) SetTo(v int64) {
+func (o *NilInt) SetTo(v int) {
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o NilInt64) IsNull() bool { return o.Null }
+func (o NilInt) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *NilInt64) SetToNull() {
+func (o *NilInt) SetToNull() {
 	o.Null = true
-	var v int64
+	var v int
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o NilInt64) Get() (v int64, ok bool) {
+func (o NilInt) Get() (v int, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -6898,7 +7915,7 @@ func (o NilInt64) Get() (v int64, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o NilInt64) Or(d int64) int64 {
+func (o NilInt) Or(d int) int {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -6950,6 +7967,51 @@ func (o NilPersonResponseDto) Or(d PersonResponseDto) PersonResponseDto {
 	return d
 }
 
+// NewNilPluginTemplateStepResponseDtoConfig returns new NilPluginTemplateStepResponseDtoConfig with value set to v.
+func NewNilPluginTemplateStepResponseDtoConfig(v PluginTemplateStepResponseDtoConfig) NilPluginTemplateStepResponseDtoConfig {
+	return NilPluginTemplateStepResponseDtoConfig{
+		Value: v,
+	}
+}
+
+// NilPluginTemplateStepResponseDtoConfig is nullable PluginTemplateStepResponseDtoConfig.
+type NilPluginTemplateStepResponseDtoConfig struct {
+	Value PluginTemplateStepResponseDtoConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilPluginTemplateStepResponseDtoConfig) SetTo(v PluginTemplateStepResponseDtoConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilPluginTemplateStepResponseDtoConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilPluginTemplateStepResponseDtoConfig) SetToNull() {
+	o.Null = true
+	var v PluginTemplateStepResponseDtoConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilPluginTemplateStepResponseDtoConfig) Get() (v PluginTemplateStepResponseDtoConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilPluginTemplateStepResponseDtoConfig) Or(d PluginTemplateStepResponseDtoConfig) PluginTemplateStepResponseDtoConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilString returns new NilString with value set to v.
 func NewNilString(v string) NilString {
 	return NilString{
@@ -6989,6 +8051,51 @@ func (o NilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilUUID returns new NilUUID with value set to v.
+func NewNilUUID(v uuid.UUID) NilUUID {
+	return NilUUID{
+		Value: v,
+	}
+}
+
+// NilUUID is nullable uuid.UUID.
+type NilUUID struct {
+	Value uuid.UUID
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilUUID) SetTo(v uuid.UUID) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilUUID) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilUUID) SetToNull() {
+	o.Null = true
+	var v uuid.UUID
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilUUID) Get() (v uuid.UUID, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilUUID) Or(d uuid.UUID) uuid.UUID {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7040,19 +8147,114 @@ func (o NilUserLicense) Or(d UserLicense) UserLicense {
 	return d
 }
 
+// NewNilWorkflowShareStepDtoConfig returns new NilWorkflowShareStepDtoConfig with value set to v.
+func NewNilWorkflowShareStepDtoConfig(v WorkflowShareStepDtoConfig) NilWorkflowShareStepDtoConfig {
+	return NilWorkflowShareStepDtoConfig{
+		Value: v,
+	}
+}
+
+// NilWorkflowShareStepDtoConfig is nullable WorkflowShareStepDtoConfig.
+type NilWorkflowShareStepDtoConfig struct {
+	Value WorkflowShareStepDtoConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilWorkflowShareStepDtoConfig) SetTo(v WorkflowShareStepDtoConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilWorkflowShareStepDtoConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilWorkflowShareStepDtoConfig) SetToNull() {
+	o.Null = true
+	var v WorkflowShareStepDtoConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilWorkflowShareStepDtoConfig) Get() (v WorkflowShareStepDtoConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilWorkflowShareStepDtoConfig) Or(d WorkflowShareStepDtoConfig) WorkflowShareStepDtoConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilWorkflowStepDtoConfig returns new NilWorkflowStepDtoConfig with value set to v.
+func NewNilWorkflowStepDtoConfig(v WorkflowStepDtoConfig) NilWorkflowStepDtoConfig {
+	return NilWorkflowStepDtoConfig{
+		Value: v,
+	}
+}
+
+// NilWorkflowStepDtoConfig is nullable WorkflowStepDtoConfig.
+type NilWorkflowStepDtoConfig struct {
+	Value WorkflowStepDtoConfig
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilWorkflowStepDtoConfig) SetTo(v WorkflowStepDtoConfig) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilWorkflowStepDtoConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilWorkflowStepDtoConfig) SetToNull() {
+	o.Null = true
+	var v WorkflowStepDtoConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilWorkflowStepDtoConfig) Get() (v WorkflowStepDtoConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilWorkflowStepDtoConfig) Or(d WorkflowStepDtoConfig) WorkflowStepDtoConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // Ref: #/components/schemas/NotificationCreateDto
 type NotificationCreateDto struct {
-	Data        *NotificationCreateDtoData `json:"data"`
-	Description OptNilString               `json:"description"`
-	Level       OptNotificationLevel       `json:"level"`
-	ReadAt      OptNilDateTime             `json:"readAt"`
-	Title       string                     `json:"title"`
-	Type        OptNotificationType        `json:"type"`
-	UserId      uuid.UUID                  `json:"userId"`
+	// Additional notification data.
+	Data OptNotificationCreateDtoData `json:"data"`
+	// Notification description.
+	Description OptNilString         `json:"description"`
+	Level       OptNotificationLevel `json:"level"`
+	// Date when notification was read.
+	ReadAt OptNilDateTime `json:"readAt"`
+	// Notification title.
+	Title string              `json:"title"`
+	Type  OptNotificationType `json:"type"`
+	// User ID to send notification to.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetData returns the value of Data.
-func (s *NotificationCreateDto) GetData() *NotificationCreateDtoData {
+func (s *NotificationCreateDto) GetData() OptNotificationCreateDtoData {
 	return s.Data
 }
 
@@ -7087,7 +8289,7 @@ func (s *NotificationCreateDto) GetUserId() uuid.UUID {
 }
 
 // SetData sets the value of Data.
-func (s *NotificationCreateDto) SetData(val *NotificationCreateDtoData) {
+func (s *NotificationCreateDto) SetData(val OptNotificationCreateDtoData) {
 	s.Data = val
 }
 
@@ -7121,10 +8323,21 @@ func (s *NotificationCreateDto) SetUserId(val uuid.UUID) {
 	s.UserId = val
 }
 
-type NotificationCreateDtoData struct{}
+// Additional notification data.
+type NotificationCreateDtoData map[string]jx.Raw
+
+func (s *NotificationCreateDtoData) init() NotificationCreateDtoData {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
 
 // Ref: #/components/schemas/NotificationDeleteAllDto
 type NotificationDeleteAllDto struct {
+	// Notification IDs to delete.
 	Ids []uuid.UUID `json:"ids"`
 }
 
@@ -7140,14 +8353,20 @@ func (s *NotificationDeleteAllDto) SetIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/NotificationDto
 type NotificationDto struct {
-	CreatedAt   time.Time            `json:"createdAt"`
-	Data        *NotificationDtoData `json:"data"`
-	Description OptString            `json:"description"`
-	ID          string               `json:"id"`
-	Level       NotificationLevel    `json:"level"`
-	ReadAt      OptDateTime          `json:"readAt"`
-	Title       string               `json:"title"`
-	Type        NotificationType     `json:"type"`
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// Additional notification data.
+	Data OptNotificationDtoData `json:"data"`
+	// Notification description.
+	Description OptString `json:"description"`
+	// Notification ID.
+	ID    uuid.UUID         `json:"id"`
+	Level NotificationLevel `json:"level"`
+	// Date when notification was read.
+	ReadAt OptDateTime `json:"readAt"`
+	// Notification title.
+	Title string           `json:"title"`
+	Type  NotificationType `json:"type"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -7156,7 +8375,7 @@ func (s *NotificationDto) GetCreatedAt() time.Time {
 }
 
 // GetData returns the value of Data.
-func (s *NotificationDto) GetData() *NotificationDtoData {
+func (s *NotificationDto) GetData() OptNotificationDtoData {
 	return s.Data
 }
 
@@ -7166,7 +8385,7 @@ func (s *NotificationDto) GetDescription() OptString {
 }
 
 // GetID returns the value of ID.
-func (s *NotificationDto) GetID() string {
+func (s *NotificationDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -7196,7 +8415,7 @@ func (s *NotificationDto) SetCreatedAt(val time.Time) {
 }
 
 // SetData sets the value of Data.
-func (s *NotificationDto) SetData(val *NotificationDtoData) {
+func (s *NotificationDto) SetData(val OptNotificationDtoData) {
 	s.Data = val
 }
 
@@ -7206,7 +8425,7 @@ func (s *NotificationDto) SetDescription(val OptString) {
 }
 
 // SetID sets the value of ID.
-func (s *NotificationDto) SetID(val string) {
+func (s *NotificationDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -7230,8 +8449,19 @@ func (s *NotificationDto) SetType(val NotificationType) {
 	s.Type = val
 }
 
-type NotificationDtoData struct{}
+// Additional notification data.
+type NotificationDtoData map[string]jx.Raw
 
+func (s *NotificationDtoData) init() NotificationDtoData {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Notification level.
 // Ref: #/components/schemas/NotificationLevel
 type NotificationLevel string
 
@@ -7288,6 +8518,7 @@ func (s *NotificationLevel) UnmarshalText(data []byte) error {
 	}
 }
 
+// Notification type.
 // Ref: #/components/schemas/NotificationType
 type NotificationType string
 
@@ -7360,7 +8591,9 @@ func (s *NotificationType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/NotificationUpdateAllDto
 type NotificationUpdateAllDto struct {
-	Ids    []uuid.UUID    `json:"ids"`
+	// Notification IDs to update.
+	Ids []uuid.UUID `json:"ids"`
+	// Date when notifications were read.
 	ReadAt OptNilDateTime `json:"readAt"`
 }
 
@@ -7386,6 +8619,7 @@ func (s *NotificationUpdateAllDto) SetReadAt(val OptNilDateTime) {
 
 // Ref: #/components/schemas/NotificationUpdateDto
 type NotificationUpdateDto struct {
+	// Date when notification was read.
 	ReadAt OptNilDateTime `json:"readAt"`
 }
 
@@ -7401,6 +8635,7 @@ func (s *NotificationUpdateDto) SetReadAt(val OptNilDateTime) {
 
 // Ref: #/components/schemas/OAuthAuthorizeResponseDto
 type OAuthAuthorizeResponseDto struct {
+	// OAuth authorization URL.
 	URL string `json:"url"`
 }
 
@@ -7414,11 +8649,30 @@ func (s *OAuthAuthorizeResponseDto) SetURL(val string) {
 	s.URL = val
 }
 
+// Ref: #/components/schemas/OAuthBackchannelLogoutDto
+type OAuthBackchannelLogoutDto struct {
+	// OAuth logout token.
+	LogoutToken string `json:"logout_token"`
+}
+
+// GetLogoutToken returns the value of LogoutToken.
+func (s *OAuthBackchannelLogoutDto) GetLogoutToken() string {
+	return s.LogoutToken
+}
+
+// SetLogoutToken sets the value of LogoutToken.
+func (s *OAuthBackchannelLogoutDto) SetLogoutToken(val string) {
+	s.LogoutToken = val
+}
+
 // Ref: #/components/schemas/OAuthCallbackDto
 type OAuthCallbackDto struct {
+	// OAuth code verifier (PKCE).
 	CodeVerifier OptString `json:"codeVerifier"`
-	State        OptString `json:"state"`
-	URL          string    `json:"url"`
+	// OAuth state parameter.
+	State OptString `json:"state"`
+	// OAuth callback URL.
+	URL string `json:"url"`
 }
 
 // GetCodeVerifier returns the value of CodeVerifier.
@@ -7453,9 +8707,12 @@ func (s *OAuthCallbackDto) SetURL(val string) {
 
 // Ref: #/components/schemas/OAuthConfigDto
 type OAuthConfigDto struct {
+	// OAuth code challenge (PKCE).
 	CodeChallenge OptString `json:"codeChallenge"`
-	RedirectUri   string    `json:"redirectUri"`
-	State         OptString `json:"state"`
+	// OAuth redirect URI.
+	RedirectUri string `json:"redirectUri"`
+	// OAuth state parameter.
+	State OptString `json:"state"`
 }
 
 // GetCodeChallenge returns the value of CodeChallenge.
@@ -7488,6 +8745,7 @@ func (s *OAuthConfigDto) SetState(val OptString) {
 	s.State = val
 }
 
+// OAuth token endpoint auth method.
 // Ref: #/components/schemas/OAuthTokenEndpointAuthMethod
 type OAuthTokenEndpointAuthMethod string
 
@@ -7532,11 +8790,16 @@ func (s *OAuthTokenEndpointAuthMethod) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/OcrConfig
 type OcrConfig struct {
-	Enabled             bool    `json:"enabled"`
-	MaxResolution       int     `json:"maxResolution"`
-	MinDetectionScore   float64 `json:"minDetectionScore"`
+	// Whether the task is enabled.
+	Enabled bool `json:"enabled"`
+	// Maximum resolution for OCR processing.
+	MaxResolution int `json:"maxResolution"`
+	// Minimum confidence score for text detection.
+	MinDetectionScore float64 `json:"minDetectionScore"`
+	// Minimum confidence score for text recognition.
 	MinRecognitionScore float64 `json:"minRecognitionScore"`
-	ModelName           string  `json:"modelName"`
+	// Name of the model to use.
+	ModelName string `json:"modelName"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -7591,21 +8854,23 @@ func (s *OcrConfig) SetModelName(val string) {
 
 // Ref: #/components/schemas/OnThisDayDto
 type OnThisDayDto struct {
-	Year float64 `json:"year"`
+	// Year for on this day memory.
+	Year int `json:"year"`
 }
 
 // GetYear returns the value of Year.
-func (s *OnThisDayDto) GetYear() float64 {
+func (s *OnThisDayDto) GetYear() int {
 	return s.Year
 }
 
 // SetYear sets the value of Year.
-func (s *OnThisDayDto) SetYear(val float64) {
+func (s *OnThisDayDto) SetYear(val int) {
 	s.Year = val
 }
 
 // Ref: #/components/schemas/OnboardingDto
 type OnboardingDto struct {
+	// Is user onboarded.
 	IsOnboarded bool `json:"isOnboarded"`
 }
 
@@ -7621,6 +8886,7 @@ func (s *OnboardingDto) SetIsOnboarded(val bool) {
 
 // Ref: #/components/schemas/OnboardingResponseDto
 type OnboardingResponseDto struct {
+	// Is user onboarded.
 	IsOnboarded bool `json:"isOnboarded"`
 }
 
@@ -7772,38 +9038,38 @@ func (o OptAlbumsUpdate) Or(d AlbumsUpdate) AlbumsUpdate {
 	return d
 }
 
-// NewOptAssetBulkUploadCheckResultReason returns new OptAssetBulkUploadCheckResultReason with value set to v.
-func NewOptAssetBulkUploadCheckResultReason(v AssetBulkUploadCheckResultReason) OptAssetBulkUploadCheckResultReason {
-	return OptAssetBulkUploadCheckResultReason{
+// NewOptAssetIdErrorReason returns new OptAssetIdErrorReason with value set to v.
+func NewOptAssetIdErrorReason(v AssetIdErrorReason) OptAssetIdErrorReason {
+	return OptAssetIdErrorReason{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptAssetBulkUploadCheckResultReason is optional AssetBulkUploadCheckResultReason.
-type OptAssetBulkUploadCheckResultReason struct {
-	Value AssetBulkUploadCheckResultReason
+// OptAssetIdErrorReason is optional AssetIdErrorReason.
+type OptAssetIdErrorReason struct {
+	Value AssetIdErrorReason
 	Set   bool
 }
 
-// IsSet returns true if OptAssetBulkUploadCheckResultReason was set.
-func (o OptAssetBulkUploadCheckResultReason) IsSet() bool { return o.Set }
+// IsSet returns true if OptAssetIdErrorReason was set.
+func (o OptAssetIdErrorReason) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptAssetBulkUploadCheckResultReason) Reset() {
-	var v AssetBulkUploadCheckResultReason
+func (o *OptAssetIdErrorReason) Reset() {
+	var v AssetIdErrorReason
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptAssetBulkUploadCheckResultReason) SetTo(v AssetBulkUploadCheckResultReason) {
+func (o *OptAssetIdErrorReason) SetTo(v AssetIdErrorReason) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptAssetBulkUploadCheckResultReason) Get() (v AssetBulkUploadCheckResultReason, ok bool) {
+func (o OptAssetIdErrorReason) Get() (v AssetIdErrorReason, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -7811,53 +9077,7 @@ func (o OptAssetBulkUploadCheckResultReason) Get() (v AssetBulkUploadCheckResult
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptAssetBulkUploadCheckResultReason) Or(d AssetBulkUploadCheckResultReason) AssetBulkUploadCheckResultReason {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptAssetIdsResponseDtoError returns new OptAssetIdsResponseDtoError with value set to v.
-func NewOptAssetIdsResponseDtoError(v AssetIdsResponseDtoError) OptAssetIdsResponseDtoError {
-	return OptAssetIdsResponseDtoError{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptAssetIdsResponseDtoError is optional AssetIdsResponseDtoError.
-type OptAssetIdsResponseDtoError struct {
-	Value AssetIdsResponseDtoError
-	Set   bool
-}
-
-// IsSet returns true if OptAssetIdsResponseDtoError was set.
-func (o OptAssetIdsResponseDtoError) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptAssetIdsResponseDtoError) Reset() {
-	var v AssetIdsResponseDtoError
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptAssetIdsResponseDtoError) SetTo(v AssetIdsResponseDtoError) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptAssetIdsResponseDtoError) Get() (v AssetIdsResponseDtoError, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptAssetIdsResponseDtoError) Or(d AssetIdsResponseDtoError) AssetIdsResponseDtoError {
+func (o OptAssetIdErrorReason) Or(d AssetIdErrorReason) AssetIdErrorReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7950,6 +9170,98 @@ func (o OptAssetOrder) Get() (v AssetOrder, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptAssetOrder) Or(d AssetOrder) AssetOrder {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAssetOrderBy returns new OptAssetOrderBy with value set to v.
+func NewOptAssetOrderBy(v AssetOrderBy) OptAssetOrderBy {
+	return OptAssetOrderBy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAssetOrderBy is optional AssetOrderBy.
+type OptAssetOrderBy struct {
+	Value AssetOrderBy
+	Set   bool
+}
+
+// IsSet returns true if OptAssetOrderBy was set.
+func (o OptAssetOrderBy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAssetOrderBy) Reset() {
+	var v AssetOrderBy
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAssetOrderBy) SetTo(v AssetOrderBy) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAssetOrderBy) Get() (v AssetOrderBy, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAssetOrderBy) Or(d AssetOrderBy) AssetOrderBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAssetRejectReason returns new OptAssetRejectReason with value set to v.
+func NewOptAssetRejectReason(v AssetRejectReason) OptAssetRejectReason {
+	return OptAssetRejectReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAssetRejectReason is optional AssetRejectReason.
+type OptAssetRejectReason struct {
+	Value AssetRejectReason
+	Set   bool
+}
+
+// IsSet returns true if OptAssetRejectReason was set.
+func (o OptAssetRejectReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAssetRejectReason) Reset() {
+	var v AssetRejectReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAssetRejectReason) SetTo(v AssetRejectReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAssetRejectReason) Get() (v AssetRejectReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAssetRejectReason) Or(d AssetRejectReason) AssetRejectReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8186,38 +9498,38 @@ func (o OptBulkIdErrorReason) Or(d BulkIdErrorReason) BulkIdErrorReason {
 	return d
 }
 
-// NewOptBulkIdResponseDtoError returns new OptBulkIdResponseDtoError with value set to v.
-func NewOptBulkIdResponseDtoError(v BulkIdResponseDtoError) OptBulkIdResponseDtoError {
-	return OptBulkIdResponseDtoError{
+// NewOptCalendarHeatmapType returns new OptCalendarHeatmapType with value set to v.
+func NewOptCalendarHeatmapType(v CalendarHeatmapType) OptCalendarHeatmapType {
+	return OptCalendarHeatmapType{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptBulkIdResponseDtoError is optional BulkIdResponseDtoError.
-type OptBulkIdResponseDtoError struct {
-	Value BulkIdResponseDtoError
+// OptCalendarHeatmapType is optional CalendarHeatmapType.
+type OptCalendarHeatmapType struct {
+	Value CalendarHeatmapType
 	Set   bool
 }
 
-// IsSet returns true if OptBulkIdResponseDtoError was set.
-func (o OptBulkIdResponseDtoError) IsSet() bool { return o.Set }
+// IsSet returns true if OptCalendarHeatmapType was set.
+func (o OptCalendarHeatmapType) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptBulkIdResponseDtoError) Reset() {
-	var v BulkIdResponseDtoError
+func (o *OptCalendarHeatmapType) Reset() {
+	var v CalendarHeatmapType
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptBulkIdResponseDtoError) SetTo(v BulkIdResponseDtoError) {
+func (o *OptCalendarHeatmapType) SetTo(v CalendarHeatmapType) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptBulkIdResponseDtoError) Get() (v BulkIdResponseDtoError, ok bool) {
+func (o OptCalendarHeatmapType) Get() (v CalendarHeatmapType, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -8225,7 +9537,7 @@ func (o OptBulkIdResponseDtoError) Get() (v BulkIdResponseDtoError, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptBulkIdResponseDtoError) Or(d BulkIdResponseDtoError) BulkIdResponseDtoError {
+func (o OptCalendarHeatmapType) Or(d CalendarHeatmapType) CalendarHeatmapType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8272,6 +9584,52 @@ func (o OptCastUpdate) Get() (v CastUpdate, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCastUpdate) Or(d CastUpdate) CastUpdate {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDate returns new OptDate with value set to v.
+func NewOptDate(v time.Time) OptDate {
+	return OptDate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDate is optional time.Time.
+type OptDate struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDate was set.
+func (o OptDate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDate) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDate) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDate) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDate) Or(d time.Time) time.Time {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8646,6 +10004,52 @@ func (o OptMemoriesUpdate) Or(d MemoriesUpdate) MemoriesUpdate {
 	return d
 }
 
+// NewOptMemorySearchOrder returns new OptMemorySearchOrder with value set to v.
+func NewOptMemorySearchOrder(v MemorySearchOrder) OptMemorySearchOrder {
+	return OptMemorySearchOrder{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptMemorySearchOrder is optional MemorySearchOrder.
+type OptMemorySearchOrder struct {
+	Value MemorySearchOrder
+	Set   bool
+}
+
+// IsSet returns true if OptMemorySearchOrder was set.
+func (o OptMemorySearchOrder) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptMemorySearchOrder) Reset() {
+	var v MemorySearchOrder
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptMemorySearchOrder) SetTo(v MemorySearchOrder) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptMemorySearchOrder) Get() (v MemorySearchOrder, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptMemorySearchOrder) Or(d MemorySearchOrder) MemorySearchOrder {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptMemoryType returns new OptMemoryType with value set to v.
 func NewOptMemoryType(v MemoryType) OptMemoryType {
 	return OptMemoryType{
@@ -8782,6 +10186,11 @@ func (o *OptNilAssetStackResponseDto) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilAssetStackResponseDto) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilAssetStackResponseDto) Get() (v AssetStackResponseDto, ok bool) {
 	if o.Null {
@@ -8843,6 +10252,11 @@ func (o *OptNilDate) SetToNull() {
 	o.Null = true
 	var v time.Time
 	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilDate) IsEmpty() bool {
+	return !o.Set && !o.Null
 }
 
 // Get returns value and boolean that denotes whether value was set.
@@ -8908,6 +10322,11 @@ func (o *OptNilDateTime) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilDateTime) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilDateTime) Get() (v time.Time, ok bool) {
 	if o.Null {
@@ -8971,6 +10390,11 @@ func (o *OptNilFloat64) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFloat64) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilFloat64) Get() (v float64, ok bool) {
 	if o.Null {
@@ -8990,52 +10414,57 @@ func (o OptNilFloat64) Or(d float64) float64 {
 	return d
 }
 
-// NewOptNilInt64 returns new OptNilInt64 with value set to v.
-func NewOptNilInt64(v int64) OptNilInt64 {
-	return OptNilInt64{
+// NewOptNilInt returns new OptNilInt with value set to v.
+func NewOptNilInt(v int) OptNilInt {
+	return OptNilInt{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptNilInt64 is optional nullable int64.
-type OptNilInt64 struct {
-	Value int64
+// OptNilInt is optional nullable int.
+type OptNilInt struct {
+	Value int
 	Set   bool
 	Null  bool
 }
 
-// IsSet returns true if OptNilInt64 was set.
-func (o OptNilInt64) IsSet() bool { return o.Set }
+// IsSet returns true if OptNilInt was set.
+func (o OptNilInt) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptNilInt64) Reset() {
-	var v int64
+func (o *OptNilInt) Reset() {
+	var v int
 	o.Value = v
 	o.Set = false
 	o.Null = false
 }
 
 // SetTo sets value to v.
-func (o *OptNilInt64) SetTo(v int64) {
+func (o *OptNilInt) SetTo(v int) {
 	o.Set = true
 	o.Null = false
 	o.Value = v
 }
 
 // IsNull returns true if value is Null.
-func (o OptNilInt64) IsNull() bool { return o.Null }
+func (o OptNilInt) IsNull() bool { return o.Null }
 
 // SetToNull sets value to null.
-func (o *OptNilInt64) SetToNull() {
+func (o *OptNilInt) SetToNull() {
 	o.Set = true
 	o.Null = true
-	var v int64
+	var v int
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilInt) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
-func (o OptNilInt64) Get() (v int64, ok bool) {
+func (o OptNilInt) Get() (v int, ok bool) {
 	if o.Null {
 		return v, false
 	}
@@ -9046,7 +10475,7 @@ func (o OptNilInt64) Get() (v int64, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptNilInt64) Or(d int64) int64 {
+func (o OptNilInt) Or(d int) int {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9095,6 +10524,11 @@ func (o *OptNilString) SetToNull() {
 	o.Null = true
 	var v string
 	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilString) IsEmpty() bool {
+	return !o.Set && !o.Null
 }
 
 // Get returns value and boolean that denotes whether value was set.
@@ -9160,6 +10594,11 @@ func (o *OptNilUUID) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilUUID) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilUUID) Get() (v uuid.UUID, ok bool) {
 	if o.Null {
@@ -9221,6 +10660,11 @@ func (o *OptNilUUIDArray) SetToNull() {
 	o.Null = true
 	var v []uuid.UUID
 	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilUUIDArray) IsEmpty() bool {
+	return !o.Set && !o.Null
 }
 
 // Get returns value and boolean that denotes whether value was set.
@@ -9286,6 +10730,11 @@ func (o *OptNilUserAvatarColor) SetToNull() {
 	o.Value = v
 }
 
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilUserAvatarColor) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
 // Get returns value and boolean that denotes whether value was set.
 func (o OptNilUserAvatarColor) Get() (v UserAvatarColor, ok bool) {
 	if o.Null {
@@ -9299,6 +10748,98 @@ func (o OptNilUserAvatarColor) Get() (v UserAvatarColor, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilUserAvatarColor) Or(d UserAvatarColor) UserAvatarColor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotificationCreateDtoData returns new OptNotificationCreateDtoData with value set to v.
+func NewOptNotificationCreateDtoData(v NotificationCreateDtoData) OptNotificationCreateDtoData {
+	return OptNotificationCreateDtoData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotificationCreateDtoData is optional NotificationCreateDtoData.
+type OptNotificationCreateDtoData struct {
+	Value NotificationCreateDtoData
+	Set   bool
+}
+
+// IsSet returns true if OptNotificationCreateDtoData was set.
+func (o OptNotificationCreateDtoData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotificationCreateDtoData) Reset() {
+	var v NotificationCreateDtoData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotificationCreateDtoData) SetTo(v NotificationCreateDtoData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotificationCreateDtoData) Get() (v NotificationCreateDtoData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotificationCreateDtoData) Or(d NotificationCreateDtoData) NotificationCreateDtoData {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotificationDtoData returns new OptNotificationDtoData with value set to v.
+func NewOptNotificationDtoData(v NotificationDtoData) OptNotificationDtoData {
+	return OptNotificationDtoData{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotificationDtoData is optional NotificationDtoData.
+type OptNotificationDtoData struct {
+	Value NotificationDtoData
+	Set   bool
+}
+
+// IsSet returns true if OptNotificationDtoData was set.
+func (o OptNotificationDtoData) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotificationDtoData) Reset() {
+	var v NotificationDtoData
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotificationDtoData) SetTo(v NotificationDtoData) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotificationDtoData) Get() (v NotificationDtoData, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotificationDtoData) Or(d NotificationDtoData) NotificationDtoData {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9627,6 +11168,52 @@ func (o OptReactionType) Or(d ReactionType) ReactionType {
 	return d
 }
 
+// NewOptRecentlyAddedUpdate returns new OptRecentlyAddedUpdate with value set to v.
+func NewOptRecentlyAddedUpdate(v RecentlyAddedUpdate) OptRecentlyAddedUpdate {
+	return OptRecentlyAddedUpdate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptRecentlyAddedUpdate is optional RecentlyAddedUpdate.
+type OptRecentlyAddedUpdate struct {
+	Value RecentlyAddedUpdate
+	Set   bool
+}
+
+// IsSet returns true if OptRecentlyAddedUpdate was set.
+func (o OptRecentlyAddedUpdate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptRecentlyAddedUpdate) Reset() {
+	var v RecentlyAddedUpdate
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptRecentlyAddedUpdate) SetTo(v RecentlyAddedUpdate) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptRecentlyAddedUpdate) Get() (v RecentlyAddedUpdate, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptRecentlyAddedUpdate) Or(d RecentlyAddedUpdate) RecentlyAddedUpdate {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptSharedLinksUpdate returns new OptSharedLinksUpdate with value set to v.
 func NewOptSharedLinksUpdate(v SharedLinksUpdate) OptSharedLinksUpdate {
 	return OptSharedLinksUpdate{
@@ -9949,8 +11536,193 @@ func (o OptUserResponseDto) Or(d UserResponseDto) UserResponseDto {
 	return d
 }
 
+// NewOptWorkflowLogEntryDtoLastStep returns new OptWorkflowLogEntryDtoLastStep with value set to v.
+func NewOptWorkflowLogEntryDtoLastStep(v WorkflowLogEntryDtoLastStep) OptWorkflowLogEntryDtoLastStep {
+	return OptWorkflowLogEntryDtoLastStep{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWorkflowLogEntryDtoLastStep is optional WorkflowLogEntryDtoLastStep.
+type OptWorkflowLogEntryDtoLastStep struct {
+	Value WorkflowLogEntryDtoLastStep
+	Set   bool
+}
+
+// IsSet returns true if OptWorkflowLogEntryDtoLastStep was set.
+func (o OptWorkflowLogEntryDtoLastStep) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWorkflowLogEntryDtoLastStep) Reset() {
+	var v WorkflowLogEntryDtoLastStep
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWorkflowLogEntryDtoLastStep) SetTo(v WorkflowLogEntryDtoLastStep) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWorkflowLogEntryDtoLastStep) Get() (v WorkflowLogEntryDtoLastStep, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWorkflowLogEntryDtoLastStep) Or(d WorkflowLogEntryDtoLastStep) WorkflowLogEntryDtoLastStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWorkflowResult returns new OptWorkflowResult with value set to v.
+func NewOptWorkflowResult(v WorkflowResult) OptWorkflowResult {
+	return OptWorkflowResult{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWorkflowResult is optional WorkflowResult.
+type OptWorkflowResult struct {
+	Value WorkflowResult
+	Set   bool
+}
+
+// IsSet returns true if OptWorkflowResult was set.
+func (o OptWorkflowResult) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWorkflowResult) Reset() {
+	var v WorkflowResult
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWorkflowResult) SetTo(v WorkflowResult) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWorkflowResult) Get() (v WorkflowResult, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWorkflowResult) Or(d WorkflowResult) WorkflowResult {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWorkflowTrigger returns new OptWorkflowTrigger with value set to v.
+func NewOptWorkflowTrigger(v WorkflowTrigger) OptWorkflowTrigger {
+	return OptWorkflowTrigger{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWorkflowTrigger is optional WorkflowTrigger.
+type OptWorkflowTrigger struct {
+	Value WorkflowTrigger
+	Set   bool
+}
+
+// IsSet returns true if OptWorkflowTrigger was set.
+func (o OptWorkflowTrigger) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWorkflowTrigger) Reset() {
+	var v WorkflowTrigger
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWorkflowTrigger) SetTo(v WorkflowTrigger) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWorkflowTrigger) Get() (v WorkflowTrigger, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWorkflowTrigger) Or(d WorkflowTrigger) WorkflowTrigger {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWorkflowType returns new OptWorkflowType with value set to v.
+func NewOptWorkflowType(v WorkflowType) OptWorkflowType {
+	return OptWorkflowType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWorkflowType is optional WorkflowType.
+type OptWorkflowType struct {
+	Value WorkflowType
+	Set   bool
+}
+
+// IsSet returns true if OptWorkflowType was set.
+func (o OptWorkflowType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWorkflowType) Reset() {
+	var v WorkflowType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWorkflowType) SetTo(v WorkflowType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWorkflowType) Get() (v WorkflowType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWorkflowType) Or(d WorkflowType) WorkflowType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // Ref: #/components/schemas/PartnerCreateDto
 type PartnerCreateDto struct {
+	// User ID to share with.
 	SharedWithId uuid.UUID `json:"sharedWithId"`
 }
 
@@ -9964,6 +11736,7 @@ func (s *PartnerCreateDto) SetSharedWithId(val uuid.UUID) {
 	s.SharedWithId = val
 }
 
+// Partner direction.
 // Ref: #/components/schemas/PartnerDirection
 type PartnerDirection string
 
@@ -10006,15 +11779,22 @@ func (s *PartnerDirection) UnmarshalText(data []byte) error {
 	}
 }
 
+// Partner response.
 // Ref: #/components/schemas/PartnerResponseDto
 type PartnerResponseDto struct {
-	AvatarColor      UserAvatarColor `json:"avatarColor"`
-	Email            string          `json:"email"`
-	ID               string          `json:"id"`
-	InTimeline       OptBool         `json:"inTimeline"`
-	Name             string          `json:"name"`
-	ProfileChangedAt time.Time       `json:"profileChangedAt"`
-	ProfileImagePath string          `json:"profileImagePath"`
+	AvatarColor UserAvatarColor `json:"avatarColor"`
+	// User email.
+	Email string `json:"email"`
+	// User ID.
+	ID uuid.UUID `json:"id"`
+	// Show in timeline.
+	InTimeline OptBool `json:"inTimeline"`
+	// User name.
+	Name string `json:"name"`
+	// Profile change date.
+	ProfileChangedAt time.Time `json:"profileChangedAt"`
+	// Profile image path.
+	ProfileImagePath string `json:"profileImagePath"`
 }
 
 // GetAvatarColor returns the value of AvatarColor.
@@ -10028,7 +11808,7 @@ func (s *PartnerResponseDto) GetEmail() string {
 }
 
 // GetID returns the value of ID.
-func (s *PartnerResponseDto) GetID() string {
+func (s *PartnerResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -10063,7 +11843,7 @@ func (s *PartnerResponseDto) SetEmail(val string) {
 }
 
 // SetID sets the value of ID.
-func (s *PartnerResponseDto) SetID(val string) {
+func (s *PartnerResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -10089,6 +11869,7 @@ func (s *PartnerResponseDto) SetProfileImagePath(val string) {
 
 // Ref: #/components/schemas/PartnerUpdateDto
 type PartnerUpdateDto struct {
+	// Show partner assets in timeline.
 	InTimeline bool `json:"inTimeline"`
 }
 
@@ -10104,13 +11885,22 @@ func (s *PartnerUpdateDto) SetInTimeline(val bool) {
 
 // Ref: #/components/schemas/PeopleResponse
 type PeopleResponse struct {
-	Enabled    bool `json:"enabled"`
+	// Whether people are enabled.
+	Enabled bool `json:"enabled"`
+	// People face threshold.
+	MinimumFaces OptInt `json:"minimumFaces"`
+	// Whether people appear in web sidebar.
 	SidebarWeb bool `json:"sidebarWeb"`
 }
 
 // GetEnabled returns the value of Enabled.
 func (s *PeopleResponse) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetMinimumFaces returns the value of MinimumFaces.
+func (s *PeopleResponse) GetMinimumFaces() OptInt {
+	return s.MinimumFaces
 }
 
 // GetSidebarWeb returns the value of SidebarWeb.
@@ -10123,18 +11913,26 @@ func (s *PeopleResponse) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetMinimumFaces sets the value of MinimumFaces.
+func (s *PeopleResponse) SetMinimumFaces(val OptInt) {
+	s.MinimumFaces = val
+}
+
 // SetSidebarWeb sets the value of SidebarWeb.
 func (s *PeopleResponse) SetSidebarWeb(val bool) {
 	s.SidebarWeb = val
 }
 
+// People response.
 // Ref: #/components/schemas/PeopleResponseDto
 type PeopleResponseDto struct {
-	// This property was added in v1.110.0.
-	HasNextPage OptBool             `json:"hasNextPage"`
-	Hidden      int                 `json:"hidden"`
-	People      []PersonResponseDto `json:"people"`
-	Total       int                 `json:"total"`
+	// Whether there are more pages.
+	HasNextPage OptBool `json:"hasNextPage"`
+	// Number of hidden people.
+	Hidden int                 `json:"hidden"`
+	People []PersonResponseDto `json:"people"`
+	// Total number of people.
+	Total int `json:"total"`
 }
 
 // GetHasNextPage returns the value of HasNextPage.
@@ -10179,13 +11977,22 @@ func (s *PeopleResponseDto) SetTotal(val int) {
 
 // Ref: #/components/schemas/PeopleUpdate
 type PeopleUpdate struct {
-	Enabled    OptBool `json:"enabled"`
+	// Whether people are enabled.
+	Enabled OptBool `json:"enabled"`
+	// People face threshold.
+	MinimumFaces OptInt `json:"minimumFaces"`
+	// Whether people appear in web sidebar.
 	SidebarWeb OptBool `json:"sidebarWeb"`
 }
 
 // GetEnabled returns the value of Enabled.
 func (s *PeopleUpdate) GetEnabled() OptBool {
 	return s.Enabled
+}
+
+// GetMinimumFaces returns the value of MinimumFaces.
+func (s *PeopleUpdate) GetMinimumFaces() OptInt {
+	return s.MinimumFaces
 }
 
 // GetSidebarWeb returns the value of SidebarWeb.
@@ -10198,6 +12005,11 @@ func (s *PeopleUpdate) SetEnabled(val OptBool) {
 	s.Enabled = val
 }
 
+// SetMinimumFaces sets the value of MinimumFaces.
+func (s *PeopleUpdate) SetMinimumFaces(val OptInt) {
+	s.MinimumFaces = val
+}
+
 // SetSidebarWeb sets the value of SidebarWeb.
 func (s *PeopleUpdate) SetSidebarWeb(val OptBool) {
 	s.SidebarWeb = val
@@ -10205,6 +12017,7 @@ func (s *PeopleUpdate) SetSidebarWeb(val OptBool) {
 
 // Ref: #/components/schemas/PeopleUpdateDto
 type PeopleUpdateDto struct {
+	// People to update.
 	People []PeopleUpdateItem `json:"people"`
 }
 
@@ -10221,15 +12034,16 @@ func (s *PeopleUpdateDto) SetPeople(val []PeopleUpdateItem) {
 // Ref: #/components/schemas/PeopleUpdateItem
 type PeopleUpdateItem struct {
 	// Person date of birth.
-	// Note: the mobile app cannot currently set the birth date to null.
-	BirthDate OptNilDate   `json:"birthDate"`
-	Color     OptNilString `json:"color"`
-	// Asset is used to get the feature face thumbnail.
+	BirthDate OptNilDate `json:"birthDate"`
+	// Person color (hex).
+	Color OptNilString `json:"color"`
+	// Asset ID used for feature face thumbnail.
 	FeatureFaceAssetId OptUUID `json:"featureFaceAssetId"`
-	// Person id.
-	ID         string  `json:"id"`
+	// Person ID.
+	ID uuid.UUID `json:"id"`
+	// Mark as favorite.
 	IsFavorite OptBool `json:"isFavorite"`
-	// Person visibility.
+	// Person visibility (hidden).
 	IsHidden OptBool `json:"isHidden"`
 	// Person name.
 	Name OptString `json:"name"`
@@ -10251,7 +12065,7 @@ func (s *PeopleUpdateItem) GetFeatureFaceAssetId() OptUUID {
 }
 
 // GetID returns the value of ID.
-func (s *PeopleUpdateItem) GetID() string {
+func (s *PeopleUpdateItem) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -10286,7 +12100,7 @@ func (s *PeopleUpdateItem) SetFeatureFaceAssetId(val OptUUID) {
 }
 
 // SetID sets the value of ID.
-func (s *PeopleUpdateItem) SetID(val string) {
+func (s *PeopleUpdateItem) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -10305,6 +12119,7 @@ func (s *PeopleUpdateItem) SetName(val OptString) {
 	s.Name = val
 }
 
+// List of permissions.
 // Ref: #/components/schemas/Permission
 type Permission string
 
@@ -10327,8 +12142,11 @@ const (
 	PermissionAssetView              Permission = "asset.view"
 	PermissionAssetDownload          Permission = "asset.download"
 	PermissionAssetUpload            Permission = "asset.upload"
-	PermissionAssetReplace           Permission = "asset.replace"
 	PermissionAssetCopy              Permission = "asset.copy"
+	PermissionAssetDerive            Permission = "asset.derive"
+	PermissionAssetEditGet           Permission = "asset.edit.get"
+	PermissionAssetEditCreate        Permission = "asset.edit.create"
+	PermissionAssetEditDelete        Permission = "asset.edit.delete"
 	PermissionAlbumCreate            Permission = "album.create"
 	PermissionAlbumRead              Permission = "album.read"
 	PermissionAlbumUpdate            Permission = "album.update"
@@ -10344,12 +12162,17 @@ const (
 	PermissionAuthChangePassword     Permission = "auth.changePassword"
 	PermissionAuthDeviceDelete       Permission = "authDevice.delete"
 	PermissionArchiveRead            Permission = "archive.read"
+	PermissionBackupList             Permission = "backup.list"
+	PermissionBackupDownload         Permission = "backup.download"
+	PermissionBackupUpload           Permission = "backup.upload"
+	PermissionBackupDelete           Permission = "backup.delete"
 	PermissionDuplicateRead          Permission = "duplicate.read"
 	PermissionDuplicateDelete        Permission = "duplicate.delete"
 	PermissionFaceCreate             Permission = "face.create"
 	PermissionFaceRead               Permission = "face.read"
 	PermissionFaceUpdate             Permission = "face.update"
 	PermissionFaceDelete             Permission = "face.delete"
+	PermissionFolderRead             Permission = "folder.read"
 	PermissionJobCreate              Permission = "job.create"
 	PermissionJobRead                Permission = "job.read"
 	PermissionLibraryCreate          Permission = "library.create"
@@ -10359,6 +12182,9 @@ const (
 	PermissionLibraryStatistics      Permission = "library.statistics"
 	PermissionTimelineRead           Permission = "timeline.read"
 	PermissionTimelineDownload       Permission = "timeline.download"
+	PermissionMaintenance            Permission = "maintenance"
+	PermissionMapRead                Permission = "map.read"
+	PermissionMapSearch              Permission = "map.search"
 	PermissionMemoryCreate           Permission = "memory.create"
 	PermissionMemoryRead             Permission = "memory.read"
 	PermissionMemoryUpdate           Permission = "memory.update"
@@ -10384,6 +12210,10 @@ const (
 	PermissionPinCodeCreate          Permission = "pinCode.create"
 	PermissionPinCodeUpdate          Permission = "pinCode.update"
 	PermissionPinCodeDelete          Permission = "pinCode.delete"
+	PermissionPluginCreate           Permission = "plugin.create"
+	PermissionPluginRead             Permission = "plugin.read"
+	PermissionPluginUpdate           Permission = "plugin.update"
+	PermissionPluginDelete           Permission = "plugin.delete"
 	PermissionServerAbout            Permission = "server.about"
 	PermissionServerApkLinks         Permission = "server.apkLinks"
 	PermissionServerStorage          Permission = "server.storage"
@@ -10433,6 +12263,17 @@ const (
 	PermissionUserProfileImageRead   Permission = "userProfileImage.read"
 	PermissionUserProfileImageUpdate Permission = "userProfileImage.update"
 	PermissionUserProfileImageDelete Permission = "userProfileImage.delete"
+	PermissionQueueRead              Permission = "queue.read"
+	PermissionQueueUpdate            Permission = "queue.update"
+	PermissionQueueJobCreate         Permission = "queueJob.create"
+	PermissionQueueJobRead           Permission = "queueJob.read"
+	PermissionQueueJobUpdate         Permission = "queueJob.update"
+	PermissionQueueJobDelete         Permission = "queueJob.delete"
+	PermissionWorkflowCreate         Permission = "workflow.create"
+	PermissionWorkflowRead           Permission = "workflow.read"
+	PermissionWorkflowUpdate         Permission = "workflow.update"
+	PermissionWorkflowDelete         Permission = "workflow.delete"
+	PermissionWorkflowLogs           Permission = "workflow.logs"
 	PermissionAdminUserCreate        Permission = "adminUser.create"
 	PermissionAdminUserRead          Permission = "adminUser.read"
 	PermissionAdminUserUpdate        Permission = "adminUser.update"
@@ -10462,8 +12303,11 @@ func (Permission) AllValues() []Permission {
 		PermissionAssetView,
 		PermissionAssetDownload,
 		PermissionAssetUpload,
-		PermissionAssetReplace,
 		PermissionAssetCopy,
+		PermissionAssetDerive,
+		PermissionAssetEditGet,
+		PermissionAssetEditCreate,
+		PermissionAssetEditDelete,
 		PermissionAlbumCreate,
 		PermissionAlbumRead,
 		PermissionAlbumUpdate,
@@ -10479,12 +12323,17 @@ func (Permission) AllValues() []Permission {
 		PermissionAuthChangePassword,
 		PermissionAuthDeviceDelete,
 		PermissionArchiveRead,
+		PermissionBackupList,
+		PermissionBackupDownload,
+		PermissionBackupUpload,
+		PermissionBackupDelete,
 		PermissionDuplicateRead,
 		PermissionDuplicateDelete,
 		PermissionFaceCreate,
 		PermissionFaceRead,
 		PermissionFaceUpdate,
 		PermissionFaceDelete,
+		PermissionFolderRead,
 		PermissionJobCreate,
 		PermissionJobRead,
 		PermissionLibraryCreate,
@@ -10494,6 +12343,9 @@ func (Permission) AllValues() []Permission {
 		PermissionLibraryStatistics,
 		PermissionTimelineRead,
 		PermissionTimelineDownload,
+		PermissionMaintenance,
+		PermissionMapRead,
+		PermissionMapSearch,
 		PermissionMemoryCreate,
 		PermissionMemoryRead,
 		PermissionMemoryUpdate,
@@ -10519,6 +12371,10 @@ func (Permission) AllValues() []Permission {
 		PermissionPinCodeCreate,
 		PermissionPinCodeUpdate,
 		PermissionPinCodeDelete,
+		PermissionPluginCreate,
+		PermissionPluginRead,
+		PermissionPluginUpdate,
+		PermissionPluginDelete,
 		PermissionServerAbout,
 		PermissionServerApkLinks,
 		PermissionServerStorage,
@@ -10568,6 +12424,17 @@ func (Permission) AllValues() []Permission {
 		PermissionUserProfileImageRead,
 		PermissionUserProfileImageUpdate,
 		PermissionUserProfileImageDelete,
+		PermissionQueueRead,
+		PermissionQueueUpdate,
+		PermissionQueueJobCreate,
+		PermissionQueueJobRead,
+		PermissionQueueJobUpdate,
+		PermissionQueueJobDelete,
+		PermissionWorkflowCreate,
+		PermissionWorkflowRead,
+		PermissionWorkflowUpdate,
+		PermissionWorkflowDelete,
+		PermissionWorkflowLogs,
 		PermissionAdminUserCreate,
 		PermissionAdminUserRead,
 		PermissionAdminUserUpdate,
@@ -10616,9 +12483,15 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionAssetUpload:
 		return []byte(s), nil
-	case PermissionAssetReplace:
-		return []byte(s), nil
 	case PermissionAssetCopy:
+		return []byte(s), nil
+	case PermissionAssetDerive:
+		return []byte(s), nil
+	case PermissionAssetEditGet:
+		return []byte(s), nil
+	case PermissionAssetEditCreate:
+		return []byte(s), nil
+	case PermissionAssetEditDelete:
 		return []byte(s), nil
 	case PermissionAlbumCreate:
 		return []byte(s), nil
@@ -10650,6 +12523,14 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionArchiveRead:
 		return []byte(s), nil
+	case PermissionBackupList:
+		return []byte(s), nil
+	case PermissionBackupDownload:
+		return []byte(s), nil
+	case PermissionBackupUpload:
+		return []byte(s), nil
+	case PermissionBackupDelete:
+		return []byte(s), nil
 	case PermissionDuplicateRead:
 		return []byte(s), nil
 	case PermissionDuplicateDelete:
@@ -10661,6 +12542,8 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionFaceUpdate:
 		return []byte(s), nil
 	case PermissionFaceDelete:
+		return []byte(s), nil
+	case PermissionFolderRead:
 		return []byte(s), nil
 	case PermissionJobCreate:
 		return []byte(s), nil
@@ -10679,6 +12562,12 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionTimelineRead:
 		return []byte(s), nil
 	case PermissionTimelineDownload:
+		return []byte(s), nil
+	case PermissionMaintenance:
+		return []byte(s), nil
+	case PermissionMapRead:
+		return []byte(s), nil
+	case PermissionMapSearch:
 		return []byte(s), nil
 	case PermissionMemoryCreate:
 		return []byte(s), nil
@@ -10729,6 +12618,14 @@ func (s Permission) MarshalText() ([]byte, error) {
 	case PermissionPinCodeUpdate:
 		return []byte(s), nil
 	case PermissionPinCodeDelete:
+		return []byte(s), nil
+	case PermissionPluginCreate:
+		return []byte(s), nil
+	case PermissionPluginRead:
+		return []byte(s), nil
+	case PermissionPluginUpdate:
+		return []byte(s), nil
+	case PermissionPluginDelete:
 		return []byte(s), nil
 	case PermissionServerAbout:
 		return []byte(s), nil
@@ -10828,6 +12725,28 @@ func (s Permission) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case PermissionUserProfileImageDelete:
 		return []byte(s), nil
+	case PermissionQueueRead:
+		return []byte(s), nil
+	case PermissionQueueUpdate:
+		return []byte(s), nil
+	case PermissionQueueJobCreate:
+		return []byte(s), nil
+	case PermissionQueueJobRead:
+		return []byte(s), nil
+	case PermissionQueueJobUpdate:
+		return []byte(s), nil
+	case PermissionQueueJobDelete:
+		return []byte(s), nil
+	case PermissionWorkflowCreate:
+		return []byte(s), nil
+	case PermissionWorkflowRead:
+		return []byte(s), nil
+	case PermissionWorkflowUpdate:
+		return []byte(s), nil
+	case PermissionWorkflowDelete:
+		return []byte(s), nil
+	case PermissionWorkflowLogs:
+		return []byte(s), nil
 	case PermissionAdminUserCreate:
 		return []byte(s), nil
 	case PermissionAdminUserRead:
@@ -10902,11 +12821,20 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionAssetUpload:
 		*s = PermissionAssetUpload
 		return nil
-	case PermissionAssetReplace:
-		*s = PermissionAssetReplace
-		return nil
 	case PermissionAssetCopy:
 		*s = PermissionAssetCopy
+		return nil
+	case PermissionAssetDerive:
+		*s = PermissionAssetDerive
+		return nil
+	case PermissionAssetEditGet:
+		*s = PermissionAssetEditGet
+		return nil
+	case PermissionAssetEditCreate:
+		*s = PermissionAssetEditCreate
+		return nil
+	case PermissionAssetEditDelete:
+		*s = PermissionAssetEditDelete
 		return nil
 	case PermissionAlbumCreate:
 		*s = PermissionAlbumCreate
@@ -10953,6 +12881,18 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionArchiveRead:
 		*s = PermissionArchiveRead
 		return nil
+	case PermissionBackupList:
+		*s = PermissionBackupList
+		return nil
+	case PermissionBackupDownload:
+		*s = PermissionBackupDownload
+		return nil
+	case PermissionBackupUpload:
+		*s = PermissionBackupUpload
+		return nil
+	case PermissionBackupDelete:
+		*s = PermissionBackupDelete
+		return nil
 	case PermissionDuplicateRead:
 		*s = PermissionDuplicateRead
 		return nil
@@ -10970,6 +12910,9 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionFaceDelete:
 		*s = PermissionFaceDelete
+		return nil
+	case PermissionFolderRead:
+		*s = PermissionFolderRead
 		return nil
 	case PermissionJobCreate:
 		*s = PermissionJobCreate
@@ -10997,6 +12940,15 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionTimelineDownload:
 		*s = PermissionTimelineDownload
+		return nil
+	case PermissionMaintenance:
+		*s = PermissionMaintenance
+		return nil
+	case PermissionMapRead:
+		*s = PermissionMapRead
+		return nil
+	case PermissionMapSearch:
+		*s = PermissionMapSearch
 		return nil
 	case PermissionMemoryCreate:
 		*s = PermissionMemoryCreate
@@ -11072,6 +13024,18 @@ func (s *Permission) UnmarshalText(data []byte) error {
 		return nil
 	case PermissionPinCodeDelete:
 		*s = PermissionPinCodeDelete
+		return nil
+	case PermissionPluginCreate:
+		*s = PermissionPluginCreate
+		return nil
+	case PermissionPluginRead:
+		*s = PermissionPluginRead
+		return nil
+	case PermissionPluginUpdate:
+		*s = PermissionPluginUpdate
+		return nil
+	case PermissionPluginDelete:
+		*s = PermissionPluginDelete
 		return nil
 	case PermissionServerAbout:
 		*s = PermissionServerAbout
@@ -11220,6 +13184,39 @@ func (s *Permission) UnmarshalText(data []byte) error {
 	case PermissionUserProfileImageDelete:
 		*s = PermissionUserProfileImageDelete
 		return nil
+	case PermissionQueueRead:
+		*s = PermissionQueueRead
+		return nil
+	case PermissionQueueUpdate:
+		*s = PermissionQueueUpdate
+		return nil
+	case PermissionQueueJobCreate:
+		*s = PermissionQueueJobCreate
+		return nil
+	case PermissionQueueJobRead:
+		*s = PermissionQueueJobRead
+		return nil
+	case PermissionQueueJobUpdate:
+		*s = PermissionQueueJobUpdate
+		return nil
+	case PermissionQueueJobDelete:
+		*s = PermissionQueueJobDelete
+		return nil
+	case PermissionWorkflowCreate:
+		*s = PermissionWorkflowCreate
+		return nil
+	case PermissionWorkflowRead:
+		*s = PermissionWorkflowRead
+		return nil
+	case PermissionWorkflowUpdate:
+		*s = PermissionWorkflowUpdate
+		return nil
+	case PermissionWorkflowDelete:
+		*s = PermissionWorkflowDelete
+		return nil
+	case PermissionWorkflowLogs:
+		*s = PermissionWorkflowLogs
+		return nil
 	case PermissionAdminUserCreate:
 		*s = PermissionAdminUserCreate
 		return nil
@@ -11246,11 +13243,12 @@ func (s *Permission) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/PersonCreateDto
 type PersonCreateDto struct {
 	// Person date of birth.
-	// Note: the mobile app cannot currently set the birth date to null.
-	BirthDate  OptNilDate   `json:"birthDate"`
-	Color      OptNilString `json:"color"`
-	IsFavorite OptBool      `json:"isFavorite"`
-	// Person visibility.
+	BirthDate OptNilDate `json:"birthDate"`
+	// Person color (hex).
+	Color OptNilString `json:"color"`
+	// Mark as favorite.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Person visibility (hidden).
 	IsHidden OptBool `json:"isHidden"`
 	// Person name.
 	Name OptString `json:"name"`
@@ -11308,16 +13306,21 @@ func (s *PersonCreateDto) SetName(val OptString) {
 
 // Ref: #/components/schemas/PersonResponseDto
 type PersonResponseDto struct {
+	// Person date of birth.
 	BirthDate NilDate `json:"birthDate"`
-	// This property was added in v1.126.0.
+	// Person color (hex).
 	Color OptString `json:"color"`
-	ID    string    `json:"id"`
-	// This property was added in v1.126.0.
-	IsFavorite    OptBool `json:"isFavorite"`
-	IsHidden      bool    `json:"isHidden"`
-	Name          string  `json:"name"`
-	ThumbnailPath string  `json:"thumbnailPath"`
-	// This property was added in v1.107.0.
+	// Person ID.
+	ID uuid.UUID `json:"id"`
+	// Is favorite.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Is hidden.
+	IsHidden bool `json:"isHidden"`
+	// Person name.
+	Name string `json:"name"`
+	// Thumbnail path.
+	ThumbnailPath string `json:"thumbnailPath"`
+	// Last update date.
 	UpdatedAt OptDateTime `json:"updatedAt"`
 }
 
@@ -11332,7 +13335,7 @@ func (s *PersonResponseDto) GetColor() OptString {
 }
 
 // GetID returns the value of ID.
-func (s *PersonResponseDto) GetID() string {
+func (s *PersonResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -11372,7 +13375,7 @@ func (s *PersonResponseDto) SetColor(val OptString) {
 }
 
 // SetID sets the value of ID.
-func (s *PersonResponseDto) SetID(val string) {
+func (s *PersonResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -11403,6 +13406,7 @@ func (s *PersonResponseDto) SetUpdatedAt(val OptDateTime) {
 
 // Ref: #/components/schemas/PersonStatisticsResponseDto
 type PersonStatisticsResponseDto struct {
+	// Number of assets.
 	Assets int `json:"assets"`
 }
 
@@ -11419,13 +13423,14 @@ func (s *PersonStatisticsResponseDto) SetAssets(val int) {
 // Ref: #/components/schemas/PersonUpdateDto
 type PersonUpdateDto struct {
 	// Person date of birth.
-	// Note: the mobile app cannot currently set the birth date to null.
-	BirthDate OptNilDate   `json:"birthDate"`
-	Color     OptNilString `json:"color"`
-	// Asset is used to get the feature face thumbnail.
+	BirthDate OptNilDate `json:"birthDate"`
+	// Person color (hex).
+	Color OptNilString `json:"color"`
+	// Asset ID used for feature face thumbnail.
 	FeatureFaceAssetId OptUUID `json:"featureFaceAssetId"`
-	IsFavorite         OptBool `json:"isFavorite"`
-	// Person visibility.
+	// Mark as favorite.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Person visibility (hidden).
 	IsHidden OptBool `json:"isHidden"`
 	// Person name.
 	Name OptString `json:"name"`
@@ -11491,117 +13496,14 @@ func (s *PersonUpdateDto) SetName(val OptString) {
 	s.Name = val
 }
 
-// Ref: #/components/schemas/PersonWithFacesResponseDto
-type PersonWithFacesResponseDto struct {
-	BirthDate NilDate `json:"birthDate"`
-	// This property was added in v1.126.0.
-	Color OptString                           `json:"color"`
-	Faces []AssetFaceWithoutPersonResponseDto `json:"faces"`
-	ID    string                              `json:"id"`
-	// This property was added in v1.126.0.
-	IsFavorite    OptBool `json:"isFavorite"`
-	IsHidden      bool    `json:"isHidden"`
-	Name          string  `json:"name"`
-	ThumbnailPath string  `json:"thumbnailPath"`
-	// This property was added in v1.107.0.
-	UpdatedAt OptDateTime `json:"updatedAt"`
-}
-
-// GetBirthDate returns the value of BirthDate.
-func (s *PersonWithFacesResponseDto) GetBirthDate() NilDate {
-	return s.BirthDate
-}
-
-// GetColor returns the value of Color.
-func (s *PersonWithFacesResponseDto) GetColor() OptString {
-	return s.Color
-}
-
-// GetFaces returns the value of Faces.
-func (s *PersonWithFacesResponseDto) GetFaces() []AssetFaceWithoutPersonResponseDto {
-	return s.Faces
-}
-
-// GetID returns the value of ID.
-func (s *PersonWithFacesResponseDto) GetID() string {
-	return s.ID
-}
-
-// GetIsFavorite returns the value of IsFavorite.
-func (s *PersonWithFacesResponseDto) GetIsFavorite() OptBool {
-	return s.IsFavorite
-}
-
-// GetIsHidden returns the value of IsHidden.
-func (s *PersonWithFacesResponseDto) GetIsHidden() bool {
-	return s.IsHidden
-}
-
-// GetName returns the value of Name.
-func (s *PersonWithFacesResponseDto) GetName() string {
-	return s.Name
-}
-
-// GetThumbnailPath returns the value of ThumbnailPath.
-func (s *PersonWithFacesResponseDto) GetThumbnailPath() string {
-	return s.ThumbnailPath
-}
-
-// GetUpdatedAt returns the value of UpdatedAt.
-func (s *PersonWithFacesResponseDto) GetUpdatedAt() OptDateTime {
-	return s.UpdatedAt
-}
-
-// SetBirthDate sets the value of BirthDate.
-func (s *PersonWithFacesResponseDto) SetBirthDate(val NilDate) {
-	s.BirthDate = val
-}
-
-// SetColor sets the value of Color.
-func (s *PersonWithFacesResponseDto) SetColor(val OptString) {
-	s.Color = val
-}
-
-// SetFaces sets the value of Faces.
-func (s *PersonWithFacesResponseDto) SetFaces(val []AssetFaceWithoutPersonResponseDto) {
-	s.Faces = val
-}
-
-// SetID sets the value of ID.
-func (s *PersonWithFacesResponseDto) SetID(val string) {
-	s.ID = val
-}
-
-// SetIsFavorite sets the value of IsFavorite.
-func (s *PersonWithFacesResponseDto) SetIsFavorite(val OptBool) {
-	s.IsFavorite = val
-}
-
-// SetIsHidden sets the value of IsHidden.
-func (s *PersonWithFacesResponseDto) SetIsHidden(val bool) {
-	s.IsHidden = val
-}
-
-// SetName sets the value of Name.
-func (s *PersonWithFacesResponseDto) SetName(val string) {
-	s.Name = val
-}
-
-// SetThumbnailPath sets the value of ThumbnailPath.
-func (s *PersonWithFacesResponseDto) SetThumbnailPath(val string) {
-	s.ThumbnailPath = val
-}
-
-// SetUpdatedAt sets the value of UpdatedAt.
-func (s *PersonWithFacesResponseDto) SetUpdatedAt(val OptDateTime) {
-	s.UpdatedAt = val
-}
-
 // Ref: #/components/schemas/PinCodeChangeDto
 type PinCodeChangeDto struct {
-	NewPinCode string    `json:"newPinCode"`
-	Password   OptString `json:"password"`
-	PinCode    OptString `json:"pinCode"`
+	// New PIN code (4-6 digits).
+	NewPinCode string `json:"newPinCode"`
+	// User password (required if PIN code is not provided).
+	Password OptString `json:"password"`
+	// New PIN code (4-6 digits).
+	PinCode OptString `json:"pinCode"`
 }
 
 // GetNewPinCode returns the value of NewPinCode.
@@ -11636,8 +13538,10 @@ func (s *PinCodeChangeDto) SetPinCode(val OptString) {
 
 // Ref: #/components/schemas/PinCodeResetDto
 type PinCodeResetDto struct {
+	// User password (required if PIN code is not provided).
 	Password OptString `json:"password"`
-	PinCode  OptString `json:"pinCode"`
+	// New PIN code (4-6 digits).
+	PinCode OptString `json:"pinCode"`
 }
 
 // GetPassword returns the value of Password.
@@ -11662,6 +13566,7 @@ func (s *PinCodeResetDto) SetPinCode(val OptString) {
 
 // Ref: #/components/schemas/PinCodeSetupDto
 type PinCodeSetupDto struct {
+	// PIN code (4-6 digits).
 	PinCode string `json:"pinCode"`
 }
 
@@ -11677,11 +13582,16 @@ func (s *PinCodeSetupDto) SetPinCode(val string) {
 
 // Ref: #/components/schemas/PlacesResponseDto
 type PlacesResponseDto struct {
+	// Administrative level 1 name (state/province).
 	Admin1name OptString `json:"admin1name"`
+	// Administrative level 2 name (county/district).
 	Admin2name OptString `json:"admin2name"`
-	Latitude   float64   `json:"latitude"`
-	Longitude  float64   `json:"longitude"`
-	Name       string    `json:"name"`
+	// Latitude coordinate.
+	Latitude float64 `json:"latitude"`
+	// Longitude coordinate.
+	Longitude float64 `json:"longitude"`
+	// Place name.
+	Name string `json:"name"`
 }
 
 // GetAdmin1name returns the value of Admin1name.
@@ -11748,10 +13658,352 @@ func (s PlayAssetVideoOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+// Ref: #/components/schemas/PluginMethodResponseDto
+type PluginMethodResponseDto struct {
+	// Description.
+	Description   string `json:"description"`
+	HostFunctions bool   `json:"hostFunctions"`
+	// Key.
+	Key string `json:"key"`
+	// Name.
+	Name   string                         `json:"name"`
+	Schema *PluginMethodResponseDtoSchema `json:"schema"`
+	// Title.
+	Title string `json:"title"`
+	// Workflow types.
+	Types []WorkflowType `json:"types"`
+	// Ui hints.
+	UiHints []string `json:"uiHints"`
+}
+
+// GetDescription returns the value of Description.
+func (s *PluginMethodResponseDto) GetDescription() string {
+	return s.Description
+}
+
+// GetHostFunctions returns the value of HostFunctions.
+func (s *PluginMethodResponseDto) GetHostFunctions() bool {
+	return s.HostFunctions
+}
+
+// GetKey returns the value of Key.
+func (s *PluginMethodResponseDto) GetKey() string {
+	return s.Key
+}
+
+// GetName returns the value of Name.
+func (s *PluginMethodResponseDto) GetName() string {
+	return s.Name
+}
+
+// GetSchema returns the value of Schema.
+func (s *PluginMethodResponseDto) GetSchema() *PluginMethodResponseDtoSchema {
+	return s.Schema
+}
+
+// GetTitle returns the value of Title.
+func (s *PluginMethodResponseDto) GetTitle() string {
+	return s.Title
+}
+
+// GetTypes returns the value of Types.
+func (s *PluginMethodResponseDto) GetTypes() []WorkflowType {
+	return s.Types
+}
+
+// GetUiHints returns the value of UiHints.
+func (s *PluginMethodResponseDto) GetUiHints() []string {
+	return s.UiHints
+}
+
+// SetDescription sets the value of Description.
+func (s *PluginMethodResponseDto) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetHostFunctions sets the value of HostFunctions.
+func (s *PluginMethodResponseDto) SetHostFunctions(val bool) {
+	s.HostFunctions = val
+}
+
+// SetKey sets the value of Key.
+func (s *PluginMethodResponseDto) SetKey(val string) {
+	s.Key = val
+}
+
+// SetName sets the value of Name.
+func (s *PluginMethodResponseDto) SetName(val string) {
+	s.Name = val
+}
+
+// SetSchema sets the value of Schema.
+func (s *PluginMethodResponseDto) SetSchema(val *PluginMethodResponseDtoSchema) {
+	s.Schema = val
+}
+
+// SetTitle sets the value of Title.
+func (s *PluginMethodResponseDto) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTypes sets the value of Types.
+func (s *PluginMethodResponseDto) SetTypes(val []WorkflowType) {
+	s.Types = val
+}
+
+// SetUiHints sets the value of UiHints.
+func (s *PluginMethodResponseDto) SetUiHints(val []string) {
+	s.UiHints = val
+}
+
+type PluginMethodResponseDtoSchema struct{}
+
+// Ref: #/components/schemas/PluginResponseDto
+type PluginResponseDto struct {
+	// Plugin author.
+	Author string `json:"author"`
+	// Creation date.
+	CreatedAt string `json:"createdAt"`
+	// Plugin description.
+	Description string `json:"description"`
+	// Plugin ID.
+	ID uuid.UUID `json:"id"`
+	// Plugin methods.
+	Methods []PluginMethodResponseDto `json:"methods"`
+	// Plugin name.
+	Name string `json:"name"`
+	// Plugin title.
+	Title string `json:"title"`
+	// Last update date.
+	UpdatedAt string `json:"updatedAt"`
+	// Plugin version.
+	Version string `json:"version"`
+}
+
+// GetAuthor returns the value of Author.
+func (s *PluginResponseDto) GetAuthor() string {
+	return s.Author
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *PluginResponseDto) GetCreatedAt() string {
+	return s.CreatedAt
+}
+
+// GetDescription returns the value of Description.
+func (s *PluginResponseDto) GetDescription() string {
+	return s.Description
+}
+
+// GetID returns the value of ID.
+func (s *PluginResponseDto) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetMethods returns the value of Methods.
+func (s *PluginResponseDto) GetMethods() []PluginMethodResponseDto {
+	return s.Methods
+}
+
+// GetName returns the value of Name.
+func (s *PluginResponseDto) GetName() string {
+	return s.Name
+}
+
+// GetTitle returns the value of Title.
+func (s *PluginResponseDto) GetTitle() string {
+	return s.Title
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *PluginResponseDto) GetUpdatedAt() string {
+	return s.UpdatedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *PluginResponseDto) GetVersion() string {
+	return s.Version
+}
+
+// SetAuthor sets the value of Author.
+func (s *PluginResponseDto) SetAuthor(val string) {
+	s.Author = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *PluginResponseDto) SetCreatedAt(val string) {
+	s.CreatedAt = val
+}
+
+// SetDescription sets the value of Description.
+func (s *PluginResponseDto) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetID sets the value of ID.
+func (s *PluginResponseDto) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetMethods sets the value of Methods.
+func (s *PluginResponseDto) SetMethods(val []PluginMethodResponseDto) {
+	s.Methods = val
+}
+
+// SetName sets the value of Name.
+func (s *PluginResponseDto) SetName(val string) {
+	s.Name = val
+}
+
+// SetTitle sets the value of Title.
+func (s *PluginResponseDto) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *PluginResponseDto) SetUpdatedAt(val string) {
+	s.UpdatedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *PluginResponseDto) SetVersion(val string) {
+	s.Version = val
+}
+
+// Ref: #/components/schemas/PluginTemplateResponseDto
+type PluginTemplateResponseDto struct {
+	// Template description.
+	Description string `json:"description"`
+	// Template key (unique across all templates).
+	Key string `json:"key"`
+	// Workflow steps.
+	Steps []PluginTemplateStepResponseDto `json:"steps"`
+	// Template title.
+	Title string `json:"title"`
+	// Workflow trigger.
+	Trigger WorkflowTrigger `json:"trigger"`
+	// Ui hints, for example "smart-album".
+	UiHints []string `json:"uiHints"`
+}
+
+// GetDescription returns the value of Description.
+func (s *PluginTemplateResponseDto) GetDescription() string {
+	return s.Description
+}
+
+// GetKey returns the value of Key.
+func (s *PluginTemplateResponseDto) GetKey() string {
+	return s.Key
+}
+
+// GetSteps returns the value of Steps.
+func (s *PluginTemplateResponseDto) GetSteps() []PluginTemplateStepResponseDto {
+	return s.Steps
+}
+
+// GetTitle returns the value of Title.
+func (s *PluginTemplateResponseDto) GetTitle() string {
+	return s.Title
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *PluginTemplateResponseDto) GetTrigger() WorkflowTrigger {
+	return s.Trigger
+}
+
+// GetUiHints returns the value of UiHints.
+func (s *PluginTemplateResponseDto) GetUiHints() []string {
+	return s.UiHints
+}
+
+// SetDescription sets the value of Description.
+func (s *PluginTemplateResponseDto) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetKey sets the value of Key.
+func (s *PluginTemplateResponseDto) SetKey(val string) {
+	s.Key = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *PluginTemplateResponseDto) SetSteps(val []PluginTemplateStepResponseDto) {
+	s.Steps = val
+}
+
+// SetTitle sets the value of Title.
+func (s *PluginTemplateResponseDto) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *PluginTemplateResponseDto) SetTrigger(val WorkflowTrigger) {
+	s.Trigger = val
+}
+
+// SetUiHints sets the value of UiHints.
+func (s *PluginTemplateResponseDto) SetUiHints(val []string) {
+	s.UiHints = val
+}
+
+// Ref: #/components/schemas/PluginTemplateStepResponseDto
+type PluginTemplateStepResponseDto struct {
+	// Step configuration.
+	Config NilPluginTemplateStepResponseDtoConfig `json:"config"`
+	// Whether the step is enabled.
+	Enabled OptBool `json:"enabled"`
+	// Step plugin method.
+	Method string `json:"method"`
+}
+
+// GetConfig returns the value of Config.
+func (s *PluginTemplateStepResponseDto) GetConfig() NilPluginTemplateStepResponseDtoConfig {
+	return s.Config
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *PluginTemplateStepResponseDto) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetMethod returns the value of Method.
+func (s *PluginTemplateStepResponseDto) GetMethod() string {
+	return s.Method
+}
+
+// SetConfig sets the value of Config.
+func (s *PluginTemplateStepResponseDto) SetConfig(val NilPluginTemplateStepResponseDtoConfig) {
+	s.Config = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *PluginTemplateStepResponseDto) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetMethod sets the value of Method.
+func (s *PluginTemplateStepResponseDto) SetMethod(val string) {
+	s.Method = val
+}
+
+// Step configuration.
+type PluginTemplateStepResponseDtoConfig map[string]jx.Raw
+
+func (s *PluginTemplateStepResponseDtoConfig) init() PluginTemplateStepResponseDtoConfig {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
 // Ref: #/components/schemas/PurchaseResponse
 type PurchaseResponse struct {
+	// Date until which to hide buy button.
 	HideBuyButtonUntil string `json:"hideBuyButtonUntil"`
-	ShowSupportBadge   bool   `json:"showSupportBadge"`
+	// Whether to show support badge.
+	ShowSupportBadge bool `json:"showSupportBadge"`
 }
 
 // GetHideBuyButtonUntil returns the value of HideBuyButtonUntil.
@@ -11776,8 +14028,10 @@ func (s *PurchaseResponse) SetShowSupportBadge(val bool) {
 
 // Ref: #/components/schemas/PurchaseUpdate
 type PurchaseUpdate struct {
+	// Date until which to hide buy button.
 	HideBuyButtonUntil OptString `json:"hideBuyButtonUntil"`
-	ShowSupportBadge   OptBool   `json:"showSupportBadge"`
+	// Whether to show support badge.
+	ShowSupportBadge OptBool `json:"showSupportBadge"`
 }
 
 // GetHideBuyButtonUntil returns the value of HideBuyButtonUntil.
@@ -11800,67 +14054,870 @@ func (s *PurchaseUpdate) SetShowSupportBadge(val OptBool) {
 	s.ShowSupportBadge = val
 }
 
-// Ref: #/components/schemas/QueueStatusDto
-type QueueStatusDto struct {
+// Queue command to execute.
+// Ref: #/components/schemas/QueueCommand
+type QueueCommand string
+
+const (
+	QueueCommandStart       QueueCommand = "start"
+	QueueCommandPause       QueueCommand = "pause"
+	QueueCommandResume      QueueCommand = "resume"
+	QueueCommandEmpty       QueueCommand = "empty"
+	QueueCommandClearFailed QueueCommand = "clear-failed"
+)
+
+// AllValues returns all QueueCommand values.
+func (QueueCommand) AllValues() []QueueCommand {
+	return []QueueCommand{
+		QueueCommandStart,
+		QueueCommandPause,
+		QueueCommandResume,
+		QueueCommandEmpty,
+		QueueCommandClearFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QueueCommand) MarshalText() ([]byte, error) {
+	switch s {
+	case QueueCommandStart:
+		return []byte(s), nil
+	case QueueCommandPause:
+		return []byte(s), nil
+	case QueueCommandResume:
+		return []byte(s), nil
+	case QueueCommandEmpty:
+		return []byte(s), nil
+	case QueueCommandClearFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QueueCommand) UnmarshalText(data []byte) error {
+	switch QueueCommand(data) {
+	case QueueCommandStart:
+		*s = QueueCommandStart
+		return nil
+	case QueueCommandPause:
+		*s = QueueCommandPause
+		return nil
+	case QueueCommandResume:
+		*s = QueueCommandResume
+		return nil
+	case QueueCommandEmpty:
+		*s = QueueCommandEmpty
+		return nil
+	case QueueCommandClearFailed:
+		*s = QueueCommandClearFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/QueueCommandDto
+type QueueCommandDto struct {
+	Command QueueCommand `json:"command"`
+	// Force the command execution (if applicable).
+	Force OptBool `json:"force"`
+}
+
+// GetCommand returns the value of Command.
+func (s *QueueCommandDto) GetCommand() QueueCommand {
+	return s.Command
+}
+
+// GetForce returns the value of Force.
+func (s *QueueCommandDto) GetForce() OptBool {
+	return s.Force
+}
+
+// SetCommand sets the value of Command.
+func (s *QueueCommandDto) SetCommand(val QueueCommand) {
+	s.Command = val
+}
+
+// SetForce sets the value of Force.
+func (s *QueueCommandDto) SetForce(val OptBool) {
+	s.Force = val
+}
+
+// Ref: #/components/schemas/QueueDeleteDto
+type QueueDeleteDto struct {
+	// If true, will also remove failed jobs from the queue.
+	Failed OptBool `json:"failed"`
+}
+
+// GetFailed returns the value of Failed.
+func (s *QueueDeleteDto) GetFailed() OptBool {
+	return s.Failed
+}
+
+// SetFailed sets the value of Failed.
+func (s *QueueDeleteDto) SetFailed(val OptBool) {
+	s.Failed = val
+}
+
+// Ref: #/components/schemas/QueueJobResponseDto
+type QueueJobResponseDto struct {
+	// Job data payload.
+	Data QueueJobResponseDtoData `json:"data"`
+	// Job ID.
+	ID   OptString `json:"id"`
+	Name JobName   `json:"name"`
+	// Job creation timestamp.
+	Timestamp int `json:"timestamp"`
+}
+
+// GetData returns the value of Data.
+func (s *QueueJobResponseDto) GetData() QueueJobResponseDtoData {
+	return s.Data
+}
+
+// GetID returns the value of ID.
+func (s *QueueJobResponseDto) GetID() OptString {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *QueueJobResponseDto) GetName() JobName {
+	return s.Name
+}
+
+// GetTimestamp returns the value of Timestamp.
+func (s *QueueJobResponseDto) GetTimestamp() int {
+	return s.Timestamp
+}
+
+// SetData sets the value of Data.
+func (s *QueueJobResponseDto) SetData(val QueueJobResponseDtoData) {
+	s.Data = val
+}
+
+// SetID sets the value of ID.
+func (s *QueueJobResponseDto) SetID(val OptString) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *QueueJobResponseDto) SetName(val JobName) {
+	s.Name = val
+}
+
+// SetTimestamp sets the value of Timestamp.
+func (s *QueueJobResponseDto) SetTimestamp(val int) {
+	s.Timestamp = val
+}
+
+// Job data payload.
+type QueueJobResponseDtoData map[string]jx.Raw
+
+func (s *QueueJobResponseDtoData) init() QueueJobResponseDtoData {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Queue job status.
+// Ref: #/components/schemas/QueueJobStatus
+type QueueJobStatus string
+
+const (
+	QueueJobStatusActive    QueueJobStatus = "active"
+	QueueJobStatusFailed    QueueJobStatus = "failed"
+	QueueJobStatusCompleted QueueJobStatus = "completed"
+	QueueJobStatusDelayed   QueueJobStatus = "delayed"
+	QueueJobStatusWaiting   QueueJobStatus = "waiting"
+	QueueJobStatusPaused    QueueJobStatus = "paused"
+)
+
+// AllValues returns all QueueJobStatus values.
+func (QueueJobStatus) AllValues() []QueueJobStatus {
+	return []QueueJobStatus{
+		QueueJobStatusActive,
+		QueueJobStatusFailed,
+		QueueJobStatusCompleted,
+		QueueJobStatusDelayed,
+		QueueJobStatusWaiting,
+		QueueJobStatusPaused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QueueJobStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case QueueJobStatusActive:
+		return []byte(s), nil
+	case QueueJobStatusFailed:
+		return []byte(s), nil
+	case QueueJobStatusCompleted:
+		return []byte(s), nil
+	case QueueJobStatusDelayed:
+		return []byte(s), nil
+	case QueueJobStatusWaiting:
+		return []byte(s), nil
+	case QueueJobStatusPaused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QueueJobStatus) UnmarshalText(data []byte) error {
+	switch QueueJobStatus(data) {
+	case QueueJobStatusActive:
+		*s = QueueJobStatusActive
+		return nil
+	case QueueJobStatusFailed:
+		*s = QueueJobStatusFailed
+		return nil
+	case QueueJobStatusCompleted:
+		*s = QueueJobStatusCompleted
+		return nil
+	case QueueJobStatusDelayed:
+		*s = QueueJobStatusDelayed
+		return nil
+	case QueueJobStatusWaiting:
+		*s = QueueJobStatusWaiting
+		return nil
+	case QueueJobStatusPaused:
+		*s = QueueJobStatusPaused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Queue name.
+// Ref: #/components/schemas/QueueName
+type QueueName string
+
+const (
+	QueueNameThumbnailGeneration      QueueName = "thumbnailGeneration"
+	QueueNameMetadataExtraction       QueueName = "metadataExtraction"
+	QueueNameVideoConversion          QueueName = "videoConversion"
+	QueueNameFaceDetection            QueueName = "faceDetection"
+	QueueNameFacialRecognition        QueueName = "facialRecognition"
+	QueueNameSmartSearch              QueueName = "smartSearch"
+	QueueNameDuplicateDetection       QueueName = "duplicateDetection"
+	QueueNameBackgroundTask           QueueName = "backgroundTask"
+	QueueNameStorageTemplateMigration QueueName = "storageTemplateMigration"
+	QueueNameMigration                QueueName = "migration"
+	QueueNameSearch                   QueueName = "search"
+	QueueNameSidecar                  QueueName = "sidecar"
+	QueueNameLibrary                  QueueName = "library"
+	QueueNameNotifications            QueueName = "notifications"
+	QueueNameBackupDatabase           QueueName = "backupDatabase"
+	QueueNameOcr                      QueueName = "ocr"
+	QueueNameWorkflow                 QueueName = "workflow"
+	QueueNameIntegrityCheck           QueueName = "integrityCheck"
+	QueueNameEditor                   QueueName = "editor"
+)
+
+// AllValues returns all QueueName values.
+func (QueueName) AllValues() []QueueName {
+	return []QueueName{
+		QueueNameThumbnailGeneration,
+		QueueNameMetadataExtraction,
+		QueueNameVideoConversion,
+		QueueNameFaceDetection,
+		QueueNameFacialRecognition,
+		QueueNameSmartSearch,
+		QueueNameDuplicateDetection,
+		QueueNameBackgroundTask,
+		QueueNameStorageTemplateMigration,
+		QueueNameMigration,
+		QueueNameSearch,
+		QueueNameSidecar,
+		QueueNameLibrary,
+		QueueNameNotifications,
+		QueueNameBackupDatabase,
+		QueueNameOcr,
+		QueueNameWorkflow,
+		QueueNameIntegrityCheck,
+		QueueNameEditor,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s QueueName) MarshalText() ([]byte, error) {
+	switch s {
+	case QueueNameThumbnailGeneration:
+		return []byte(s), nil
+	case QueueNameMetadataExtraction:
+		return []byte(s), nil
+	case QueueNameVideoConversion:
+		return []byte(s), nil
+	case QueueNameFaceDetection:
+		return []byte(s), nil
+	case QueueNameFacialRecognition:
+		return []byte(s), nil
+	case QueueNameSmartSearch:
+		return []byte(s), nil
+	case QueueNameDuplicateDetection:
+		return []byte(s), nil
+	case QueueNameBackgroundTask:
+		return []byte(s), nil
+	case QueueNameStorageTemplateMigration:
+		return []byte(s), nil
+	case QueueNameMigration:
+		return []byte(s), nil
+	case QueueNameSearch:
+		return []byte(s), nil
+	case QueueNameSidecar:
+		return []byte(s), nil
+	case QueueNameLibrary:
+		return []byte(s), nil
+	case QueueNameNotifications:
+		return []byte(s), nil
+	case QueueNameBackupDatabase:
+		return []byte(s), nil
+	case QueueNameOcr:
+		return []byte(s), nil
+	case QueueNameWorkflow:
+		return []byte(s), nil
+	case QueueNameIntegrityCheck:
+		return []byte(s), nil
+	case QueueNameEditor:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *QueueName) UnmarshalText(data []byte) error {
+	switch QueueName(data) {
+	case QueueNameThumbnailGeneration:
+		*s = QueueNameThumbnailGeneration
+		return nil
+	case QueueNameMetadataExtraction:
+		*s = QueueNameMetadataExtraction
+		return nil
+	case QueueNameVideoConversion:
+		*s = QueueNameVideoConversion
+		return nil
+	case QueueNameFaceDetection:
+		*s = QueueNameFaceDetection
+		return nil
+	case QueueNameFacialRecognition:
+		*s = QueueNameFacialRecognition
+		return nil
+	case QueueNameSmartSearch:
+		*s = QueueNameSmartSearch
+		return nil
+	case QueueNameDuplicateDetection:
+		*s = QueueNameDuplicateDetection
+		return nil
+	case QueueNameBackgroundTask:
+		*s = QueueNameBackgroundTask
+		return nil
+	case QueueNameStorageTemplateMigration:
+		*s = QueueNameStorageTemplateMigration
+		return nil
+	case QueueNameMigration:
+		*s = QueueNameMigration
+		return nil
+	case QueueNameSearch:
+		*s = QueueNameSearch
+		return nil
+	case QueueNameSidecar:
+		*s = QueueNameSidecar
+		return nil
+	case QueueNameLibrary:
+		*s = QueueNameLibrary
+		return nil
+	case QueueNameNotifications:
+		*s = QueueNameNotifications
+		return nil
+	case QueueNameBackupDatabase:
+		*s = QueueNameBackupDatabase
+		return nil
+	case QueueNameOcr:
+		*s = QueueNameOcr
+		return nil
+	case QueueNameWorkflow:
+		*s = QueueNameWorkflow
+		return nil
+	case QueueNameIntegrityCheck:
+		*s = QueueNameIntegrityCheck
+		return nil
+	case QueueNameEditor:
+		*s = QueueNameEditor
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/QueueResponseDto
+type QueueResponseDto struct {
+	// Whether the queue is paused.
+	IsPaused   bool               `json:"isPaused"`
+	Name       QueueName          `json:"name"`
+	Statistics QueueStatisticsDto `json:"statistics"`
+}
+
+// GetIsPaused returns the value of IsPaused.
+func (s *QueueResponseDto) GetIsPaused() bool {
+	return s.IsPaused
+}
+
+// GetName returns the value of Name.
+func (s *QueueResponseDto) GetName() QueueName {
+	return s.Name
+}
+
+// GetStatistics returns the value of Statistics.
+func (s *QueueResponseDto) GetStatistics() QueueStatisticsDto {
+	return s.Statistics
+}
+
+// SetIsPaused sets the value of IsPaused.
+func (s *QueueResponseDto) SetIsPaused(val bool) {
+	s.IsPaused = val
+}
+
+// SetName sets the value of Name.
+func (s *QueueResponseDto) SetName(val QueueName) {
+	s.Name = val
+}
+
+// SetStatistics sets the value of Statistics.
+func (s *QueueResponseDto) SetStatistics(val QueueStatisticsDto) {
+	s.Statistics = val
+}
+
+// Ref: #/components/schemas/QueueResponseLegacyDto
+type QueueResponseLegacyDto struct {
+	JobCounts   QueueStatisticsDto   `json:"jobCounts"`
+	QueueStatus QueueStatusLegacyDto `json:"queueStatus"`
+}
+
+// GetJobCounts returns the value of JobCounts.
+func (s *QueueResponseLegacyDto) GetJobCounts() QueueStatisticsDto {
+	return s.JobCounts
+}
+
+// GetQueueStatus returns the value of QueueStatus.
+func (s *QueueResponseLegacyDto) GetQueueStatus() QueueStatusLegacyDto {
+	return s.QueueStatus
+}
+
+// SetJobCounts sets the value of JobCounts.
+func (s *QueueResponseLegacyDto) SetJobCounts(val QueueStatisticsDto) {
+	s.JobCounts = val
+}
+
+// SetQueueStatus sets the value of QueueStatus.
+func (s *QueueResponseLegacyDto) SetQueueStatus(val QueueStatusLegacyDto) {
+	s.QueueStatus = val
+}
+
+// Ref: #/components/schemas/QueueStatisticsDto
+type QueueStatisticsDto struct {
+	// Number of active jobs.
+	Active int `json:"active"`
+	// Number of completed jobs.
+	Completed int `json:"completed"`
+	// Number of delayed jobs.
+	Delayed int `json:"delayed"`
+	// Number of failed jobs.
+	Failed int `json:"failed"`
+	// Number of paused jobs.
+	Paused int `json:"paused"`
+	// Number of waiting jobs.
+	Waiting int `json:"waiting"`
+}
+
+// GetActive returns the value of Active.
+func (s *QueueStatisticsDto) GetActive() int {
+	return s.Active
+}
+
+// GetCompleted returns the value of Completed.
+func (s *QueueStatisticsDto) GetCompleted() int {
+	return s.Completed
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *QueueStatisticsDto) GetDelayed() int {
+	return s.Delayed
+}
+
+// GetFailed returns the value of Failed.
+func (s *QueueStatisticsDto) GetFailed() int {
+	return s.Failed
+}
+
+// GetPaused returns the value of Paused.
+func (s *QueueStatisticsDto) GetPaused() int {
+	return s.Paused
+}
+
+// GetWaiting returns the value of Waiting.
+func (s *QueueStatisticsDto) GetWaiting() int {
+	return s.Waiting
+}
+
+// SetActive sets the value of Active.
+func (s *QueueStatisticsDto) SetActive(val int) {
+	s.Active = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *QueueStatisticsDto) SetCompleted(val int) {
+	s.Completed = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *QueueStatisticsDto) SetDelayed(val int) {
+	s.Delayed = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *QueueStatisticsDto) SetFailed(val int) {
+	s.Failed = val
+}
+
+// SetPaused sets the value of Paused.
+func (s *QueueStatisticsDto) SetPaused(val int) {
+	s.Paused = val
+}
+
+// SetWaiting sets the value of Waiting.
+func (s *QueueStatisticsDto) SetWaiting(val int) {
+	s.Waiting = val
+}
+
+// Ref: #/components/schemas/QueueStatusLegacyDto
+type QueueStatusLegacyDto struct {
+	// Whether the queue is currently active (has running jobs).
 	IsActive bool `json:"isActive"`
+	// Whether the queue is paused.
 	IsPaused bool `json:"isPaused"`
 }
 
 // GetIsActive returns the value of IsActive.
-func (s *QueueStatusDto) GetIsActive() bool {
+func (s *QueueStatusLegacyDto) GetIsActive() bool {
 	return s.IsActive
 }
 
 // GetIsPaused returns the value of IsPaused.
-func (s *QueueStatusDto) GetIsPaused() bool {
+func (s *QueueStatusLegacyDto) GetIsPaused() bool {
 	return s.IsPaused
 }
 
 // SetIsActive sets the value of IsActive.
-func (s *QueueStatusDto) SetIsActive(val bool) {
+func (s *QueueStatusLegacyDto) SetIsActive(val bool) {
 	s.IsActive = val
 }
 
 // SetIsPaused sets the value of IsPaused.
-func (s *QueueStatusDto) SetIsPaused(val bool) {
+func (s *QueueStatusLegacyDto) SetIsPaused(val bool) {
 	s.IsPaused = val
+}
+
+// Ref: #/components/schemas/QueueUpdateDto
+type QueueUpdateDto struct {
+	// Whether to pause the queue.
+	IsPaused OptBool `json:"isPaused"`
+}
+
+// GetIsPaused returns the value of IsPaused.
+func (s *QueueUpdateDto) GetIsPaused() OptBool {
+	return s.IsPaused
+}
+
+// SetIsPaused sets the value of IsPaused.
+func (s *QueueUpdateDto) SetIsPaused(val OptBool) {
+	s.IsPaused = val
+}
+
+// Ref: #/components/schemas/QueuesResponseLegacyDto
+type QueuesResponseLegacyDto struct {
+	BackgroundTask           QueueResponseLegacyDto `json:"backgroundTask"`
+	BackupDatabase           QueueResponseLegacyDto `json:"backupDatabase"`
+	DuplicateDetection       QueueResponseLegacyDto `json:"duplicateDetection"`
+	Editor                   QueueResponseLegacyDto `json:"editor"`
+	FaceDetection            QueueResponseLegacyDto `json:"faceDetection"`
+	FacialRecognition        QueueResponseLegacyDto `json:"facialRecognition"`
+	IntegrityCheck           QueueResponseLegacyDto `json:"integrityCheck"`
+	Library                  QueueResponseLegacyDto `json:"library"`
+	MetadataExtraction       QueueResponseLegacyDto `json:"metadataExtraction"`
+	Migration                QueueResponseLegacyDto `json:"migration"`
+	Notifications            QueueResponseLegacyDto `json:"notifications"`
+	Ocr                      QueueResponseLegacyDto `json:"ocr"`
+	Search                   QueueResponseLegacyDto `json:"search"`
+	Sidecar                  QueueResponseLegacyDto `json:"sidecar"`
+	SmartSearch              QueueResponseLegacyDto `json:"smartSearch"`
+	StorageTemplateMigration QueueResponseLegacyDto `json:"storageTemplateMigration"`
+	ThumbnailGeneration      QueueResponseLegacyDto `json:"thumbnailGeneration"`
+	VideoConversion          QueueResponseLegacyDto `json:"videoConversion"`
+	Workflow                 QueueResponseLegacyDto `json:"workflow"`
+}
+
+// GetBackgroundTask returns the value of BackgroundTask.
+func (s *QueuesResponseLegacyDto) GetBackgroundTask() QueueResponseLegacyDto {
+	return s.BackgroundTask
+}
+
+// GetBackupDatabase returns the value of BackupDatabase.
+func (s *QueuesResponseLegacyDto) GetBackupDatabase() QueueResponseLegacyDto {
+	return s.BackupDatabase
+}
+
+// GetDuplicateDetection returns the value of DuplicateDetection.
+func (s *QueuesResponseLegacyDto) GetDuplicateDetection() QueueResponseLegacyDto {
+	return s.DuplicateDetection
+}
+
+// GetEditor returns the value of Editor.
+func (s *QueuesResponseLegacyDto) GetEditor() QueueResponseLegacyDto {
+	return s.Editor
+}
+
+// GetFaceDetection returns the value of FaceDetection.
+func (s *QueuesResponseLegacyDto) GetFaceDetection() QueueResponseLegacyDto {
+	return s.FaceDetection
+}
+
+// GetFacialRecognition returns the value of FacialRecognition.
+func (s *QueuesResponseLegacyDto) GetFacialRecognition() QueueResponseLegacyDto {
+	return s.FacialRecognition
+}
+
+// GetIntegrityCheck returns the value of IntegrityCheck.
+func (s *QueuesResponseLegacyDto) GetIntegrityCheck() QueueResponseLegacyDto {
+	return s.IntegrityCheck
+}
+
+// GetLibrary returns the value of Library.
+func (s *QueuesResponseLegacyDto) GetLibrary() QueueResponseLegacyDto {
+	return s.Library
+}
+
+// GetMetadataExtraction returns the value of MetadataExtraction.
+func (s *QueuesResponseLegacyDto) GetMetadataExtraction() QueueResponseLegacyDto {
+	return s.MetadataExtraction
+}
+
+// GetMigration returns the value of Migration.
+func (s *QueuesResponseLegacyDto) GetMigration() QueueResponseLegacyDto {
+	return s.Migration
+}
+
+// GetNotifications returns the value of Notifications.
+func (s *QueuesResponseLegacyDto) GetNotifications() QueueResponseLegacyDto {
+	return s.Notifications
+}
+
+// GetOcr returns the value of Ocr.
+func (s *QueuesResponseLegacyDto) GetOcr() QueueResponseLegacyDto {
+	return s.Ocr
+}
+
+// GetSearch returns the value of Search.
+func (s *QueuesResponseLegacyDto) GetSearch() QueueResponseLegacyDto {
+	return s.Search
+}
+
+// GetSidecar returns the value of Sidecar.
+func (s *QueuesResponseLegacyDto) GetSidecar() QueueResponseLegacyDto {
+	return s.Sidecar
+}
+
+// GetSmartSearch returns the value of SmartSearch.
+func (s *QueuesResponseLegacyDto) GetSmartSearch() QueueResponseLegacyDto {
+	return s.SmartSearch
+}
+
+// GetStorageTemplateMigration returns the value of StorageTemplateMigration.
+func (s *QueuesResponseLegacyDto) GetStorageTemplateMigration() QueueResponseLegacyDto {
+	return s.StorageTemplateMigration
+}
+
+// GetThumbnailGeneration returns the value of ThumbnailGeneration.
+func (s *QueuesResponseLegacyDto) GetThumbnailGeneration() QueueResponseLegacyDto {
+	return s.ThumbnailGeneration
+}
+
+// GetVideoConversion returns the value of VideoConversion.
+func (s *QueuesResponseLegacyDto) GetVideoConversion() QueueResponseLegacyDto {
+	return s.VideoConversion
+}
+
+// GetWorkflow returns the value of Workflow.
+func (s *QueuesResponseLegacyDto) GetWorkflow() QueueResponseLegacyDto {
+	return s.Workflow
+}
+
+// SetBackgroundTask sets the value of BackgroundTask.
+func (s *QueuesResponseLegacyDto) SetBackgroundTask(val QueueResponseLegacyDto) {
+	s.BackgroundTask = val
+}
+
+// SetBackupDatabase sets the value of BackupDatabase.
+func (s *QueuesResponseLegacyDto) SetBackupDatabase(val QueueResponseLegacyDto) {
+	s.BackupDatabase = val
+}
+
+// SetDuplicateDetection sets the value of DuplicateDetection.
+func (s *QueuesResponseLegacyDto) SetDuplicateDetection(val QueueResponseLegacyDto) {
+	s.DuplicateDetection = val
+}
+
+// SetEditor sets the value of Editor.
+func (s *QueuesResponseLegacyDto) SetEditor(val QueueResponseLegacyDto) {
+	s.Editor = val
+}
+
+// SetFaceDetection sets the value of FaceDetection.
+func (s *QueuesResponseLegacyDto) SetFaceDetection(val QueueResponseLegacyDto) {
+	s.FaceDetection = val
+}
+
+// SetFacialRecognition sets the value of FacialRecognition.
+func (s *QueuesResponseLegacyDto) SetFacialRecognition(val QueueResponseLegacyDto) {
+	s.FacialRecognition = val
+}
+
+// SetIntegrityCheck sets the value of IntegrityCheck.
+func (s *QueuesResponseLegacyDto) SetIntegrityCheck(val QueueResponseLegacyDto) {
+	s.IntegrityCheck = val
+}
+
+// SetLibrary sets the value of Library.
+func (s *QueuesResponseLegacyDto) SetLibrary(val QueueResponseLegacyDto) {
+	s.Library = val
+}
+
+// SetMetadataExtraction sets the value of MetadataExtraction.
+func (s *QueuesResponseLegacyDto) SetMetadataExtraction(val QueueResponseLegacyDto) {
+	s.MetadataExtraction = val
+}
+
+// SetMigration sets the value of Migration.
+func (s *QueuesResponseLegacyDto) SetMigration(val QueueResponseLegacyDto) {
+	s.Migration = val
+}
+
+// SetNotifications sets the value of Notifications.
+func (s *QueuesResponseLegacyDto) SetNotifications(val QueueResponseLegacyDto) {
+	s.Notifications = val
+}
+
+// SetOcr sets the value of Ocr.
+func (s *QueuesResponseLegacyDto) SetOcr(val QueueResponseLegacyDto) {
+	s.Ocr = val
+}
+
+// SetSearch sets the value of Search.
+func (s *QueuesResponseLegacyDto) SetSearch(val QueueResponseLegacyDto) {
+	s.Search = val
+}
+
+// SetSidecar sets the value of Sidecar.
+func (s *QueuesResponseLegacyDto) SetSidecar(val QueueResponseLegacyDto) {
+	s.Sidecar = val
+}
+
+// SetSmartSearch sets the value of SmartSearch.
+func (s *QueuesResponseLegacyDto) SetSmartSearch(val QueueResponseLegacyDto) {
+	s.SmartSearch = val
+}
+
+// SetStorageTemplateMigration sets the value of StorageTemplateMigration.
+func (s *QueuesResponseLegacyDto) SetStorageTemplateMigration(val QueueResponseLegacyDto) {
+	s.StorageTemplateMigration = val
+}
+
+// SetThumbnailGeneration sets the value of ThumbnailGeneration.
+func (s *QueuesResponseLegacyDto) SetThumbnailGeneration(val QueueResponseLegacyDto) {
+	s.ThumbnailGeneration = val
+}
+
+// SetVideoConversion sets the value of VideoConversion.
+func (s *QueuesResponseLegacyDto) SetVideoConversion(val QueueResponseLegacyDto) {
+	s.VideoConversion = val
+}
+
+// SetWorkflow sets the value of Workflow.
+func (s *QueuesResponseLegacyDto) SetWorkflow(val QueueResponseLegacyDto) {
+	s.Workflow = val
 }
 
 // Ref: #/components/schemas/RandomSearchDto
 type RandomSearchDto struct {
-	AlbumIds      []uuid.UUID        `json:"albumIds"`
-	City          OptNilString       `json:"city"`
-	Country       OptNilString       `json:"country"`
-	CreatedAfter  OptDateTime        `json:"createdAfter"`
-	CreatedBefore OptDateTime        `json:"createdBefore"`
-	DeviceId      OptString          `json:"deviceId"`
-	IsEncoded     OptBool            `json:"isEncoded"`
-	IsFavorite    OptBool            `json:"isFavorite"`
-	IsMotion      OptBool            `json:"isMotion"`
-	IsNotInAlbum  OptBool            `json:"isNotInAlbum"`
-	IsOffline     OptBool            `json:"isOffline"`
-	LensModel     OptNilString       `json:"lensModel"`
-	LibraryId     OptNilUUID         `json:"libraryId"`
-	Make          OptString          `json:"make"`
-	Model         OptNilString       `json:"model"`
-	Ocr           OptString          `json:"ocr"`
-	PersonIds     []uuid.UUID        `json:"personIds"`
-	Rating        OptFloat64         `json:"rating"`
-	Size          OptFloat64         `json:"size"`
-	State         OptNilString       `json:"state"`
-	TagIds        OptNilUUIDArray    `json:"tagIds"`
-	TakenAfter    OptDateTime        `json:"takenAfter"`
-	TakenBefore   OptDateTime        `json:"takenBefore"`
-	TrashedAfter  OptDateTime        `json:"trashedAfter"`
-	TrashedBefore OptDateTime        `json:"trashedBefore"`
-	Type          OptAssetTypeEnum   `json:"type"`
-	UpdatedAfter  OptDateTime        `json:"updatedAfter"`
+	// Filter by album IDs.
+	AlbumIds []uuid.UUID `json:"albumIds"`
+	// Filter by city name.
+	City OptNilString `json:"city"`
+	// Filter by country name.
+	Country OptNilString `json:"country"`
+	// Filter by creation date (after).
+	CreatedAfter OptDateTime `json:"createdAfter"`
+	// Filter by creation date (before).
+	CreatedBefore OptDateTime `json:"createdBefore"`
+	// Filter by encoded status.
+	IsEncoded OptBool `json:"isEncoded"`
+	// Filter by favorite status.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Filter by motion photo status.
+	IsMotion OptBool `json:"isMotion"`
+	// Filter assets not in any album.
+	IsNotInAlbum OptBool `json:"isNotInAlbum"`
+	// Filter by offline status.
+	IsOffline OptBool `json:"isOffline"`
+	// Filter by lens model.
+	LensModel OptNilString `json:"lensModel"`
+	// Library ID to filter by.
+	LibraryId OptNilUUID `json:"libraryId"`
+	// Filter by camera make.
+	Make OptNilString `json:"make"`
+	// Filter by camera model.
+	Model OptNilString `json:"model"`
+	// Filter by OCR text content.
+	Ocr OptString `json:"ocr"`
+	// Filter by person IDs.
+	PersonIds []uuid.UUID `json:"personIds"`
+	// Filter by rating [1-5], or null for unrated.
+	Rating OptNilInt `json:"rating"`
+	// Number of results to return.
+	Size OptInt `json:"size"`
+	// Filter by state/province name.
+	State OptNilString `json:"state"`
+	// Filter by tag IDs.
+	TagIds OptNilUUIDArray `json:"tagIds"`
+	// Filter by taken date (after).
+	TakenAfter OptDateTime `json:"takenAfter"`
+	// Filter by taken date (before).
+	TakenBefore OptDateTime `json:"takenBefore"`
+	// Filter by trash date (after).
+	TrashedAfter OptDateTime `json:"trashedAfter"`
+	// Filter by trash date (before).
+	TrashedBefore OptDateTime      `json:"trashedBefore"`
+	Type          OptAssetTypeEnum `json:"type"`
+	// Filter by update date (after).
+	UpdatedAfter OptDateTime `json:"updatedAfter"`
+	// Filter by update date (before).
 	UpdatedBefore OptDateTime        `json:"updatedBefore"`
 	Visibility    OptAssetVisibility `json:"visibility"`
-	WithDeleted   OptBool            `json:"withDeleted"`
-	WithExif      OptBool            `json:"withExif"`
-	WithPeople    OptBool            `json:"withPeople"`
-	WithStacked   OptBool            `json:"withStacked"`
+	// Include deleted assets.
+	WithDeleted OptBool `json:"withDeleted"`
+	// Include EXIF data in response.
+	WithExif OptBool `json:"withExif"`
+	// Include people data in response.
+	WithPeople OptBool `json:"withPeople"`
+	// Include stacked assets.
+	WithStacked OptBool `json:"withStacked"`
 }
 
 // GetAlbumIds returns the value of AlbumIds.
@@ -11886,11 +14943,6 @@ func (s *RandomSearchDto) GetCreatedAfter() OptDateTime {
 // GetCreatedBefore returns the value of CreatedBefore.
 func (s *RandomSearchDto) GetCreatedBefore() OptDateTime {
 	return s.CreatedBefore
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *RandomSearchDto) GetDeviceId() OptString {
-	return s.DeviceId
 }
 
 // GetIsEncoded returns the value of IsEncoded.
@@ -11929,7 +14981,7 @@ func (s *RandomSearchDto) GetLibraryId() OptNilUUID {
 }
 
 // GetMake returns the value of Make.
-func (s *RandomSearchDto) GetMake() OptString {
+func (s *RandomSearchDto) GetMake() OptNilString {
 	return s.Make
 }
 
@@ -11949,12 +15001,12 @@ func (s *RandomSearchDto) GetPersonIds() []uuid.UUID {
 }
 
 // GetRating returns the value of Rating.
-func (s *RandomSearchDto) GetRating() OptFloat64 {
+func (s *RandomSearchDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
 // GetSize returns the value of Size.
-func (s *RandomSearchDto) GetSize() OptFloat64 {
+func (s *RandomSearchDto) GetSize() OptInt {
 	return s.Size
 }
 
@@ -12053,11 +15105,6 @@ func (s *RandomSearchDto) SetCreatedBefore(val OptDateTime) {
 	s.CreatedBefore = val
 }
 
-// SetDeviceId sets the value of DeviceId.
-func (s *RandomSearchDto) SetDeviceId(val OptString) {
-	s.DeviceId = val
-}
-
 // SetIsEncoded sets the value of IsEncoded.
 func (s *RandomSearchDto) SetIsEncoded(val OptBool) {
 	s.IsEncoded = val
@@ -12094,7 +15141,7 @@ func (s *RandomSearchDto) SetLibraryId(val OptNilUUID) {
 }
 
 // SetMake sets the value of Make.
-func (s *RandomSearchDto) SetMake(val OptString) {
+func (s *RandomSearchDto) SetMake(val OptNilString) {
 	s.Make = val
 }
 
@@ -12114,12 +15161,12 @@ func (s *RandomSearchDto) SetPersonIds(val []uuid.UUID) {
 }
 
 // SetRating sets the value of Rating.
-func (s *RandomSearchDto) SetRating(val OptFloat64) {
+func (s *RandomSearchDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
 // SetSize sets the value of Size.
-func (s *RandomSearchDto) SetSize(val OptFloat64) {
+func (s *RandomSearchDto) SetSize(val OptInt) {
 	s.Size = val
 }
 
@@ -12195,6 +15242,7 @@ func (s *RandomSearchDto) SetWithStacked(val OptBool) {
 
 // Ref: #/components/schemas/RatingsResponse
 type RatingsResponse struct {
+	// Whether ratings are enabled.
 	Enabled bool `json:"enabled"`
 }
 
@@ -12210,6 +15258,7 @@ func (s *RatingsResponse) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/RatingsUpdate
 type RatingsUpdate struct {
+	// Whether ratings are enabled.
 	Enabled OptBool `json:"enabled"`
 }
 
@@ -12223,6 +15272,7 @@ func (s *RatingsUpdate) SetEnabled(val OptBool) {
 	s.Enabled = val
 }
 
+// Reaction level.
 // Ref: #/components/schemas/ReactionLevel
 type ReactionLevel string
 
@@ -12265,6 +15315,7 @@ func (s *ReactionLevel) UnmarshalText(data []byte) error {
 	}
 }
 
+// Reaction type.
 // Ref: #/components/schemas/ReactionType
 type ReactionType string
 
@@ -12307,8 +15358,86 @@ func (s *ReactionType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/RecentlyAddedResponse
+type RecentlyAddedResponse struct {
+	// Whether the recently added page appears in the web sidebar.
+	SidebarWeb bool `json:"sidebarWeb"`
+}
+
+// GetSidebarWeb returns the value of SidebarWeb.
+func (s *RecentlyAddedResponse) GetSidebarWeb() bool {
+	return s.SidebarWeb
+}
+
+// SetSidebarWeb sets the value of SidebarWeb.
+func (s *RecentlyAddedResponse) SetSidebarWeb(val bool) {
+	s.SidebarWeb = val
+}
+
+// Ref: #/components/schemas/RecentlyAddedUpdate
+type RecentlyAddedUpdate struct {
+	// Whether the recently added page appears in the web sidebar.
+	SidebarWeb OptBool `json:"sidebarWeb"`
+}
+
+// GetSidebarWeb returns the value of SidebarWeb.
+func (s *RecentlyAddedUpdate) GetSidebarWeb() OptBool {
+	return s.SidebarWeb
+}
+
+// SetSidebarWeb sets the value of SidebarWeb.
+func (s *RecentlyAddedUpdate) SetSidebarWeb(val OptBool) {
+	s.SidebarWeb = val
+}
+
 // RedirectOAuthToMobileOK is response for RedirectOAuthToMobile operation.
 type RedirectOAuthToMobileOK struct{}
+
+// Release channel.
+// Ref: #/components/schemas/ReleaseChannel
+type ReleaseChannel string
+
+const (
+	ReleaseChannelStable           ReleaseChannel = "stable"
+	ReleaseChannelReleaseCandidate ReleaseChannel = "releaseCandidate"
+)
+
+// AllValues returns all ReleaseChannel values.
+func (ReleaseChannel) AllValues() []ReleaseChannel {
+	return []ReleaseChannel{
+		ReleaseChannelStable,
+		ReleaseChannelReleaseCandidate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReleaseChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case ReleaseChannelStable:
+		return []byte(s), nil
+	case ReleaseChannelReleaseCandidate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReleaseChannel) UnmarshalText(data []byte) error {
+	switch ReleaseChannel(data) {
+	case ReleaseChannelStable:
+		*s = ReleaseChannelStable
+		return nil
+	case ReleaseChannelReleaseCandidate:
+		*s = ReleaseChannelReleaseCandidate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// RemoveAssetEditsNoContent is response for RemoveAssetEdits operation.
+type RemoveAssetEditsNoContent struct{}
 
 // RemoveAssetFromStackNoContent is response for RemoveAssetFromStack operation.
 type RemoveAssetFromStackNoContent struct{}
@@ -12327,8 +15456,10 @@ type ResetPinCodeNoContent struct{}
 
 // Ref: #/components/schemas/ReverseGeocodingStateResponseDto
 type ReverseGeocodingStateResponseDto struct {
+	// Last import file name.
 	LastImportFileName NilString `json:"lastImportFileName"`
-	LastUpdate         NilString `json:"lastUpdate"`
+	// Last update timestamp.
+	LastUpdate NilString `json:"lastUpdate"`
 }
 
 // GetLastImportFileName returns the value of LastImportFileName.
@@ -12359,10 +15490,12 @@ type ScanLibraryNoContent struct{}
 
 // Ref: #/components/schemas/SearchAlbumResponseDto
 type SearchAlbumResponseDto struct {
+	// Number of albums in this page.
 	Count  int                      `json:"count"`
 	Facets []SearchFacetResponseDto `json:"facets"`
 	Items  []AlbumResponseDto       `json:"items"`
-	Total  int                      `json:"total"`
+	// Total number of matching albums.
+	Total int `json:"total"`
 }
 
 // GetCount returns the value of Count.
@@ -12407,11 +15540,14 @@ func (s *SearchAlbumResponseDto) SetTotal(val int) {
 
 // Ref: #/components/schemas/SearchAssetResponseDto
 type SearchAssetResponseDto struct {
-	Count    int                      `json:"count"`
-	Facets   []SearchFacetResponseDto `json:"facets"`
-	Items    []AssetResponseDto       `json:"items"`
-	NextPage NilString                `json:"nextPage"`
-	Total    int                      `json:"total"`
+	// Number of assets in this page.
+	Count  int                      `json:"count"`
+	Facets []SearchFacetResponseDto `json:"facets"`
+	Items  []AssetResponseDto       `json:"items"`
+	// Next page token.
+	NextPage NilString `json:"nextPage"`
+	// Total number of matching assets.
+	Total int `json:"total"`
 }
 
 // GetCount returns the value of Count.
@@ -12466,8 +15602,9 @@ func (s *SearchAssetResponseDto) SetTotal(val int) {
 
 // Ref: #/components/schemas/SearchExploreItem
 type SearchExploreItem struct {
-	Data  AssetResponseDto `json:"data"`
-	Value string           `json:"value"`
+	Data AssetResponseDto `json:"data"`
+	// Explore value.
+	Value string `json:"value"`
 }
 
 // GetData returns the value of Data.
@@ -12492,6 +15629,7 @@ func (s *SearchExploreItem) SetValue(val string) {
 
 // Ref: #/components/schemas/SearchExploreResponseDto
 type SearchExploreResponseDto struct {
+	// Explore field name.
 	FieldName string              `json:"fieldName"`
 	Items     []SearchExploreItem `json:"items"`
 }
@@ -12518,7 +15656,9 @@ func (s *SearchExploreResponseDto) SetItems(val []SearchExploreItem) {
 
 // Ref: #/components/schemas/SearchFacetCountResponseDto
 type SearchFacetCountResponseDto struct {
-	Count int    `json:"count"`
+	// Number of assets with this facet value.
+	Count int `json:"count"`
+	// Facet value.
 	Value string `json:"value"`
 }
 
@@ -12544,8 +15684,9 @@ func (s *SearchFacetCountResponseDto) SetValue(val string) {
 
 // Ref: #/components/schemas/SearchFacetResponseDto
 type SearchFacetResponseDto struct {
-	Counts    []SearchFacetCountResponseDto `json:"counts"`
-	FieldName string                        `json:"fieldName"`
+	Counts []SearchFacetCountResponseDto `json:"counts"`
+	// Facet field name.
+	FieldName string `json:"fieldName"`
 }
 
 // GetCounts returns the value of Counts.
@@ -12596,6 +15737,7 @@ func (s *SearchResponseDto) SetAssets(val SearchAssetResponseDto) {
 
 // Ref: #/components/schemas/SearchStatisticsResponseDto
 type SearchStatisticsResponseDto struct {
+	// Total number of matching assets.
 	Total int `json:"total"`
 }
 
@@ -12609,6 +15751,7 @@ func (s *SearchStatisticsResponseDto) SetTotal(val int) {
 	s.Total = val
 }
 
+// Suggestion type.
 // Ref: #/components/schemas/SearchSuggestionType
 type SearchSuggestionType string
 
@@ -12684,27 +15827,48 @@ type SendSyncAckNoContent struct{}
 
 // Ref: #/components/schemas/ServerAboutResponseDto
 type ServerAboutResponseDto struct {
-	Build                      OptString `json:"build"`
-	BuildImage                 OptString `json:"buildImage"`
-	BuildImageUrl              OptString `json:"buildImageUrl"`
-	BuildUrl                   OptString `json:"buildUrl"`
-	Exiftool                   OptString `json:"exiftool"`
-	Ffmpeg                     OptString `json:"ffmpeg"`
-	Imagemagick                OptString `json:"imagemagick"`
-	Libvips                    OptString `json:"libvips"`
-	Licensed                   bool      `json:"licensed"`
-	Nodejs                     OptString `json:"nodejs"`
-	Repository                 OptString `json:"repository"`
-	RepositoryUrl              OptString `json:"repositoryUrl"`
-	SourceCommit               OptString `json:"sourceCommit"`
-	SourceRef                  OptString `json:"sourceRef"`
-	SourceUrl                  OptString `json:"sourceUrl"`
-	ThirdPartyBugFeatureUrl    OptString `json:"thirdPartyBugFeatureUrl"`
+	// Build identifier.
+	Build OptString `json:"build"`
+	// Build image name.
+	BuildImage OptString `json:"buildImage"`
+	// Build image URL.
+	BuildImageUrl OptString `json:"buildImageUrl"`
+	// Build URL.
+	BuildUrl OptString `json:"buildUrl"`
+	// ExifTool version.
+	Exiftool OptString `json:"exiftool"`
+	// FFmpeg version.
+	Ffmpeg OptString `json:"ffmpeg"`
+	// ImageMagick version.
+	Imagemagick OptString `json:"imagemagick"`
+	// Libvips version.
+	Libvips OptString `json:"libvips"`
+	// Whether the server is licensed.
+	Licensed bool `json:"licensed"`
+	// Node.js version.
+	Nodejs OptString `json:"nodejs"`
+	// Repository name.
+	Repository OptString `json:"repository"`
+	// Repository URL.
+	RepositoryUrl OptString `json:"repositoryUrl"`
+	// Source commit hash.
+	SourceCommit OptString `json:"sourceCommit"`
+	// Source reference (branch/tag).
+	SourceRef OptString `json:"sourceRef"`
+	// Source URL.
+	SourceUrl OptString `json:"sourceUrl"`
+	// Third-party bug/feature URL.
+	ThirdPartyBugFeatureUrl OptString `json:"thirdPartyBugFeatureUrl"`
+	// Third-party documentation URL.
 	ThirdPartyDocumentationUrl OptString `json:"thirdPartyDocumentationUrl"`
-	ThirdPartySourceUrl        OptString `json:"thirdPartySourceUrl"`
-	ThirdPartySupportUrl       OptString `json:"thirdPartySupportUrl"`
-	Version                    string    `json:"version"`
-	VersionUrl                 string    `json:"versionUrl"`
+	// Third-party source URL.
+	ThirdPartySourceUrl OptString `json:"thirdPartySourceUrl"`
+	// Third-party support URL.
+	ThirdPartySupportUrl OptString `json:"thirdPartySupportUrl"`
+	// Server version.
+	Version string `json:"version"`
+	// URL to version information.
+	VersionUrl string `json:"versionUrl"`
 }
 
 // GetBuild returns the value of Build.
@@ -12919,10 +16083,14 @@ func (s *ServerAboutResponseDto) SetVersionUrl(val string) {
 
 // Ref: #/components/schemas/ServerApkLinksDto
 type ServerApkLinksDto struct {
-	Arm64v8a   string `json:"arm64v8a"`
+	// APK download link for ARM64 v8a architecture.
+	Arm64v8a string `json:"arm64v8a"`
+	// APK download link for ARM EABI v7a architecture.
 	Armeabiv7a string `json:"armeabiv7a"`
-	Universal  string `json:"universal"`
-	X8664      string `json:"x86_64"`
+	// APK download link for universal architecture.
+	Universal string `json:"universal"`
+	// APK download link for x86_64 architecture.
+	X8664 string `json:"x86_64"`
 }
 
 // GetArm64v8a returns the value of Arm64v8a.
@@ -12967,16 +16135,30 @@ func (s *ServerApkLinksDto) SetX8664(val string) {
 
 // Ref: #/components/schemas/ServerConfigDto
 type ServerConfigDto struct {
-	ExternalDomain   string `json:"externalDomain"`
-	IsInitialized    bool   `json:"isInitialized"`
-	IsOnboarded      bool   `json:"isOnboarded"`
+	// External domain URL.
+	ExternalDomain string `json:"externalDomain"`
+	// Whether the server has been initialized.
+	IsInitialized bool `json:"isInitialized"`
+	// Whether the admin has completed onboarding.
+	IsOnboarded bool `json:"isOnboarded"`
+	// Login page message.
 	LoginPageMessage string `json:"loginPageMessage"`
-	MapDarkStyleUrl  string `json:"mapDarkStyleUrl"`
+	// Whether maintenance mode is active.
+	MaintenanceMode bool `json:"maintenanceMode"`
+	// Map dark style URL.
+	MapDarkStyleUrl string `json:"mapDarkStyleUrl"`
+	// Map light style URL.
 	MapLightStyleUrl string `json:"mapLightStyleUrl"`
-	OauthButtonText  string `json:"oauthButtonText"`
-	PublicUsers      bool   `json:"publicUsers"`
-	TrashDays        int    `json:"trashDays"`
-	UserDeleteDelay  int    `json:"userDeleteDelay"`
+	// People min faces server default.
+	MinFaces int `json:"minFaces"`
+	// OAuth button text.
+	OauthButtonText string `json:"oauthButtonText"`
+	// Whether public user registration is enabled.
+	PublicUsers bool `json:"publicUsers"`
+	// Number of days before trashed assets are permanently deleted.
+	TrashDays int `json:"trashDays"`
+	// Delay in days before deleted users are permanently removed.
+	UserDeleteDelay int `json:"userDeleteDelay"`
 }
 
 // GetExternalDomain returns the value of ExternalDomain.
@@ -12999,6 +16181,11 @@ func (s *ServerConfigDto) GetLoginPageMessage() string {
 	return s.LoginPageMessage
 }
 
+// GetMaintenanceMode returns the value of MaintenanceMode.
+func (s *ServerConfigDto) GetMaintenanceMode() bool {
+	return s.MaintenanceMode
+}
+
 // GetMapDarkStyleUrl returns the value of MapDarkStyleUrl.
 func (s *ServerConfigDto) GetMapDarkStyleUrl() string {
 	return s.MapDarkStyleUrl
@@ -13007,6 +16194,11 @@ func (s *ServerConfigDto) GetMapDarkStyleUrl() string {
 // GetMapLightStyleUrl returns the value of MapLightStyleUrl.
 func (s *ServerConfigDto) GetMapLightStyleUrl() string {
 	return s.MapLightStyleUrl
+}
+
+// GetMinFaces returns the value of MinFaces.
+func (s *ServerConfigDto) GetMinFaces() int {
+	return s.MinFaces
 }
 
 // GetOauthButtonText returns the value of OauthButtonText.
@@ -13049,6 +16241,11 @@ func (s *ServerConfigDto) SetLoginPageMessage(val string) {
 	s.LoginPageMessage = val
 }
 
+// SetMaintenanceMode sets the value of MaintenanceMode.
+func (s *ServerConfigDto) SetMaintenanceMode(val bool) {
+	s.MaintenanceMode = val
+}
+
 // SetMapDarkStyleUrl sets the value of MapDarkStyleUrl.
 func (s *ServerConfigDto) SetMapDarkStyleUrl(val string) {
 	s.MapDarkStyleUrl = val
@@ -13057,6 +16254,11 @@ func (s *ServerConfigDto) SetMapDarkStyleUrl(val string) {
 // SetMapLightStyleUrl sets the value of MapLightStyleUrl.
 func (s *ServerConfigDto) SetMapLightStyleUrl(val string) {
 	s.MapLightStyleUrl = val
+}
+
+// SetMinFaces sets the value of MinFaces.
+func (s *ServerConfigDto) SetMinFaces(val int) {
+	s.MinFaces = val
 }
 
 // SetOauthButtonText sets the value of OauthButtonText.
@@ -13081,21 +16283,38 @@ func (s *ServerConfigDto) SetUserDeleteDelay(val int) {
 
 // Ref: #/components/schemas/ServerFeaturesDto
 type ServerFeaturesDto struct {
-	ConfigFile         bool `json:"configFile"`
+	// Whether config file is available.
+	ConfigFile bool `json:"configFile"`
+	// Whether duplicate detection is enabled.
 	DuplicateDetection bool `json:"duplicateDetection"`
-	Email              bool `json:"email"`
-	FacialRecognition  bool `json:"facialRecognition"`
-	ImportFaces        bool `json:"importFaces"`
-	Map                bool `json:"map"`
-	OAuth              bool `json:"oauth"`
-	OauthAutoLaunch    bool `json:"oauthAutoLaunch"`
-	Ocr                bool `json:"ocr"`
-	PasswordLogin      bool `json:"passwordLogin"`
-	ReverseGeocoding   bool `json:"reverseGeocoding"`
-	Search             bool `json:"search"`
-	Sidecar            bool `json:"sidecar"`
-	SmartSearch        bool `json:"smartSearch"`
-	Trash              bool `json:"trash"`
+	// Whether email notifications are enabled.
+	Email bool `json:"email"`
+	// Whether facial recognition is enabled.
+	FacialRecognition bool `json:"facialRecognition"`
+	// Whether face import is enabled.
+	ImportFaces bool `json:"importFaces"`
+	// Whether map feature is enabled.
+	Map bool `json:"map"`
+	// Whether OAuth is enabled.
+	OAuth bool `json:"oauth"`
+	// Whether OAuth auto-launch is enabled.
+	OauthAutoLaunch bool `json:"oauthAutoLaunch"`
+	// Whether OCR is enabled.
+	Ocr bool `json:"ocr"`
+	// Whether password login is enabled.
+	PasswordLogin bool `json:"passwordLogin"`
+	// Whether real-time transcoding is enabled.
+	RealtimeTranscoding bool `json:"realtimeTranscoding"`
+	// Whether reverse geocoding is enabled.
+	ReverseGeocoding bool `json:"reverseGeocoding"`
+	// Whether search is enabled.
+	Search bool `json:"search"`
+	// Whether sidecar files are supported.
+	Sidecar bool `json:"sidecar"`
+	// Whether smart search is enabled.
+	SmartSearch bool `json:"smartSearch"`
+	// Whether trash feature is enabled.
+	Trash bool `json:"trash"`
 }
 
 // GetConfigFile returns the value of ConfigFile.
@@ -13146,6 +16365,11 @@ func (s *ServerFeaturesDto) GetOcr() bool {
 // GetPasswordLogin returns the value of PasswordLogin.
 func (s *ServerFeaturesDto) GetPasswordLogin() bool {
 	return s.PasswordLogin
+}
+
+// GetRealtimeTranscoding returns the value of RealtimeTranscoding.
+func (s *ServerFeaturesDto) GetRealtimeTranscoding() bool {
+	return s.RealtimeTranscoding
 }
 
 // GetReverseGeocoding returns the value of ReverseGeocoding.
@@ -13223,6 +16447,11 @@ func (s *ServerFeaturesDto) SetPasswordLogin(val bool) {
 	s.PasswordLogin = val
 }
 
+// SetRealtimeTranscoding sets the value of RealtimeTranscoding.
+func (s *ServerFeaturesDto) SetRealtimeTranscoding(val bool) {
+	s.RealtimeTranscoding = val
+}
+
 // SetReverseGeocoding sets the value of ReverseGeocoding.
 func (s *ServerFeaturesDto) SetReverseGeocoding(val bool) {
 	s.ReverseGeocoding = val
@@ -13250,9 +16479,12 @@ func (s *ServerFeaturesDto) SetTrash(val bool) {
 
 // Ref: #/components/schemas/ServerMediaTypesResponseDto
 type ServerMediaTypesResponseDto struct {
-	Image   []string `json:"image"`
+	// Supported image MIME types.
+	Image []string `json:"image"`
+	// Supported sidecar MIME types.
 	Sidecar []string `json:"sidecar"`
-	Video   []string `json:"video"`
+	// Supported video MIME types.
+	Video []string `json:"video"`
 }
 
 // GetImage returns the value of Image.
@@ -13302,12 +16534,18 @@ func (s *ServerPingResponse) SetRes(val string) {
 
 // Ref: #/components/schemas/ServerStatsResponseDto
 type ServerStatsResponseDto struct {
-	Photos      int              `json:"photos"`
-	Usage       int64            `json:"usage"`
+	// Total number of photos.
+	Photos int `json:"photos"`
+	// Total storage usage in bytes.
+	Usage int `json:"usage"`
+	// Array of usage for each user.
 	UsageByUser []UsageByUserDto `json:"usageByUser"`
-	UsagePhotos int64            `json:"usagePhotos"`
-	UsageVideos int64            `json:"usageVideos"`
-	Videos      int              `json:"videos"`
+	// Storage usage for photos in bytes.
+	UsagePhotos int `json:"usagePhotos"`
+	// Storage usage for videos in bytes.
+	UsageVideos int `json:"usageVideos"`
+	// Total number of videos.
+	Videos int `json:"videos"`
 }
 
 // GetPhotos returns the value of Photos.
@@ -13316,7 +16554,7 @@ func (s *ServerStatsResponseDto) GetPhotos() int {
 }
 
 // GetUsage returns the value of Usage.
-func (s *ServerStatsResponseDto) GetUsage() int64 {
+func (s *ServerStatsResponseDto) GetUsage() int {
 	return s.Usage
 }
 
@@ -13326,12 +16564,12 @@ func (s *ServerStatsResponseDto) GetUsageByUser() []UsageByUserDto {
 }
 
 // GetUsagePhotos returns the value of UsagePhotos.
-func (s *ServerStatsResponseDto) GetUsagePhotos() int64 {
+func (s *ServerStatsResponseDto) GetUsagePhotos() int {
 	return s.UsagePhotos
 }
 
 // GetUsageVideos returns the value of UsageVideos.
-func (s *ServerStatsResponseDto) GetUsageVideos() int64 {
+func (s *ServerStatsResponseDto) GetUsageVideos() int {
 	return s.UsageVideos
 }
 
@@ -13346,7 +16584,7 @@ func (s *ServerStatsResponseDto) SetPhotos(val int) {
 }
 
 // SetUsage sets the value of Usage.
-func (s *ServerStatsResponseDto) SetUsage(val int64) {
+func (s *ServerStatsResponseDto) SetUsage(val int) {
 	s.Usage = val
 }
 
@@ -13356,12 +16594,12 @@ func (s *ServerStatsResponseDto) SetUsageByUser(val []UsageByUserDto) {
 }
 
 // SetUsagePhotos sets the value of UsagePhotos.
-func (s *ServerStatsResponseDto) SetUsagePhotos(val int64) {
+func (s *ServerStatsResponseDto) SetUsagePhotos(val int) {
 	s.UsagePhotos = val
 }
 
 // SetUsageVideos sets the value of UsageVideos.
-func (s *ServerStatsResponseDto) SetUsageVideos(val int64) {
+func (s *ServerStatsResponseDto) SetUsageVideos(val int) {
 	s.UsageVideos = val
 }
 
@@ -13372,13 +16610,20 @@ func (s *ServerStatsResponseDto) SetVideos(val int) {
 
 // Ref: #/components/schemas/ServerStorageResponseDto
 type ServerStorageResponseDto struct {
-	DiskAvailable       string  `json:"diskAvailable"`
-	DiskAvailableRaw    int64   `json:"diskAvailableRaw"`
-	DiskSize            string  `json:"diskSize"`
-	DiskSizeRaw         int64   `json:"diskSizeRaw"`
+	// Available disk space (human-readable format).
+	DiskAvailable string `json:"diskAvailable"`
+	// Available disk space in bytes.
+	DiskAvailableRaw int `json:"diskAvailableRaw"`
+	// Total disk size (human-readable format).
+	DiskSize string `json:"diskSize"`
+	// Total disk size in bytes.
+	DiskSizeRaw int `json:"diskSizeRaw"`
+	// Disk usage percentage (0-100).
 	DiskUsagePercentage float64 `json:"diskUsagePercentage"`
-	DiskUse             string  `json:"diskUse"`
-	DiskUseRaw          int64   `json:"diskUseRaw"`
+	// Used disk space (human-readable format).
+	DiskUse string `json:"diskUse"`
+	// Used disk space in bytes.
+	DiskUseRaw int `json:"diskUseRaw"`
 }
 
 // GetDiskAvailable returns the value of DiskAvailable.
@@ -13387,7 +16632,7 @@ func (s *ServerStorageResponseDto) GetDiskAvailable() string {
 }
 
 // GetDiskAvailableRaw returns the value of DiskAvailableRaw.
-func (s *ServerStorageResponseDto) GetDiskAvailableRaw() int64 {
+func (s *ServerStorageResponseDto) GetDiskAvailableRaw() int {
 	return s.DiskAvailableRaw
 }
 
@@ -13397,7 +16642,7 @@ func (s *ServerStorageResponseDto) GetDiskSize() string {
 }
 
 // GetDiskSizeRaw returns the value of DiskSizeRaw.
-func (s *ServerStorageResponseDto) GetDiskSizeRaw() int64 {
+func (s *ServerStorageResponseDto) GetDiskSizeRaw() int {
 	return s.DiskSizeRaw
 }
 
@@ -13412,7 +16657,7 @@ func (s *ServerStorageResponseDto) GetDiskUse() string {
 }
 
 // GetDiskUseRaw returns the value of DiskUseRaw.
-func (s *ServerStorageResponseDto) GetDiskUseRaw() int64 {
+func (s *ServerStorageResponseDto) GetDiskUseRaw() int {
 	return s.DiskUseRaw
 }
 
@@ -13422,7 +16667,7 @@ func (s *ServerStorageResponseDto) SetDiskAvailable(val string) {
 }
 
 // SetDiskAvailableRaw sets the value of DiskAvailableRaw.
-func (s *ServerStorageResponseDto) SetDiskAvailableRaw(val int64) {
+func (s *ServerStorageResponseDto) SetDiskAvailableRaw(val int) {
 	s.DiskAvailableRaw = val
 }
 
@@ -13432,7 +16677,7 @@ func (s *ServerStorageResponseDto) SetDiskSize(val string) {
 }
 
 // SetDiskSizeRaw sets the value of DiskSizeRaw.
-func (s *ServerStorageResponseDto) SetDiskSizeRaw(val int64) {
+func (s *ServerStorageResponseDto) SetDiskSizeRaw(val int) {
 	s.DiskSizeRaw = val
 }
 
@@ -13447,30 +16692,18 @@ func (s *ServerStorageResponseDto) SetDiskUse(val string) {
 }
 
 // SetDiskUseRaw sets the value of DiskUseRaw.
-func (s *ServerStorageResponseDto) SetDiskUseRaw(val int64) {
+func (s *ServerStorageResponseDto) SetDiskUseRaw(val int) {
 	s.DiskUseRaw = val
-}
-
-// Ref: #/components/schemas/ServerThemeDto
-type ServerThemeDto struct {
-	CustomCss string `json:"customCss"`
-}
-
-// GetCustomCss returns the value of CustomCss.
-func (s *ServerThemeDto) GetCustomCss() string {
-	return s.CustomCss
-}
-
-// SetCustomCss sets the value of CustomCss.
-func (s *ServerThemeDto) SetCustomCss(val string) {
-	s.CustomCss = val
 }
 
 // Ref: #/components/schemas/ServerVersionHistoryResponseDto
 type ServerVersionHistoryResponseDto struct {
+	// When this version was first seen.
 	CreatedAt time.Time `json:"createdAt"`
-	ID        string    `json:"id"`
-	Version   string    `json:"version"`
+	// Version history entry ID.
+	ID uuid.UUID `json:"id"`
+	// Version string.
+	Version string `json:"version"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -13479,7 +16712,7 @@ func (s *ServerVersionHistoryResponseDto) GetCreatedAt() time.Time {
 }
 
 // GetID returns the value of ID.
-func (s *ServerVersionHistoryResponseDto) GetID() string {
+func (s *ServerVersionHistoryResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -13494,7 +16727,7 @@ func (s *ServerVersionHistoryResponseDto) SetCreatedAt(val time.Time) {
 }
 
 // SetID sets the value of ID.
-func (s *ServerVersionHistoryResponseDto) SetID(val string) {
+func (s *ServerVersionHistoryResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -13505,9 +16738,14 @@ func (s *ServerVersionHistoryResponseDto) SetVersion(val string) {
 
 // Ref: #/components/schemas/ServerVersionResponseDto
 type ServerVersionResponseDto struct {
+	// Major version number.
 	Major int `json:"major"`
+	// Minor version number.
 	Minor int `json:"minor"`
+	// Patch version number.
 	Patch int `json:"patch"`
+	// Pre-release version number.
+	Prerelease NilInt `json:"prerelease"`
 }
 
 // GetMajor returns the value of Major.
@@ -13525,6 +16763,11 @@ func (s *ServerVersionResponseDto) GetPatch() int {
 	return s.Patch
 }
 
+// GetPrerelease returns the value of Prerelease.
+func (s *ServerVersionResponseDto) GetPrerelease() NilInt {
+	return s.Prerelease
+}
+
 // SetMajor sets the value of Major.
 func (s *ServerVersionResponseDto) SetMajor(val int) {
 	s.Major = val
@@ -13540,12 +16783,19 @@ func (s *ServerVersionResponseDto) SetPatch(val int) {
 	s.Patch = val
 }
 
+// SetPrerelease sets the value of Prerelease.
+func (s *ServerVersionResponseDto) SetPrerelease(val NilInt) {
+	s.Prerelease = val
+}
+
 // Ref: #/components/schemas/SessionCreateDto
 type SessionCreateDto struct {
-	DeviceOS   OptString `json:"deviceOS"`
+	// Device OS.
+	DeviceOS OptString `json:"deviceOS"`
+	// Device type.
 	DeviceType OptString `json:"deviceType"`
-	// Session duration, in seconds.
-	Duration OptFloat64 `json:"duration"`
+	// Session duration in seconds.
+	Duration OptInt `json:"duration"`
 }
 
 // GetDeviceOS returns the value of DeviceOS.
@@ -13559,7 +16809,7 @@ func (s *SessionCreateDto) GetDeviceType() OptString {
 }
 
 // GetDuration returns the value of Duration.
-func (s *SessionCreateDto) GetDuration() OptFloat64 {
+func (s *SessionCreateDto) GetDuration() OptInt {
 	return s.Duration
 }
 
@@ -13574,22 +16824,32 @@ func (s *SessionCreateDto) SetDeviceType(val OptString) {
 }
 
 // SetDuration sets the value of Duration.
-func (s *SessionCreateDto) SetDuration(val OptFloat64) {
+func (s *SessionCreateDto) SetDuration(val OptInt) {
 	s.Duration = val
 }
 
 // Ref: #/components/schemas/SessionCreateResponseDto
 type SessionCreateResponseDto struct {
-	AppVersion         NilString `json:"appVersion"`
-	CreatedAt          string    `json:"createdAt"`
-	Current            bool      `json:"current"`
-	DeviceOS           string    `json:"deviceOS"`
-	DeviceType         string    `json:"deviceType"`
-	ExpiresAt          OptString `json:"expiresAt"`
-	ID                 string    `json:"id"`
-	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
-	Token              string    `json:"token"`
-	UpdatedAt          string    `json:"updatedAt"`
+	// App version.
+	AppVersion NilString `json:"appVersion"`
+	// Creation date.
+	CreatedAt string `json:"createdAt"`
+	// Is current session.
+	Current bool `json:"current"`
+	// Device OS.
+	DeviceOS string `json:"deviceOS"`
+	// Device type.
+	DeviceType string `json:"deviceType"`
+	// Expiration date.
+	ExpiresAt OptString `json:"expiresAt"`
+	// Session ID.
+	ID uuid.UUID `json:"id"`
+	// Is pending sync reset.
+	IsPendingSyncReset bool `json:"isPendingSyncReset"`
+	// Session token.
+	Token string `json:"token"`
+	// Last update date.
+	UpdatedAt string `json:"updatedAt"`
 }
 
 // GetAppVersion returns the value of AppVersion.
@@ -13623,7 +16883,7 @@ func (s *SessionCreateResponseDto) GetExpiresAt() OptString {
 }
 
 // GetID returns the value of ID.
-func (s *SessionCreateResponseDto) GetID() string {
+func (s *SessionCreateResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -13673,7 +16933,7 @@ func (s *SessionCreateResponseDto) SetExpiresAt(val OptString) {
 }
 
 // SetID sets the value of ID.
-func (s *SessionCreateResponseDto) SetID(val string) {
+func (s *SessionCreateResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -13694,15 +16954,24 @@ func (s *SessionCreateResponseDto) SetUpdatedAt(val string) {
 
 // Ref: #/components/schemas/SessionResponseDto
 type SessionResponseDto struct {
-	AppVersion         NilString `json:"appVersion"`
-	CreatedAt          string    `json:"createdAt"`
-	Current            bool      `json:"current"`
-	DeviceOS           string    `json:"deviceOS"`
-	DeviceType         string    `json:"deviceType"`
-	ExpiresAt          OptString `json:"expiresAt"`
-	ID                 string    `json:"id"`
-	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
-	UpdatedAt          string    `json:"updatedAt"`
+	// App version.
+	AppVersion NilString `json:"appVersion"`
+	// Creation date.
+	CreatedAt string `json:"createdAt"`
+	// Is current session.
+	Current bool `json:"current"`
+	// Device OS.
+	DeviceOS string `json:"deviceOS"`
+	// Device type.
+	DeviceType string `json:"deviceType"`
+	// Expiration date.
+	ExpiresAt OptString `json:"expiresAt"`
+	// Session ID.
+	ID uuid.UUID `json:"id"`
+	// Is pending sync reset.
+	IsPendingSyncReset bool `json:"isPendingSyncReset"`
+	// Last update date.
+	UpdatedAt string `json:"updatedAt"`
 }
 
 // GetAppVersion returns the value of AppVersion.
@@ -13736,7 +17005,7 @@ func (s *SessionResponseDto) GetExpiresAt() OptString {
 }
 
 // GetID returns the value of ID.
-func (s *SessionResponseDto) GetID() string {
+func (s *SessionResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -13781,7 +17050,7 @@ func (s *SessionResponseDto) SetExpiresAt(val OptString) {
 }
 
 // SetID sets the value of ID.
-func (s *SessionResponseDto) SetID(val string) {
+func (s *SessionResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -13797,8 +17066,10 @@ func (s *SessionResponseDto) SetUpdatedAt(val string) {
 
 // Ref: #/components/schemas/SessionUnlockDto
 type SessionUnlockDto struct {
+	// User password (required if PIN code is not provided).
 	Password OptString `json:"password"`
-	PinCode  OptString `json:"pinCode"`
+	// New PIN code (4-6 digits).
+	PinCode OptString `json:"pinCode"`
 }
 
 // GetPassword returns the value of Password.
@@ -13823,6 +17094,7 @@ func (s *SessionUnlockDto) SetPinCode(val OptString) {
 
 // Ref: #/components/schemas/SessionUpdateDto
 type SessionUpdateDto struct {
+	// Reset pending sync state.
 	IsPendingSyncReset OptBool `json:"isPendingSyncReset"`
 }
 
@@ -13836,21 +17108,60 @@ func (s *SessionUpdateDto) SetIsPendingSyncReset(val OptBool) {
 	s.IsPendingSyncReset = val
 }
 
+// SetMaintenanceModeCreated is response for SetMaintenanceMode operation.
+type SetMaintenanceModeCreated struct{}
+
+// Ref: #/components/schemas/SetMaintenanceModeDto
+type SetMaintenanceModeDto struct {
+	Action MaintenanceAction `json:"action"`
+	// Restore backup filename.
+	RestoreBackupFilename OptString `json:"restoreBackupFilename"`
+}
+
+// GetAction returns the value of Action.
+func (s *SetMaintenanceModeDto) GetAction() MaintenanceAction {
+	return s.Action
+}
+
+// GetRestoreBackupFilename returns the value of RestoreBackupFilename.
+func (s *SetMaintenanceModeDto) GetRestoreBackupFilename() OptString {
+	return s.RestoreBackupFilename
+}
+
+// SetAction sets the value of Action.
+func (s *SetMaintenanceModeDto) SetAction(val MaintenanceAction) {
+	s.Action = val
+}
+
+// SetRestoreBackupFilename sets the value of RestoreBackupFilename.
+func (s *SetMaintenanceModeDto) SetRestoreBackupFilename(val OptString) {
+	s.RestoreBackupFilename = val
+}
+
 // SetupPinCodeNoContent is response for SetupPinCode operation.
 type SetupPinCodeNoContent struct{}
 
 // Ref: #/components/schemas/SharedLinkCreateDto
 type SharedLinkCreateDto struct {
-	AlbumId       OptUUID        `json:"albumId"`
-	AllowDownload OptBool        `json:"allowDownload"`
-	AllowUpload   OptBool        `json:"allowUpload"`
-	AssetIds      []uuid.UUID    `json:"assetIds"`
-	Description   OptNilString   `json:"description"`
-	ExpiresAt     OptNilDateTime `json:"expiresAt"`
-	Password      OptNilString   `json:"password"`
-	ShowMetadata  OptBool        `json:"showMetadata"`
-	Slug          OptNilString   `json:"slug"`
-	Type          SharedLinkType `json:"type"`
+	// Album ID (for album sharing).
+	AlbumId OptUUID `json:"albumId"`
+	// Allow downloads.
+	AllowDownload OptBool `json:"allowDownload"`
+	// Allow uploads.
+	AllowUpload OptBool `json:"allowUpload"`
+	// Asset IDs (for individual assets).
+	AssetIds []uuid.UUID `json:"assetIds"`
+	// Link description.
+	Description OptNilString `json:"description"`
+	// Expiration date.
+	ExpiresAt OptNilDateTime `json:"expiresAt"`
+	// Link password.
+	Password OptNilString `json:"password"`
+	// Show metadata.
+	ShowMetadata OptBool `json:"showMetadata"`
+	// Custom URL slug.
+	Slug OptNilString   `json:"slug"`
+	Type SharedLinkType `json:"type"`
 }
 
 // GetAlbumId returns the value of AlbumId.
@@ -13955,17 +17266,20 @@ func (s *SharedLinkCreateDto) SetType(val SharedLinkType) {
 
 // Ref: #/components/schemas/SharedLinkEditDto
 type SharedLinkEditDto struct {
+	// Allow downloads.
 	AllowDownload OptBool `json:"allowDownload"`
-	AllowUpload   OptBool `json:"allowUpload"`
-	// Few clients cannot send null to set the expiryTime to never.
-	// Setting this flag and not sending expiryAt is considered as null instead.
-	// Clients that can send null values can ignore this.
-	ChangeExpiryTime OptBool        `json:"changeExpiryTime"`
-	Description      OptNilString   `json:"description"`
-	ExpiresAt        OptNilDateTime `json:"expiresAt"`
-	Password         OptNilString   `json:"password"`
-	ShowMetadata     OptBool        `json:"showMetadata"`
-	Slug             OptNilString   `json:"slug"`
+	// Allow uploads.
+	AllowUpload OptBool `json:"allowUpload"`
+	// Link description.
+	Description OptNilString `json:"description"`
+	// Expiration date.
+	ExpiresAt OptNilDateTime `json:"expiresAt"`
+	// Link password.
+	Password OptNilString `json:"password"`
+	// Show metadata.
+	ShowMetadata OptBool `json:"showMetadata"`
+	// Custom URL slug.
+	Slug OptNilString `json:"slug"`
 }
 
 // GetAllowDownload returns the value of AllowDownload.
@@ -13976,11 +17290,6 @@ func (s *SharedLinkEditDto) GetAllowDownload() OptBool {
 // GetAllowUpload returns the value of AllowUpload.
 func (s *SharedLinkEditDto) GetAllowUpload() OptBool {
 	return s.AllowUpload
-}
-
-// GetChangeExpiryTime returns the value of ChangeExpiryTime.
-func (s *SharedLinkEditDto) GetChangeExpiryTime() OptBool {
-	return s.ChangeExpiryTime
 }
 
 // GetDescription returns the value of Description.
@@ -14018,11 +17327,6 @@ func (s *SharedLinkEditDto) SetAllowUpload(val OptBool) {
 	s.AllowUpload = val
 }
 
-// SetChangeExpiryTime sets the value of ChangeExpiryTime.
-func (s *SharedLinkEditDto) SetChangeExpiryTime(val OptBool) {
-	s.ChangeExpiryTime = val
-}
-
 // SetDescription sets the value of Description.
 func (s *SharedLinkEditDto) SetDescription(val OptNilString) {
 	s.Description = val
@@ -14048,23 +17352,50 @@ func (s *SharedLinkEditDto) SetSlug(val OptNilString) {
 	s.Slug = val
 }
 
+// Ref: #/components/schemas/SharedLinkLoginDto
+type SharedLinkLoginDto struct {
+	// Shared link password.
+	Password string `json:"password"`
+}
+
+// GetPassword returns the value of Password.
+func (s *SharedLinkLoginDto) GetPassword() string {
+	return s.Password
+}
+
+// SetPassword sets the value of Password.
+func (s *SharedLinkLoginDto) SetPassword(val string) {
+	s.Password = val
+}
+
+// Shared link response.
 // Ref: #/components/schemas/SharedLinkResponseDto
 type SharedLinkResponseDto struct {
-	Album         OptAlbumResponseDto `json:"album"`
-	AllowDownload bool                `json:"allowDownload"`
-	AllowUpload   bool                `json:"allowUpload"`
-	Assets        []AssetResponseDto  `json:"assets"`
-	CreatedAt     time.Time           `json:"createdAt"`
-	Description   NilString           `json:"description"`
-	ExpiresAt     NilDateTime         `json:"expiresAt"`
-	ID            string              `json:"id"`
-	Key           string              `json:"key"`
-	Password      NilString           `json:"password"`
-	ShowMetadata  bool                `json:"showMetadata"`
-	Slug          NilString           `json:"slug"`
-	Token         OptNilString        `json:"token"`
-	Type          SharedLinkType      `json:"type"`
-	UserId        string              `json:"userId"`
+	Album OptAlbumResponseDto `json:"album"`
+	// Allow downloads.
+	AllowDownload bool `json:"allowDownload"`
+	// Allow uploads.
+	AllowUpload bool               `json:"allowUpload"`
+	Assets      []AssetResponseDto `json:"assets"`
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// Link description.
+	Description NilString `json:"description"`
+	// Expiration date.
+	ExpiresAt NilDateTime `json:"expiresAt"`
+	// Shared link ID.
+	ID uuid.UUID `json:"id"`
+	// Encryption key (base64url).
+	Key string `json:"key"`
+	// Has password.
+	Password NilString `json:"password"`
+	// Show metadata.
+	ShowMetadata bool `json:"showMetadata"`
+	// Custom URL slug.
+	Slug NilString      `json:"slug"`
+	Type SharedLinkType `json:"type"`
+	// Owner user ID.
+	UserId uuid.UUID `json:"userId"`
 }
 
 // GetAlbum returns the value of Album.
@@ -14103,7 +17434,7 @@ func (s *SharedLinkResponseDto) GetExpiresAt() NilDateTime {
 }
 
 // GetID returns the value of ID.
-func (s *SharedLinkResponseDto) GetID() string {
+func (s *SharedLinkResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -14127,18 +17458,13 @@ func (s *SharedLinkResponseDto) GetSlug() NilString {
 	return s.Slug
 }
 
-// GetToken returns the value of Token.
-func (s *SharedLinkResponseDto) GetToken() OptNilString {
-	return s.Token
-}
-
 // GetType returns the value of Type.
 func (s *SharedLinkResponseDto) GetType() SharedLinkType {
 	return s.Type
 }
 
 // GetUserId returns the value of UserId.
-func (s *SharedLinkResponseDto) GetUserId() string {
+func (s *SharedLinkResponseDto) GetUserId() uuid.UUID {
 	return s.UserId
 }
 
@@ -14178,7 +17504,7 @@ func (s *SharedLinkResponseDto) SetExpiresAt(val NilDateTime) {
 }
 
 // SetID sets the value of ID.
-func (s *SharedLinkResponseDto) SetID(val string) {
+func (s *SharedLinkResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -14202,21 +17528,17 @@ func (s *SharedLinkResponseDto) SetSlug(val NilString) {
 	s.Slug = val
 }
 
-// SetToken sets the value of Token.
-func (s *SharedLinkResponseDto) SetToken(val OptNilString) {
-	s.Token = val
-}
-
 // SetType sets the value of Type.
 func (s *SharedLinkResponseDto) SetType(val SharedLinkType) {
 	s.Type = val
 }
 
 // SetUserId sets the value of UserId.
-func (s *SharedLinkResponseDto) SetUserId(val string) {
+func (s *SharedLinkResponseDto) SetUserId(val uuid.UUID) {
 	s.UserId = val
 }
 
+// Shared link type.
 // Ref: #/components/schemas/SharedLinkType
 type SharedLinkType string
 
@@ -14261,7 +17583,9 @@ func (s *SharedLinkType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/SharedLinksResponse
 type SharedLinksResponse struct {
-	Enabled    bool `json:"enabled"`
+	// Whether shared links are enabled.
+	Enabled bool `json:"enabled"`
+	// Whether shared links appear in web sidebar.
 	SidebarWeb bool `json:"sidebarWeb"`
 }
 
@@ -14287,7 +17611,9 @@ func (s *SharedLinksResponse) SetSidebarWeb(val bool) {
 
 // Ref: #/components/schemas/SharedLinksUpdate
 type SharedLinksUpdate struct {
-	Enabled    OptBool `json:"enabled"`
+	// Whether shared links are enabled.
+	Enabled OptBool `json:"enabled"`
+	// Whether shared links appear in web sidebar.
 	SidebarWeb OptBool `json:"sidebarWeb"`
 }
 
@@ -14313,8 +17639,11 @@ func (s *SharedLinksUpdate) SetSidebarWeb(val OptBool) {
 
 // Ref: #/components/schemas/SignUpDto
 type SignUpDto struct {
-	Email    string `json:"email"`
-	Name     string `json:"name"`
+	// User email.
+	Email string `json:"email"`
+	// User name.
+	Name string `json:"name"`
+	// User password.
 	Password string `json:"password"`
 }
 
@@ -14350,41 +17679,72 @@ func (s *SignUpDto) SetPassword(val string) {
 
 // Ref: #/components/schemas/SmartSearchDto
 type SmartSearchDto struct {
-	AlbumIds      []uuid.UUID        `json:"albumIds"`
-	City          OptNilString       `json:"city"`
-	Country       OptNilString       `json:"country"`
-	CreatedAfter  OptDateTime        `json:"createdAfter"`
-	CreatedBefore OptDateTime        `json:"createdBefore"`
-	DeviceId      OptString          `json:"deviceId"`
-	IsEncoded     OptBool            `json:"isEncoded"`
-	IsFavorite    OptBool            `json:"isFavorite"`
-	IsMotion      OptBool            `json:"isMotion"`
-	IsNotInAlbum  OptBool            `json:"isNotInAlbum"`
-	IsOffline     OptBool            `json:"isOffline"`
-	Language      OptString          `json:"language"`
-	LensModel     OptNilString       `json:"lensModel"`
-	LibraryId     OptNilUUID         `json:"libraryId"`
-	Make          OptString          `json:"make"`
-	Model         OptNilString       `json:"model"`
-	Ocr           OptString          `json:"ocr"`
-	Page          OptFloat64         `json:"page"`
-	PersonIds     []uuid.UUID        `json:"personIds"`
-	Query         OptString          `json:"query"`
-	QueryAssetId  OptUUID            `json:"queryAssetId"`
-	Rating        OptFloat64         `json:"rating"`
-	Size          OptFloat64         `json:"size"`
-	State         OptNilString       `json:"state"`
-	TagIds        OptNilUUIDArray    `json:"tagIds"`
-	TakenAfter    OptDateTime        `json:"takenAfter"`
-	TakenBefore   OptDateTime        `json:"takenBefore"`
-	TrashedAfter  OptDateTime        `json:"trashedAfter"`
-	TrashedBefore OptDateTime        `json:"trashedBefore"`
-	Type          OptAssetTypeEnum   `json:"type"`
-	UpdatedAfter  OptDateTime        `json:"updatedAfter"`
+	// Filter by album IDs.
+	AlbumIds []uuid.UUID `json:"albumIds"`
+	// Filter by city name.
+	City OptNilString `json:"city"`
+	// Filter by country name.
+	Country OptNilString `json:"country"`
+	// Filter by creation date (after).
+	CreatedAfter OptDateTime `json:"createdAfter"`
+	// Filter by creation date (before).
+	CreatedBefore OptDateTime `json:"createdBefore"`
+	// Filter by encoded status.
+	IsEncoded OptBool `json:"isEncoded"`
+	// Filter by favorite status.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Filter by motion photo status.
+	IsMotion OptBool `json:"isMotion"`
+	// Filter assets not in any album.
+	IsNotInAlbum OptBool `json:"isNotInAlbum"`
+	// Filter by offline status.
+	IsOffline OptBool `json:"isOffline"`
+	// Search language code.
+	Language OptString `json:"language"`
+	// Filter by lens model.
+	LensModel OptNilString `json:"lensModel"`
+	// Library ID to filter by.
+	LibraryId OptNilUUID `json:"libraryId"`
+	// Filter by camera make.
+	Make OptNilString `json:"make"`
+	// Filter by camera model.
+	Model OptNilString `json:"model"`
+	// Filter by OCR text content.
+	Ocr OptString `json:"ocr"`
+	// Page number.
+	Page OptInt `json:"page"`
+	// Filter by person IDs.
+	PersonIds []uuid.UUID `json:"personIds"`
+	// Natural language search query.
+	Query OptString `json:"query"`
+	// Asset ID to use as search reference.
+	QueryAssetId OptUUID `json:"queryAssetId"`
+	// Filter by rating [1-5], or null for unrated.
+	Rating OptNilInt `json:"rating"`
+	// Number of results to return.
+	Size OptInt `json:"size"`
+	// Filter by state/province name.
+	State OptNilString `json:"state"`
+	// Filter by tag IDs.
+	TagIds OptNilUUIDArray `json:"tagIds"`
+	// Filter by taken date (after).
+	TakenAfter OptDateTime `json:"takenAfter"`
+	// Filter by taken date (before).
+	TakenBefore OptDateTime `json:"takenBefore"`
+	// Filter by trash date (after).
+	TrashedAfter OptDateTime `json:"trashedAfter"`
+	// Filter by trash date (before).
+	TrashedBefore OptDateTime      `json:"trashedBefore"`
+	Type          OptAssetTypeEnum `json:"type"`
+	// Filter by update date (after).
+	UpdatedAfter OptDateTime `json:"updatedAfter"`
+	// Filter by update date (before).
 	UpdatedBefore OptDateTime        `json:"updatedBefore"`
 	Visibility    OptAssetVisibility `json:"visibility"`
-	WithDeleted   OptBool            `json:"withDeleted"`
-	WithExif      OptBool            `json:"withExif"`
+	// Include deleted assets.
+	WithDeleted OptBool `json:"withDeleted"`
+	// Include EXIF data in response.
+	WithExif OptBool `json:"withExif"`
 }
 
 // GetAlbumIds returns the value of AlbumIds.
@@ -14410,11 +17770,6 @@ func (s *SmartSearchDto) GetCreatedAfter() OptDateTime {
 // GetCreatedBefore returns the value of CreatedBefore.
 func (s *SmartSearchDto) GetCreatedBefore() OptDateTime {
 	return s.CreatedBefore
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *SmartSearchDto) GetDeviceId() OptString {
-	return s.DeviceId
 }
 
 // GetIsEncoded returns the value of IsEncoded.
@@ -14458,7 +17813,7 @@ func (s *SmartSearchDto) GetLibraryId() OptNilUUID {
 }
 
 // GetMake returns the value of Make.
-func (s *SmartSearchDto) GetMake() OptString {
+func (s *SmartSearchDto) GetMake() OptNilString {
 	return s.Make
 }
 
@@ -14473,7 +17828,7 @@ func (s *SmartSearchDto) GetOcr() OptString {
 }
 
 // GetPage returns the value of Page.
-func (s *SmartSearchDto) GetPage() OptFloat64 {
+func (s *SmartSearchDto) GetPage() OptInt {
 	return s.Page
 }
 
@@ -14493,12 +17848,12 @@ func (s *SmartSearchDto) GetQueryAssetId() OptUUID {
 }
 
 // GetRating returns the value of Rating.
-func (s *SmartSearchDto) GetRating() OptFloat64 {
+func (s *SmartSearchDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
 // GetSize returns the value of Size.
-func (s *SmartSearchDto) GetSize() OptFloat64 {
+func (s *SmartSearchDto) GetSize() OptInt {
 	return s.Size
 }
 
@@ -14587,11 +17942,6 @@ func (s *SmartSearchDto) SetCreatedBefore(val OptDateTime) {
 	s.CreatedBefore = val
 }
 
-// SetDeviceId sets the value of DeviceId.
-func (s *SmartSearchDto) SetDeviceId(val OptString) {
-	s.DeviceId = val
-}
-
 // SetIsEncoded sets the value of IsEncoded.
 func (s *SmartSearchDto) SetIsEncoded(val OptBool) {
 	s.IsEncoded = val
@@ -14633,7 +17983,7 @@ func (s *SmartSearchDto) SetLibraryId(val OptNilUUID) {
 }
 
 // SetMake sets the value of Make.
-func (s *SmartSearchDto) SetMake(val OptString) {
+func (s *SmartSearchDto) SetMake(val OptNilString) {
 	s.Make = val
 }
 
@@ -14648,7 +17998,7 @@ func (s *SmartSearchDto) SetOcr(val OptString) {
 }
 
 // SetPage sets the value of Page.
-func (s *SmartSearchDto) SetPage(val OptFloat64) {
+func (s *SmartSearchDto) SetPage(val OptInt) {
 	s.Page = val
 }
 
@@ -14668,12 +18018,12 @@ func (s *SmartSearchDto) SetQueryAssetId(val OptUUID) {
 }
 
 // SetRating sets the value of Rating.
-func (s *SmartSearchDto) SetRating(val OptFloat64) {
+func (s *SmartSearchDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
 // SetSize sets the value of Size.
-func (s *SmartSearchDto) SetSize(val OptFloat64) {
+func (s *SmartSearchDto) SetSize(val OptInt) {
 	s.Size = val
 }
 
@@ -14737,6 +18087,7 @@ func (s *SmartSearchDto) SetWithExif(val OptBool) {
 	s.WithExif = val
 }
 
+// Face detection source type.
 // Ref: #/components/schemas/SourceType
 type SourceType string
 
@@ -14788,7 +18139,7 @@ func (s *SourceType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/StackCreateDto
 type StackCreateDto struct {
-	// First asset becomes the primary.
+	// Asset IDs (first becomes primary, min 2).
 	AssetIds []uuid.UUID `json:"assetIds"`
 }
 
@@ -14802,11 +18153,14 @@ func (s *StackCreateDto) SetAssetIds(val []uuid.UUID) {
 	s.AssetIds = val
 }
 
+// Stack response.
 // Ref: #/components/schemas/StackResponseDto
 type StackResponseDto struct {
-	Assets         []AssetResponseDto `json:"assets"`
-	ID             string             `json:"id"`
-	PrimaryAssetId string             `json:"primaryAssetId"`
+	Assets []AssetResponseDto `json:"assets"`
+	// Stack ID.
+	ID uuid.UUID `json:"id"`
+	// Primary asset ID.
+	PrimaryAssetId uuid.UUID `json:"primaryAssetId"`
 }
 
 // GetAssets returns the value of Assets.
@@ -14815,12 +18169,12 @@ func (s *StackResponseDto) GetAssets() []AssetResponseDto {
 }
 
 // GetID returns the value of ID.
-func (s *StackResponseDto) GetID() string {
+func (s *StackResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
 // GetPrimaryAssetId returns the value of PrimaryAssetId.
-func (s *StackResponseDto) GetPrimaryAssetId() string {
+func (s *StackResponseDto) GetPrimaryAssetId() uuid.UUID {
 	return s.PrimaryAssetId
 }
 
@@ -14830,17 +18184,18 @@ func (s *StackResponseDto) SetAssets(val []AssetResponseDto) {
 }
 
 // SetID sets the value of ID.
-func (s *StackResponseDto) SetID(val string) {
+func (s *StackResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
 // SetPrimaryAssetId sets the value of PrimaryAssetId.
-func (s *StackResponseDto) SetPrimaryAssetId(val string) {
+func (s *StackResponseDto) SetPrimaryAssetId(val uuid.UUID) {
 	s.PrimaryAssetId = val
 }
 
 // Ref: #/components/schemas/StackUpdateDto
 type StackUpdateDto struct {
+	// Primary asset ID.
 	PrimaryAssetId OptUUID `json:"primaryAssetId"`
 }
 
@@ -14854,35 +18209,63 @@ func (s *StackUpdateDto) SetPrimaryAssetId(val OptUUID) {
 	s.PrimaryAssetId = val
 }
 
+// StartDatabaseRestoreFlowCreated is response for StartDatabaseRestoreFlow operation.
+type StartDatabaseRestoreFlowCreated struct{}
+
 // Ref: #/components/schemas/StatisticsSearchDto
 type StatisticsSearchDto struct {
-	AlbumIds      []uuid.UUID        `json:"albumIds"`
-	City          OptNilString       `json:"city"`
-	Country       OptNilString       `json:"country"`
-	CreatedAfter  OptDateTime        `json:"createdAfter"`
-	CreatedBefore OptDateTime        `json:"createdBefore"`
-	Description   OptString          `json:"description"`
-	DeviceId      OptString          `json:"deviceId"`
-	IsEncoded     OptBool            `json:"isEncoded"`
-	IsFavorite    OptBool            `json:"isFavorite"`
-	IsMotion      OptBool            `json:"isMotion"`
-	IsNotInAlbum  OptBool            `json:"isNotInAlbum"`
-	IsOffline     OptBool            `json:"isOffline"`
-	LensModel     OptNilString       `json:"lensModel"`
-	LibraryId     OptNilUUID         `json:"libraryId"`
-	Make          OptString          `json:"make"`
-	Model         OptNilString       `json:"model"`
-	Ocr           OptString          `json:"ocr"`
-	PersonIds     []uuid.UUID        `json:"personIds"`
-	Rating        OptFloat64         `json:"rating"`
-	State         OptNilString       `json:"state"`
-	TagIds        OptNilUUIDArray    `json:"tagIds"`
-	TakenAfter    OptDateTime        `json:"takenAfter"`
-	TakenBefore   OptDateTime        `json:"takenBefore"`
-	TrashedAfter  OptDateTime        `json:"trashedAfter"`
-	TrashedBefore OptDateTime        `json:"trashedBefore"`
-	Type          OptAssetTypeEnum   `json:"type"`
-	UpdatedAfter  OptDateTime        `json:"updatedAfter"`
+	// Filter by album IDs.
+	AlbumIds []uuid.UUID `json:"albumIds"`
+	// Filter by city name.
+	City OptNilString `json:"city"`
+	// Filter by country name.
+	Country OptNilString `json:"country"`
+	// Filter by creation date (after).
+	CreatedAfter OptDateTime `json:"createdAfter"`
+	// Filter by creation date (before).
+	CreatedBefore OptDateTime `json:"createdBefore"`
+	// Filter by description text.
+	Description OptString `json:"description"`
+	// Filter by encoded status.
+	IsEncoded OptBool `json:"isEncoded"`
+	// Filter by favorite status.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Filter by motion photo status.
+	IsMotion OptBool `json:"isMotion"`
+	// Filter assets not in any album.
+	IsNotInAlbum OptBool `json:"isNotInAlbum"`
+	// Filter by offline status.
+	IsOffline OptBool `json:"isOffline"`
+	// Filter by lens model.
+	LensModel OptNilString `json:"lensModel"`
+	// Library ID to filter by.
+	LibraryId OptNilUUID `json:"libraryId"`
+	// Filter by camera make.
+	Make OptNilString `json:"make"`
+	// Filter by camera model.
+	Model OptNilString `json:"model"`
+	// Filter by OCR text content.
+	Ocr OptString `json:"ocr"`
+	// Filter by person IDs.
+	PersonIds []uuid.UUID `json:"personIds"`
+	// Filter by rating [1-5], or null for unrated.
+	Rating OptNilInt `json:"rating"`
+	// Filter by state/province name.
+	State OptNilString `json:"state"`
+	// Filter by tag IDs.
+	TagIds OptNilUUIDArray `json:"tagIds"`
+	// Filter by taken date (after).
+	TakenAfter OptDateTime `json:"takenAfter"`
+	// Filter by taken date (before).
+	TakenBefore OptDateTime `json:"takenBefore"`
+	// Filter by trash date (after).
+	TrashedAfter OptDateTime `json:"trashedAfter"`
+	// Filter by trash date (before).
+	TrashedBefore OptDateTime      `json:"trashedBefore"`
+	Type          OptAssetTypeEnum `json:"type"`
+	// Filter by update date (after).
+	UpdatedAfter OptDateTime `json:"updatedAfter"`
+	// Filter by update date (before).
 	UpdatedBefore OptDateTime        `json:"updatedBefore"`
 	Visibility    OptAssetVisibility `json:"visibility"`
 }
@@ -14915,11 +18298,6 @@ func (s *StatisticsSearchDto) GetCreatedBefore() OptDateTime {
 // GetDescription returns the value of Description.
 func (s *StatisticsSearchDto) GetDescription() OptString {
 	return s.Description
-}
-
-// GetDeviceId returns the value of DeviceId.
-func (s *StatisticsSearchDto) GetDeviceId() OptString {
-	return s.DeviceId
 }
 
 // GetIsEncoded returns the value of IsEncoded.
@@ -14958,7 +18336,7 @@ func (s *StatisticsSearchDto) GetLibraryId() OptNilUUID {
 }
 
 // GetMake returns the value of Make.
-func (s *StatisticsSearchDto) GetMake() OptString {
+func (s *StatisticsSearchDto) GetMake() OptNilString {
 	return s.Make
 }
 
@@ -14978,7 +18356,7 @@ func (s *StatisticsSearchDto) GetPersonIds() []uuid.UUID {
 }
 
 // GetRating returns the value of Rating.
-func (s *StatisticsSearchDto) GetRating() OptFloat64 {
+func (s *StatisticsSearchDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
@@ -15062,11 +18440,6 @@ func (s *StatisticsSearchDto) SetDescription(val OptString) {
 	s.Description = val
 }
 
-// SetDeviceId sets the value of DeviceId.
-func (s *StatisticsSearchDto) SetDeviceId(val OptString) {
-	s.DeviceId = val
-}
-
 // SetIsEncoded sets the value of IsEncoded.
 func (s *StatisticsSearchDto) SetIsEncoded(val OptBool) {
 	s.IsEncoded = val
@@ -15103,7 +18476,7 @@ func (s *StatisticsSearchDto) SetLibraryId(val OptNilUUID) {
 }
 
 // SetMake sets the value of Make.
-func (s *StatisticsSearchDto) SetMake(val OptString) {
+func (s *StatisticsSearchDto) SetMake(val OptNilString) {
 	s.Make = val
 }
 
@@ -15123,7 +18496,7 @@ func (s *StatisticsSearchDto) SetPersonIds(val []uuid.UUID) {
 }
 
 // SetRating sets the value of Rating.
-func (s *StatisticsSearchDto) SetRating(val OptFloat64) {
+func (s *StatisticsSearchDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
@@ -15177,8 +18550,80 @@ func (s *StatisticsSearchDto) SetVisibility(val OptAssetVisibility) {
 	s.Visibility = val
 }
 
+// Storage folder.
+// Ref: #/components/schemas/StorageFolder
+type StorageFolder string
+
+const (
+	StorageFolderEncodedVideo StorageFolder = "encoded-video"
+	StorageFolderLibrary      StorageFolder = "library"
+	StorageFolderUpload       StorageFolder = "upload"
+	StorageFolderProfile      StorageFolder = "profile"
+	StorageFolderThumbs       StorageFolder = "thumbs"
+	StorageFolderBackups      StorageFolder = "backups"
+)
+
+// AllValues returns all StorageFolder values.
+func (StorageFolder) AllValues() []StorageFolder {
+	return []StorageFolder{
+		StorageFolderEncodedVideo,
+		StorageFolderLibrary,
+		StorageFolderUpload,
+		StorageFolderProfile,
+		StorageFolderThumbs,
+		StorageFolderBackups,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StorageFolder) MarshalText() ([]byte, error) {
+	switch s {
+	case StorageFolderEncodedVideo:
+		return []byte(s), nil
+	case StorageFolderLibrary:
+		return []byte(s), nil
+	case StorageFolderUpload:
+		return []byte(s), nil
+	case StorageFolderProfile:
+		return []byte(s), nil
+	case StorageFolderThumbs:
+		return []byte(s), nil
+	case StorageFolderBackups:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StorageFolder) UnmarshalText(data []byte) error {
+	switch StorageFolder(data) {
+	case StorageFolderEncodedVideo:
+		*s = StorageFolderEncodedVideo
+		return nil
+	case StorageFolderLibrary:
+		*s = StorageFolderLibrary
+		return nil
+	case StorageFolderUpload:
+		*s = StorageFolderUpload
+		return nil
+	case StorageFolderProfile:
+		*s = StorageFolderProfile
+		return nil
+	case StorageFolderThumbs:
+		*s = StorageFolderThumbs
+		return nil
+	case StorageFolderBackups:
+		*s = StorageFolderBackups
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/SyncAckDeleteDto
 type SyncAckDeleteDto struct {
+	// Sync entity types to delete acks for.
 	Types []SyncEntityType `json:"types"`
 }
 
@@ -15194,6 +18639,7 @@ func (s *SyncAckDeleteDto) SetTypes(val []SyncEntityType) {
 
 // Ref: #/components/schemas/SyncAckDto
 type SyncAckDto struct {
+	// Acknowledgment ID.
 	Ack  string         `json:"ack"`
 	Type SyncEntityType `json:"type"`
 }
@@ -15220,6 +18666,7 @@ func (s *SyncAckDto) SetType(val SyncEntityType) {
 
 // Ref: #/components/schemas/SyncAckSetDto
 type SyncAckSetDto struct {
+	// Acknowledgment IDs (max 1000).
 	Acks []string `json:"acks"`
 }
 
@@ -15233,6 +18680,7 @@ func (s *SyncAckSetDto) SetAcks(val []string) {
 	s.Acks = val
 }
 
+// Sync entity type.
 // Ref: #/components/schemas/SyncEntityType
 type SyncEntityType string
 
@@ -15241,14 +18689,21 @@ const (
 	SyncEntityTypeUserV1                     SyncEntityType = "UserV1"
 	SyncEntityTypeUserDeleteV1               SyncEntityType = "UserDeleteV1"
 	SyncEntityTypeAssetV1                    SyncEntityType = "AssetV1"
+	SyncEntityTypeAssetV2                    SyncEntityType = "AssetV2"
 	SyncEntityTypeAssetDeleteV1              SyncEntityType = "AssetDeleteV1"
 	SyncEntityTypeAssetExifV1                SyncEntityType = "AssetExifV1"
+	SyncEntityTypeAssetEditV1                SyncEntityType = "AssetEditV1"
+	SyncEntityTypeAssetEditDeleteV1          SyncEntityType = "AssetEditDeleteV1"
 	SyncEntityTypeAssetMetadataV1            SyncEntityType = "AssetMetadataV1"
 	SyncEntityTypeAssetMetadataDeleteV1      SyncEntityType = "AssetMetadataDeleteV1"
+	SyncEntityTypeAssetOcrV1                 SyncEntityType = "AssetOcrV1"
+	SyncEntityTypeAssetOcrDeleteV1           SyncEntityType = "AssetOcrDeleteV1"
 	SyncEntityTypePartnerV1                  SyncEntityType = "PartnerV1"
 	SyncEntityTypePartnerDeleteV1            SyncEntityType = "PartnerDeleteV1"
 	SyncEntityTypePartnerAssetV1             SyncEntityType = "PartnerAssetV1"
+	SyncEntityTypePartnerAssetV2             SyncEntityType = "PartnerAssetV2"
 	SyncEntityTypePartnerAssetBackfillV1     SyncEntityType = "PartnerAssetBackfillV1"
+	SyncEntityTypePartnerAssetBackfillV2     SyncEntityType = "PartnerAssetBackfillV2"
 	SyncEntityTypePartnerAssetDeleteV1       SyncEntityType = "PartnerAssetDeleteV1"
 	SyncEntityTypePartnerAssetExifV1         SyncEntityType = "PartnerAssetExifV1"
 	SyncEntityTypePartnerAssetExifBackfillV1 SyncEntityType = "PartnerAssetExifBackfillV1"
@@ -15256,13 +18711,17 @@ const (
 	SyncEntityTypePartnerStackDeleteV1       SyncEntityType = "PartnerStackDeleteV1"
 	SyncEntityTypePartnerStackV1             SyncEntityType = "PartnerStackV1"
 	SyncEntityTypeAlbumV1                    SyncEntityType = "AlbumV1"
+	SyncEntityTypeAlbumV2                    SyncEntityType = "AlbumV2"
 	SyncEntityTypeAlbumDeleteV1              SyncEntityType = "AlbumDeleteV1"
 	SyncEntityTypeAlbumUserV1                SyncEntityType = "AlbumUserV1"
 	SyncEntityTypeAlbumUserBackfillV1        SyncEntityType = "AlbumUserBackfillV1"
 	SyncEntityTypeAlbumUserDeleteV1          SyncEntityType = "AlbumUserDeleteV1"
 	SyncEntityTypeAlbumAssetCreateV1         SyncEntityType = "AlbumAssetCreateV1"
+	SyncEntityTypeAlbumAssetCreateV2         SyncEntityType = "AlbumAssetCreateV2"
 	SyncEntityTypeAlbumAssetUpdateV1         SyncEntityType = "AlbumAssetUpdateV1"
+	SyncEntityTypeAlbumAssetUpdateV2         SyncEntityType = "AlbumAssetUpdateV2"
 	SyncEntityTypeAlbumAssetBackfillV1       SyncEntityType = "AlbumAssetBackfillV1"
+	SyncEntityTypeAlbumAssetBackfillV2       SyncEntityType = "AlbumAssetBackfillV2"
 	SyncEntityTypeAlbumAssetExifCreateV1     SyncEntityType = "AlbumAssetExifCreateV1"
 	SyncEntityTypeAlbumAssetExifUpdateV1     SyncEntityType = "AlbumAssetExifUpdateV1"
 	SyncEntityTypeAlbumAssetExifBackfillV1   SyncEntityType = "AlbumAssetExifBackfillV1"
@@ -15278,6 +18737,7 @@ const (
 	SyncEntityTypePersonV1                   SyncEntityType = "PersonV1"
 	SyncEntityTypePersonDeleteV1             SyncEntityType = "PersonDeleteV1"
 	SyncEntityTypeAssetFaceV1                SyncEntityType = "AssetFaceV1"
+	SyncEntityTypeAssetFaceV2                SyncEntityType = "AssetFaceV2"
 	SyncEntityTypeAssetFaceDeleteV1          SyncEntityType = "AssetFaceDeleteV1"
 	SyncEntityTypeUserMetadataV1             SyncEntityType = "UserMetadataV1"
 	SyncEntityTypeUserMetadataDeleteV1       SyncEntityType = "UserMetadataDeleteV1"
@@ -15293,14 +18753,21 @@ func (SyncEntityType) AllValues() []SyncEntityType {
 		SyncEntityTypeUserV1,
 		SyncEntityTypeUserDeleteV1,
 		SyncEntityTypeAssetV1,
+		SyncEntityTypeAssetV2,
 		SyncEntityTypeAssetDeleteV1,
 		SyncEntityTypeAssetExifV1,
+		SyncEntityTypeAssetEditV1,
+		SyncEntityTypeAssetEditDeleteV1,
 		SyncEntityTypeAssetMetadataV1,
 		SyncEntityTypeAssetMetadataDeleteV1,
+		SyncEntityTypeAssetOcrV1,
+		SyncEntityTypeAssetOcrDeleteV1,
 		SyncEntityTypePartnerV1,
 		SyncEntityTypePartnerDeleteV1,
 		SyncEntityTypePartnerAssetV1,
+		SyncEntityTypePartnerAssetV2,
 		SyncEntityTypePartnerAssetBackfillV1,
+		SyncEntityTypePartnerAssetBackfillV2,
 		SyncEntityTypePartnerAssetDeleteV1,
 		SyncEntityTypePartnerAssetExifV1,
 		SyncEntityTypePartnerAssetExifBackfillV1,
@@ -15308,13 +18775,17 @@ func (SyncEntityType) AllValues() []SyncEntityType {
 		SyncEntityTypePartnerStackDeleteV1,
 		SyncEntityTypePartnerStackV1,
 		SyncEntityTypeAlbumV1,
+		SyncEntityTypeAlbumV2,
 		SyncEntityTypeAlbumDeleteV1,
 		SyncEntityTypeAlbumUserV1,
 		SyncEntityTypeAlbumUserBackfillV1,
 		SyncEntityTypeAlbumUserDeleteV1,
 		SyncEntityTypeAlbumAssetCreateV1,
+		SyncEntityTypeAlbumAssetCreateV2,
 		SyncEntityTypeAlbumAssetUpdateV1,
+		SyncEntityTypeAlbumAssetUpdateV2,
 		SyncEntityTypeAlbumAssetBackfillV1,
+		SyncEntityTypeAlbumAssetBackfillV2,
 		SyncEntityTypeAlbumAssetExifCreateV1,
 		SyncEntityTypeAlbumAssetExifUpdateV1,
 		SyncEntityTypeAlbumAssetExifBackfillV1,
@@ -15330,6 +18801,7 @@ func (SyncEntityType) AllValues() []SyncEntityType {
 		SyncEntityTypePersonV1,
 		SyncEntityTypePersonDeleteV1,
 		SyncEntityTypeAssetFaceV1,
+		SyncEntityTypeAssetFaceV2,
 		SyncEntityTypeAssetFaceDeleteV1,
 		SyncEntityTypeUserMetadataV1,
 		SyncEntityTypeUserMetadataDeleteV1,
@@ -15350,13 +18822,23 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case SyncEntityTypeAssetV1:
 		return []byte(s), nil
+	case SyncEntityTypeAssetV2:
+		return []byte(s), nil
 	case SyncEntityTypeAssetDeleteV1:
 		return []byte(s), nil
 	case SyncEntityTypeAssetExifV1:
 		return []byte(s), nil
+	case SyncEntityTypeAssetEditV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetEditDeleteV1:
+		return []byte(s), nil
 	case SyncEntityTypeAssetMetadataV1:
 		return []byte(s), nil
 	case SyncEntityTypeAssetMetadataDeleteV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetOcrV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetOcrDeleteV1:
 		return []byte(s), nil
 	case SyncEntityTypePartnerV1:
 		return []byte(s), nil
@@ -15364,7 +18846,11 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case SyncEntityTypePartnerAssetV1:
 		return []byte(s), nil
+	case SyncEntityTypePartnerAssetV2:
+		return []byte(s), nil
 	case SyncEntityTypePartnerAssetBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypePartnerAssetBackfillV2:
 		return []byte(s), nil
 	case SyncEntityTypePartnerAssetDeleteV1:
 		return []byte(s), nil
@@ -15380,6 +18866,8 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case SyncEntityTypeAlbumV1:
 		return []byte(s), nil
+	case SyncEntityTypeAlbumV2:
+		return []byte(s), nil
 	case SyncEntityTypeAlbumDeleteV1:
 		return []byte(s), nil
 	case SyncEntityTypeAlbumUserV1:
@@ -15390,9 +18878,15 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case SyncEntityTypeAlbumAssetCreateV1:
 		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetCreateV2:
+		return []byte(s), nil
 	case SyncEntityTypeAlbumAssetUpdateV1:
 		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetUpdateV2:
+		return []byte(s), nil
 	case SyncEntityTypeAlbumAssetBackfillV1:
+		return []byte(s), nil
+	case SyncEntityTypeAlbumAssetBackfillV2:
 		return []byte(s), nil
 	case SyncEntityTypeAlbumAssetExifCreateV1:
 		return []byte(s), nil
@@ -15423,6 +18917,8 @@ func (s SyncEntityType) MarshalText() ([]byte, error) {
 	case SyncEntityTypePersonDeleteV1:
 		return []byte(s), nil
 	case SyncEntityTypeAssetFaceV1:
+		return []byte(s), nil
+	case SyncEntityTypeAssetFaceV2:
 		return []byte(s), nil
 	case SyncEntityTypeAssetFaceDeleteV1:
 		return []byte(s), nil
@@ -15456,17 +18952,32 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypeAssetV1:
 		*s = SyncEntityTypeAssetV1
 		return nil
+	case SyncEntityTypeAssetV2:
+		*s = SyncEntityTypeAssetV2
+		return nil
 	case SyncEntityTypeAssetDeleteV1:
 		*s = SyncEntityTypeAssetDeleteV1
 		return nil
 	case SyncEntityTypeAssetExifV1:
 		*s = SyncEntityTypeAssetExifV1
 		return nil
+	case SyncEntityTypeAssetEditV1:
+		*s = SyncEntityTypeAssetEditV1
+		return nil
+	case SyncEntityTypeAssetEditDeleteV1:
+		*s = SyncEntityTypeAssetEditDeleteV1
+		return nil
 	case SyncEntityTypeAssetMetadataV1:
 		*s = SyncEntityTypeAssetMetadataV1
 		return nil
 	case SyncEntityTypeAssetMetadataDeleteV1:
 		*s = SyncEntityTypeAssetMetadataDeleteV1
+		return nil
+	case SyncEntityTypeAssetOcrV1:
+		*s = SyncEntityTypeAssetOcrV1
+		return nil
+	case SyncEntityTypeAssetOcrDeleteV1:
+		*s = SyncEntityTypeAssetOcrDeleteV1
 		return nil
 	case SyncEntityTypePartnerV1:
 		*s = SyncEntityTypePartnerV1
@@ -15477,8 +18988,14 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypePartnerAssetV1:
 		*s = SyncEntityTypePartnerAssetV1
 		return nil
+	case SyncEntityTypePartnerAssetV2:
+		*s = SyncEntityTypePartnerAssetV2
+		return nil
 	case SyncEntityTypePartnerAssetBackfillV1:
 		*s = SyncEntityTypePartnerAssetBackfillV1
+		return nil
+	case SyncEntityTypePartnerAssetBackfillV2:
+		*s = SyncEntityTypePartnerAssetBackfillV2
 		return nil
 	case SyncEntityTypePartnerAssetDeleteV1:
 		*s = SyncEntityTypePartnerAssetDeleteV1
@@ -15501,6 +19018,9 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypeAlbumV1:
 		*s = SyncEntityTypeAlbumV1
 		return nil
+	case SyncEntityTypeAlbumV2:
+		*s = SyncEntityTypeAlbumV2
+		return nil
 	case SyncEntityTypeAlbumDeleteV1:
 		*s = SyncEntityTypeAlbumDeleteV1
 		return nil
@@ -15516,11 +19036,20 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypeAlbumAssetCreateV1:
 		*s = SyncEntityTypeAlbumAssetCreateV1
 		return nil
+	case SyncEntityTypeAlbumAssetCreateV2:
+		*s = SyncEntityTypeAlbumAssetCreateV2
+		return nil
 	case SyncEntityTypeAlbumAssetUpdateV1:
 		*s = SyncEntityTypeAlbumAssetUpdateV1
 		return nil
+	case SyncEntityTypeAlbumAssetUpdateV2:
+		*s = SyncEntityTypeAlbumAssetUpdateV2
+		return nil
 	case SyncEntityTypeAlbumAssetBackfillV1:
 		*s = SyncEntityTypeAlbumAssetBackfillV1
+		return nil
+	case SyncEntityTypeAlbumAssetBackfillV2:
+		*s = SyncEntityTypeAlbumAssetBackfillV2
 		return nil
 	case SyncEntityTypeAlbumAssetExifCreateV1:
 		*s = SyncEntityTypeAlbumAssetExifCreateV1
@@ -15567,6 +19096,9 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	case SyncEntityTypeAssetFaceV1:
 		*s = SyncEntityTypeAssetFaceV1
 		return nil
+	case SyncEntityTypeAssetFaceV2:
+		*s = SyncEntityTypeAssetFaceV2
+		return nil
 	case SyncEntityTypeAssetFaceDeleteV1:
 		*s = SyncEntityTypeAssetFaceDeleteV1
 		return nil
@@ -15590,29 +19122,37 @@ func (s *SyncEntityType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Sync request type.
 // Ref: #/components/schemas/SyncRequestType
 type SyncRequestType string
 
 const (
 	SyncRequestTypeAlbumsV1            SyncRequestType = "AlbumsV1"
+	SyncRequestTypeAlbumsV2            SyncRequestType = "AlbumsV2"
 	SyncRequestTypeAlbumUsersV1        SyncRequestType = "AlbumUsersV1"
 	SyncRequestTypeAlbumToAssetsV1     SyncRequestType = "AlbumToAssetsV1"
 	SyncRequestTypeAlbumAssetsV1       SyncRequestType = "AlbumAssetsV1"
+	SyncRequestTypeAlbumAssetsV2       SyncRequestType = "AlbumAssetsV2"
 	SyncRequestTypeAlbumAssetExifsV1   SyncRequestType = "AlbumAssetExifsV1"
 	SyncRequestTypeAssetsV1            SyncRequestType = "AssetsV1"
+	SyncRequestTypeAssetsV2            SyncRequestType = "AssetsV2"
 	SyncRequestTypeAssetExifsV1        SyncRequestType = "AssetExifsV1"
+	SyncRequestTypeAssetEditsV1        SyncRequestType = "AssetEditsV1"
 	SyncRequestTypeAssetMetadataV1     SyncRequestType = "AssetMetadataV1"
+	SyncRequestTypeAssetOcrV1          SyncRequestType = "AssetOcrV1"
 	SyncRequestTypeAuthUsersV1         SyncRequestType = "AuthUsersV1"
 	SyncRequestTypeMemoriesV1          SyncRequestType = "MemoriesV1"
 	SyncRequestTypeMemoryToAssetsV1    SyncRequestType = "MemoryToAssetsV1"
 	SyncRequestTypePartnersV1          SyncRequestType = "PartnersV1"
 	SyncRequestTypePartnerAssetsV1     SyncRequestType = "PartnerAssetsV1"
+	SyncRequestTypePartnerAssetsV2     SyncRequestType = "PartnerAssetsV2"
 	SyncRequestTypePartnerAssetExifsV1 SyncRequestType = "PartnerAssetExifsV1"
 	SyncRequestTypePartnerStacksV1     SyncRequestType = "PartnerStacksV1"
 	SyncRequestTypeStacksV1            SyncRequestType = "StacksV1"
 	SyncRequestTypeUsersV1             SyncRequestType = "UsersV1"
 	SyncRequestTypePeopleV1            SyncRequestType = "PeopleV1"
 	SyncRequestTypeAssetFacesV1        SyncRequestType = "AssetFacesV1"
+	SyncRequestTypeAssetFacesV2        SyncRequestType = "AssetFacesV2"
 	SyncRequestTypeUserMetadataV1      SyncRequestType = "UserMetadataV1"
 )
 
@@ -15620,24 +19160,31 @@ const (
 func (SyncRequestType) AllValues() []SyncRequestType {
 	return []SyncRequestType{
 		SyncRequestTypeAlbumsV1,
+		SyncRequestTypeAlbumsV2,
 		SyncRequestTypeAlbumUsersV1,
 		SyncRequestTypeAlbumToAssetsV1,
 		SyncRequestTypeAlbumAssetsV1,
+		SyncRequestTypeAlbumAssetsV2,
 		SyncRequestTypeAlbumAssetExifsV1,
 		SyncRequestTypeAssetsV1,
+		SyncRequestTypeAssetsV2,
 		SyncRequestTypeAssetExifsV1,
+		SyncRequestTypeAssetEditsV1,
 		SyncRequestTypeAssetMetadataV1,
+		SyncRequestTypeAssetOcrV1,
 		SyncRequestTypeAuthUsersV1,
 		SyncRequestTypeMemoriesV1,
 		SyncRequestTypeMemoryToAssetsV1,
 		SyncRequestTypePartnersV1,
 		SyncRequestTypePartnerAssetsV1,
+		SyncRequestTypePartnerAssetsV2,
 		SyncRequestTypePartnerAssetExifsV1,
 		SyncRequestTypePartnerStacksV1,
 		SyncRequestTypeStacksV1,
 		SyncRequestTypeUsersV1,
 		SyncRequestTypePeopleV1,
 		SyncRequestTypeAssetFacesV1,
+		SyncRequestTypeAssetFacesV2,
 		SyncRequestTypeUserMetadataV1,
 	}
 }
@@ -15647,19 +19194,29 @@ func (s SyncRequestType) MarshalText() ([]byte, error) {
 	switch s {
 	case SyncRequestTypeAlbumsV1:
 		return []byte(s), nil
+	case SyncRequestTypeAlbumsV2:
+		return []byte(s), nil
 	case SyncRequestTypeAlbumUsersV1:
 		return []byte(s), nil
 	case SyncRequestTypeAlbumToAssetsV1:
 		return []byte(s), nil
 	case SyncRequestTypeAlbumAssetsV1:
 		return []byte(s), nil
+	case SyncRequestTypeAlbumAssetsV2:
+		return []byte(s), nil
 	case SyncRequestTypeAlbumAssetExifsV1:
 		return []byte(s), nil
 	case SyncRequestTypeAssetsV1:
 		return []byte(s), nil
+	case SyncRequestTypeAssetsV2:
+		return []byte(s), nil
 	case SyncRequestTypeAssetExifsV1:
 		return []byte(s), nil
+	case SyncRequestTypeAssetEditsV1:
+		return []byte(s), nil
 	case SyncRequestTypeAssetMetadataV1:
+		return []byte(s), nil
+	case SyncRequestTypeAssetOcrV1:
 		return []byte(s), nil
 	case SyncRequestTypeAuthUsersV1:
 		return []byte(s), nil
@@ -15670,6 +19227,8 @@ func (s SyncRequestType) MarshalText() ([]byte, error) {
 	case SyncRequestTypePartnersV1:
 		return []byte(s), nil
 	case SyncRequestTypePartnerAssetsV1:
+		return []byte(s), nil
+	case SyncRequestTypePartnerAssetsV2:
 		return []byte(s), nil
 	case SyncRequestTypePartnerAssetExifsV1:
 		return []byte(s), nil
@@ -15682,6 +19241,8 @@ func (s SyncRequestType) MarshalText() ([]byte, error) {
 	case SyncRequestTypePeopleV1:
 		return []byte(s), nil
 	case SyncRequestTypeAssetFacesV1:
+		return []byte(s), nil
+	case SyncRequestTypeAssetFacesV2:
 		return []byte(s), nil
 	case SyncRequestTypeUserMetadataV1:
 		return []byte(s), nil
@@ -15696,6 +19257,9 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 	case SyncRequestTypeAlbumsV1:
 		*s = SyncRequestTypeAlbumsV1
 		return nil
+	case SyncRequestTypeAlbumsV2:
+		*s = SyncRequestTypeAlbumsV2
+		return nil
 	case SyncRequestTypeAlbumUsersV1:
 		*s = SyncRequestTypeAlbumUsersV1
 		return nil
@@ -15705,17 +19269,29 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 	case SyncRequestTypeAlbumAssetsV1:
 		*s = SyncRequestTypeAlbumAssetsV1
 		return nil
+	case SyncRequestTypeAlbumAssetsV2:
+		*s = SyncRequestTypeAlbumAssetsV2
+		return nil
 	case SyncRequestTypeAlbumAssetExifsV1:
 		*s = SyncRequestTypeAlbumAssetExifsV1
 		return nil
 	case SyncRequestTypeAssetsV1:
 		*s = SyncRequestTypeAssetsV1
 		return nil
+	case SyncRequestTypeAssetsV2:
+		*s = SyncRequestTypeAssetsV2
+		return nil
 	case SyncRequestTypeAssetExifsV1:
 		*s = SyncRequestTypeAssetExifsV1
 		return nil
+	case SyncRequestTypeAssetEditsV1:
+		*s = SyncRequestTypeAssetEditsV1
+		return nil
 	case SyncRequestTypeAssetMetadataV1:
 		*s = SyncRequestTypeAssetMetadataV1
+		return nil
+	case SyncRequestTypeAssetOcrV1:
+		*s = SyncRequestTypeAssetOcrV1
 		return nil
 	case SyncRequestTypeAuthUsersV1:
 		*s = SyncRequestTypeAuthUsersV1
@@ -15731,6 +19307,9 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 		return nil
 	case SyncRequestTypePartnerAssetsV1:
 		*s = SyncRequestTypePartnerAssetsV1
+		return nil
+	case SyncRequestTypePartnerAssetsV2:
+		*s = SyncRequestTypePartnerAssetsV2
 		return nil
 	case SyncRequestTypePartnerAssetExifsV1:
 		*s = SyncRequestTypePartnerAssetExifsV1
@@ -15750,6 +19329,9 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 	case SyncRequestTypeAssetFacesV1:
 		*s = SyncRequestTypeAssetFacesV1
 		return nil
+	case SyncRequestTypeAssetFacesV2:
+		*s = SyncRequestTypeAssetFacesV2
+		return nil
 	case SyncRequestTypeUserMetadataV1:
 		*s = SyncRequestTypeUserMetadataV1
 		return nil
@@ -15760,7 +19342,9 @@ func (s *SyncRequestType) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/SyncStreamDto
 type SyncStreamDto struct {
-	Reset OptBool           `json:"reset"`
+	// Reset sync state.
+	Reset OptBool `json:"reset"`
+	// Sync request types.
 	Types []SyncRequestType `json:"types"`
 }
 
@@ -15799,11 +19383,13 @@ func (s *SystemConfigBackupsDto) SetDatabase(val DatabaseBackupConfig) {
 	s.Database = val
 }
 
+// System configuration.
 // Ref: #/components/schemas/SystemConfigDto
 type SystemConfigDto struct {
 	Backup           SystemConfigBackupsDto          `json:"backup"`
 	Ffmpeg           SystemConfigFFmpegDto           `json:"ffmpeg"`
 	Image            SystemConfigImageDto            `json:"image"`
+	IntegrityChecks  SystemConfigIntegrityChecks     `json:"integrityChecks"`
 	Job              SystemConfigJobDto              `json:"job"`
 	Library          SystemConfigLibraryDto          `json:"library"`
 	Logging          SystemConfigLoggingDto          `json:"logging"`
@@ -15837,6 +19423,11 @@ func (s *SystemConfigDto) GetFfmpeg() SystemConfigFFmpegDto {
 // GetImage returns the value of Image.
 func (s *SystemConfigDto) GetImage() SystemConfigImageDto {
 	return s.Image
+}
+
+// GetIntegrityChecks returns the value of IntegrityChecks.
+func (s *SystemConfigDto) GetIntegrityChecks() SystemConfigIntegrityChecks {
+	return s.IntegrityChecks
 }
 
 // GetJob returns the value of Job.
@@ -15944,6 +19535,11 @@ func (s *SystemConfigDto) SetImage(val SystemConfigImageDto) {
 	s.Image = val
 }
 
+// SetIntegrityChecks sets the value of IntegrityChecks.
+func (s *SystemConfigDto) SetIntegrityChecks(val SystemConfigIntegrityChecks) {
+	s.IntegrityChecks = val
+}
+
 // SetJob sets the value of Job.
 func (s *SystemConfigDto) SetJob(val SystemConfigJobDto) {
 	s.Job = val
@@ -16036,27 +19632,43 @@ func (s *SystemConfigDto) SetUser(val SystemConfigUserDto) {
 
 // Ref: #/components/schemas/SystemConfigFFmpegDto
 type SystemConfigFFmpegDto struct {
-	Accel               TranscodeHWAccel `json:"accel"`
-	AccelDecode         bool             `json:"accelDecode"`
-	AcceptedAudioCodecs []AudioCodec     `json:"acceptedAudioCodecs"`
-	AcceptedContainers  []VideoContainer `json:"acceptedContainers"`
-	AcceptedVideoCodecs []VideoCodec     `json:"acceptedVideoCodecs"`
-	Bframes             int              `json:"bframes"`
-	CqMode              CQMode           `json:"cqMode"`
-	Crf                 int              `json:"crf"`
-	GopSize             int              `json:"gopSize"`
-	MaxBitrate          string           `json:"maxBitrate"`
-	PreferredHwDevice   string           `json:"preferredHwDevice"`
-	Preset              string           `json:"preset"`
-	Refs                int              `json:"refs"`
-	TargetAudioCodec    AudioCodec       `json:"targetAudioCodec"`
-	TargetResolution    string           `json:"targetResolution"`
-	TargetVideoCodec    VideoCodec       `json:"targetVideoCodec"`
-	TemporalAQ          bool             `json:"temporalAQ"`
-	Threads             int              `json:"threads"`
-	Tonemap             ToneMapping      `json:"tonemap"`
-	Transcode           TranscodePolicy  `json:"transcode"`
-	TwoPass             bool             `json:"twoPass"`
+	Accel TranscodeHWAccel `json:"accel"`
+	// Accelerated decode.
+	AccelDecode bool `json:"accelDecode"`
+	// Accepted audio codecs.
+	AcceptedAudioCodecs []AudioCodec `json:"acceptedAudioCodecs"`
+	// Accepted containers.
+	AcceptedContainers []VideoContainer `json:"acceptedContainers"`
+	// Accepted video codecs.
+	AcceptedVideoCodecs []VideoCodec `json:"acceptedVideoCodecs"`
+	// B-frames.
+	Bframes int    `json:"bframes"`
+	CqMode  CQMode `json:"cqMode"`
+	// CRF.
+	Crf int `json:"crf"`
+	// GOP size.
+	GopSize int `json:"gopSize"`
+	// Max bitrate.
+	MaxBitrate string `json:"maxBitrate"`
+	// Preferred hardware device.
+	PreferredHwDevice string `json:"preferredHwDevice"`
+	// Preset.
+	Preset   string                        `json:"preset"`
+	Realtime SystemConfigFFmpegRealtimeDto `json:"realtime"`
+	// References.
+	Refs             int        `json:"refs"`
+	TargetAudioCodec AudioCodec `json:"targetAudioCodec"`
+	// Target resolution.
+	TargetResolution string     `json:"targetResolution"`
+	TargetVideoCodec VideoCodec `json:"targetVideoCodec"`
+	// Temporal AQ.
+	TemporalAQ bool `json:"temporalAQ"`
+	// Threads.
+	Threads   int             `json:"threads"`
+	Tonemap   ToneMapping     `json:"tonemap"`
+	Transcode TranscodePolicy `json:"transcode"`
+	// Two pass.
+	TwoPass bool `json:"twoPass"`
 }
 
 // GetAccel returns the value of Accel.
@@ -16117,6 +19729,11 @@ func (s *SystemConfigFFmpegDto) GetPreferredHwDevice() string {
 // GetPreset returns the value of Preset.
 func (s *SystemConfigFFmpegDto) GetPreset() string {
 	return s.Preset
+}
+
+// GetRealtime returns the value of Realtime.
+func (s *SystemConfigFFmpegDto) GetRealtime() SystemConfigFFmpegRealtimeDto {
+	return s.Realtime
 }
 
 // GetRefs returns the value of Refs.
@@ -16224,6 +19841,11 @@ func (s *SystemConfigFFmpegDto) SetPreset(val string) {
 	s.Preset = val
 }
 
+// SetRealtime sets the value of Realtime.
+func (s *SystemConfigFFmpegDto) SetRealtime(val SystemConfigFFmpegRealtimeDto) {
+	s.Realtime = val
+}
+
 // SetRefs sets the value of Refs.
 func (s *SystemConfigFFmpegDto) SetRefs(val int) {
 	s.Refs = val
@@ -16269,8 +19891,49 @@ func (s *SystemConfigFFmpegDto) SetTwoPass(val bool) {
 	s.TwoPass = val
 }
 
+// Ref: #/components/schemas/SystemConfigFFmpegRealtimeDto
+type SystemConfigFFmpegRealtimeDto struct {
+	// Enable real-time HLS transcoding (alpha).
+	Enabled bool `json:"enabled"`
+	// Resolutions to use for real-time HLS transcoding.
+	Resolutions []HlsVideoResolution `json:"resolutions"`
+	// Video codecs to use for real-time HLS transcoding.
+	VideoCodecs []VideoCodec `json:"videoCodecs"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SystemConfigFFmpegRealtimeDto) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetResolutions returns the value of Resolutions.
+func (s *SystemConfigFFmpegRealtimeDto) GetResolutions() []HlsVideoResolution {
+	return s.Resolutions
+}
+
+// GetVideoCodecs returns the value of VideoCodecs.
+func (s *SystemConfigFFmpegRealtimeDto) GetVideoCodecs() []VideoCodec {
+	return s.VideoCodecs
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SystemConfigFFmpegRealtimeDto) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetResolutions sets the value of Resolutions.
+func (s *SystemConfigFFmpegRealtimeDto) SetResolutions(val []HlsVideoResolution) {
+	s.Resolutions = val
+}
+
+// SetVideoCodecs sets the value of VideoCodecs.
+func (s *SystemConfigFFmpegRealtimeDto) SetVideoCodecs(val []VideoCodec) {
+	s.VideoCodecs = val
+}
+
 // Ref: #/components/schemas/SystemConfigFacesDto
 type SystemConfigFacesDto struct {
+	// Import.
 	Import bool `json:"import"`
 }
 
@@ -16286,9 +19949,13 @@ func (s *SystemConfigFacesDto) SetImport(val bool) {
 
 // Ref: #/components/schemas/SystemConfigGeneratedFullsizeImageDto
 type SystemConfigGeneratedFullsizeImageDto struct {
+	// Enabled.
 	Enabled bool        `json:"enabled"`
 	Format  ImageFormat `json:"format"`
-	Quality int         `json:"quality"`
+	// Progressive.
+	Progressive OptBool `json:"progressive"`
+	// Quality.
+	Quality int `json:"quality"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -16299,6 +19966,11 @@ func (s *SystemConfigGeneratedFullsizeImageDto) GetEnabled() bool {
 // GetFormat returns the value of Format.
 func (s *SystemConfigGeneratedFullsizeImageDto) GetFormat() ImageFormat {
 	return s.Format
+}
+
+// GetProgressive returns the value of Progressive.
+func (s *SystemConfigGeneratedFullsizeImageDto) GetProgressive() OptBool {
+	return s.Progressive
 }
 
 // GetQuality returns the value of Quality.
@@ -16316,6 +19988,11 @@ func (s *SystemConfigGeneratedFullsizeImageDto) SetFormat(val ImageFormat) {
 	s.Format = val
 }
 
+// SetProgressive sets the value of Progressive.
+func (s *SystemConfigGeneratedFullsizeImageDto) SetProgressive(val OptBool) {
+	s.Progressive = val
+}
+
 // SetQuality sets the value of Quality.
 func (s *SystemConfigGeneratedFullsizeImageDto) SetQuality(val int) {
 	s.Quality = val
@@ -16323,14 +20000,23 @@ func (s *SystemConfigGeneratedFullsizeImageDto) SetQuality(val int) {
 
 // Ref: #/components/schemas/SystemConfigGeneratedImageDto
 type SystemConfigGeneratedImageDto struct {
-	Format  ImageFormat `json:"format"`
-	Quality int         `json:"quality"`
-	Size    int         `json:"size"`
+	Format ImageFormat `json:"format"`
+	// Progressive.
+	Progressive OptBool `json:"progressive"`
+	// Quality.
+	Quality int `json:"quality"`
+	// Size.
+	Size int `json:"size"`
 }
 
 // GetFormat returns the value of Format.
 func (s *SystemConfigGeneratedImageDto) GetFormat() ImageFormat {
 	return s.Format
+}
+
+// GetProgressive returns the value of Progressive.
+func (s *SystemConfigGeneratedImageDto) GetProgressive() OptBool {
+	return s.Progressive
 }
 
 // GetQuality returns the value of Quality.
@@ -16348,6 +20034,11 @@ func (s *SystemConfigGeneratedImageDto) SetFormat(val ImageFormat) {
 	s.Format = val
 }
 
+// SetProgressive sets the value of Progressive.
+func (s *SystemConfigGeneratedImageDto) SetProgressive(val OptBool) {
+	s.Progressive = val
+}
+
 // SetQuality sets the value of Quality.
 func (s *SystemConfigGeneratedImageDto) SetQuality(val int) {
 	s.Quality = val
@@ -16360,7 +20051,8 @@ func (s *SystemConfigGeneratedImageDto) SetSize(val int) {
 
 // Ref: #/components/schemas/SystemConfigImageDto
 type SystemConfigImageDto struct {
-	Colorspace      Colorspace                            `json:"colorspace"`
+	Colorspace Colorspace `json:"colorspace"`
+	// Extract embedded.
 	ExtractEmbedded bool                                  `json:"extractEmbedded"`
 	Fullsize        SystemConfigGeneratedFullsizeImageDto `json:"fullsize"`
 	Preview         SystemConfigGeneratedImageDto         `json:"preview"`
@@ -16417,10 +20109,132 @@ func (s *SystemConfigImageDto) SetThumbnail(val SystemConfigGeneratedImageDto) {
 	s.Thumbnail = val
 }
 
+// Integrity checks config.
+// Ref: #/components/schemas/SystemConfigIntegrityChecks
+type SystemConfigIntegrityChecks struct {
+	ChecksumFiles  SystemConfigIntegrityChecksumJob `json:"checksumFiles"`
+	MissingFiles   SystemConfigIntegrityJob         `json:"missingFiles"`
+	UntrackedFiles SystemConfigIntegrityJob         `json:"untrackedFiles"`
+}
+
+// GetChecksumFiles returns the value of ChecksumFiles.
+func (s *SystemConfigIntegrityChecks) GetChecksumFiles() SystemConfigIntegrityChecksumJob {
+	return s.ChecksumFiles
+}
+
+// GetMissingFiles returns the value of MissingFiles.
+func (s *SystemConfigIntegrityChecks) GetMissingFiles() SystemConfigIntegrityJob {
+	return s.MissingFiles
+}
+
+// GetUntrackedFiles returns the value of UntrackedFiles.
+func (s *SystemConfigIntegrityChecks) GetUntrackedFiles() SystemConfigIntegrityJob {
+	return s.UntrackedFiles
+}
+
+// SetChecksumFiles sets the value of ChecksumFiles.
+func (s *SystemConfigIntegrityChecks) SetChecksumFiles(val SystemConfigIntegrityChecksumJob) {
+	s.ChecksumFiles = val
+}
+
+// SetMissingFiles sets the value of MissingFiles.
+func (s *SystemConfigIntegrityChecks) SetMissingFiles(val SystemConfigIntegrityJob) {
+	s.MissingFiles = val
+}
+
+// SetUntrackedFiles sets the value of UntrackedFiles.
+func (s *SystemConfigIntegrityChecks) SetUntrackedFiles(val SystemConfigIntegrityJob) {
+	s.UntrackedFiles = val
+}
+
+// Integrity checksum job config.
+// Ref: #/components/schemas/SystemConfigIntegrityChecksumJob
+type SystemConfigIntegrityChecksumJob struct {
+	// Cron expression for when the integrity check should run.
+	CronExpression string `json:"cronExpression"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
+	// Percentage limit of the integrity checksum job.
+	PercentageLimit float64 `json:"percentageLimit"`
+	// How long the integrity checksum job may run for.
+	TimeLimit int `json:"timeLimit"`
+}
+
+// GetCronExpression returns the value of CronExpression.
+func (s *SystemConfigIntegrityChecksumJob) GetCronExpression() string {
+	return s.CronExpression
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SystemConfigIntegrityChecksumJob) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetPercentageLimit returns the value of PercentageLimit.
+func (s *SystemConfigIntegrityChecksumJob) GetPercentageLimit() float64 {
+	return s.PercentageLimit
+}
+
+// GetTimeLimit returns the value of TimeLimit.
+func (s *SystemConfigIntegrityChecksumJob) GetTimeLimit() int {
+	return s.TimeLimit
+}
+
+// SetCronExpression sets the value of CronExpression.
+func (s *SystemConfigIntegrityChecksumJob) SetCronExpression(val string) {
+	s.CronExpression = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SystemConfigIntegrityChecksumJob) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetPercentageLimit sets the value of PercentageLimit.
+func (s *SystemConfigIntegrityChecksumJob) SetPercentageLimit(val float64) {
+	s.PercentageLimit = val
+}
+
+// SetTimeLimit sets the value of TimeLimit.
+func (s *SystemConfigIntegrityChecksumJob) SetTimeLimit(val int) {
+	s.TimeLimit = val
+}
+
+// Integrity job config.
+// Ref: #/components/schemas/SystemConfigIntegrityJob
+type SystemConfigIntegrityJob struct {
+	// Cron expression for when the integrity check should run.
+	CronExpression string `json:"cronExpression"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
+}
+
+// GetCronExpression returns the value of CronExpression.
+func (s *SystemConfigIntegrityJob) GetCronExpression() string {
+	return s.CronExpression
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SystemConfigIntegrityJob) GetEnabled() bool {
+	return s.Enabled
+}
+
+// SetCronExpression sets the value of CronExpression.
+func (s *SystemConfigIntegrityJob) SetCronExpression(val string) {
+	s.CronExpression = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SystemConfigIntegrityJob) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
 // Ref: #/components/schemas/SystemConfigJobDto
 type SystemConfigJobDto struct {
 	BackgroundTask      JobSettingsDto `json:"backgroundTask"`
+	Editor              JobSettingsDto `json:"editor"`
 	FaceDetection       JobSettingsDto `json:"faceDetection"`
+	IntegrityCheck      JobSettingsDto `json:"integrityCheck"`
 	Library             JobSettingsDto `json:"library"`
 	MetadataExtraction  JobSettingsDto `json:"metadataExtraction"`
 	Migration           JobSettingsDto `json:"migration"`
@@ -16431,6 +20245,7 @@ type SystemConfigJobDto struct {
 	SmartSearch         JobSettingsDto `json:"smartSearch"`
 	ThumbnailGeneration JobSettingsDto `json:"thumbnailGeneration"`
 	VideoConversion     JobSettingsDto `json:"videoConversion"`
+	Workflow            JobSettingsDto `json:"workflow"`
 }
 
 // GetBackgroundTask returns the value of BackgroundTask.
@@ -16438,9 +20253,19 @@ func (s *SystemConfigJobDto) GetBackgroundTask() JobSettingsDto {
 	return s.BackgroundTask
 }
 
+// GetEditor returns the value of Editor.
+func (s *SystemConfigJobDto) GetEditor() JobSettingsDto {
+	return s.Editor
+}
+
 // GetFaceDetection returns the value of FaceDetection.
 func (s *SystemConfigJobDto) GetFaceDetection() JobSettingsDto {
 	return s.FaceDetection
+}
+
+// GetIntegrityCheck returns the value of IntegrityCheck.
+func (s *SystemConfigJobDto) GetIntegrityCheck() JobSettingsDto {
+	return s.IntegrityCheck
 }
 
 // GetLibrary returns the value of Library.
@@ -16493,14 +20318,29 @@ func (s *SystemConfigJobDto) GetVideoConversion() JobSettingsDto {
 	return s.VideoConversion
 }
 
+// GetWorkflow returns the value of Workflow.
+func (s *SystemConfigJobDto) GetWorkflow() JobSettingsDto {
+	return s.Workflow
+}
+
 // SetBackgroundTask sets the value of BackgroundTask.
 func (s *SystemConfigJobDto) SetBackgroundTask(val JobSettingsDto) {
 	s.BackgroundTask = val
 }
 
+// SetEditor sets the value of Editor.
+func (s *SystemConfigJobDto) SetEditor(val JobSettingsDto) {
+	s.Editor = val
+}
+
 // SetFaceDetection sets the value of FaceDetection.
 func (s *SystemConfigJobDto) SetFaceDetection(val JobSettingsDto) {
 	s.FaceDetection = val
+}
+
+// SetIntegrityCheck sets the value of IntegrityCheck.
+func (s *SystemConfigJobDto) SetIntegrityCheck(val JobSettingsDto) {
+	s.IntegrityCheck = val
 }
 
 // SetLibrary sets the value of Library.
@@ -16553,6 +20393,11 @@ func (s *SystemConfigJobDto) SetVideoConversion(val JobSettingsDto) {
 	s.VideoConversion = val
 }
 
+// SetWorkflow sets the value of Workflow.
+func (s *SystemConfigJobDto) SetWorkflow(val JobSettingsDto) {
+	s.Workflow = val
+}
+
 // Ref: #/components/schemas/SystemConfigLibraryDto
 type SystemConfigLibraryDto struct {
 	Scan  SystemConfigLibraryScanDto  `json:"scan"`
@@ -16581,8 +20426,10 @@ func (s *SystemConfigLibraryDto) SetWatch(val SystemConfigLibraryWatchDto) {
 
 // Ref: #/components/schemas/SystemConfigLibraryScanDto
 type SystemConfigLibraryScanDto struct {
+	// Cron expression.
 	CronExpression string `json:"cronExpression"`
-	Enabled        bool   `json:"enabled"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
 }
 
 // GetCronExpression returns the value of CronExpression.
@@ -16607,6 +20454,7 @@ func (s *SystemConfigLibraryScanDto) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/SystemConfigLibraryWatchDto
 type SystemConfigLibraryWatchDto struct {
+	// Enabled.
 	Enabled bool `json:"enabled"`
 }
 
@@ -16622,6 +20470,7 @@ func (s *SystemConfigLibraryWatchDto) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/SystemConfigLoggingDto
 type SystemConfigLoggingDto struct {
+	// Enabled.
 	Enabled bool     `json:"enabled"`
 	Level   LogLevel `json:"level"`
 }
@@ -16651,10 +20500,12 @@ type SystemConfigMachineLearningDto struct {
 	AvailabilityChecks MachineLearningAvailabilityChecksDto `json:"availabilityChecks"`
 	Clip               CLIPConfig                           `json:"clip"`
 	DuplicateDetection DuplicateDetectionConfig             `json:"duplicateDetection"`
-	Enabled            bool                                 `json:"enabled"`
-	FacialRecognition  FacialRecognitionConfig              `json:"facialRecognition"`
-	Ocr                OcrConfig                            `json:"ocr"`
-	Urls               []url.URL                            `json:"urls"`
+	// Enabled.
+	Enabled           bool                    `json:"enabled"`
+	FacialRecognition FacialRecognitionConfig `json:"facialRecognition"`
+	Ocr               OcrConfig               `json:"ocr"`
+	// ML service URLs.
+	Urls []string `json:"urls"`
 }
 
 // GetAvailabilityChecks returns the value of AvailabilityChecks.
@@ -16688,7 +20539,7 @@ func (s *SystemConfigMachineLearningDto) GetOcr() OcrConfig {
 }
 
 // GetUrls returns the value of Urls.
-func (s *SystemConfigMachineLearningDto) GetUrls() []url.URL {
+func (s *SystemConfigMachineLearningDto) GetUrls() []string {
 	return s.Urls
 }
 
@@ -16723,14 +20574,17 @@ func (s *SystemConfigMachineLearningDto) SetOcr(val OcrConfig) {
 }
 
 // SetUrls sets the value of Urls.
-func (s *SystemConfigMachineLearningDto) SetUrls(val []url.URL) {
+func (s *SystemConfigMachineLearningDto) SetUrls(val []string) {
 	s.Urls = val
 }
 
 // Ref: #/components/schemas/SystemConfigMapDto
 type SystemConfigMapDto struct {
-	DarkStyle  url.URL `json:"darkStyle"`
-	Enabled    bool    `json:"enabled"`
+	// Dark map style URL.
+	DarkStyle url.URL `json:"darkStyle"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
+	// Light map style URL.
 	LightStyle url.URL `json:"lightStyle"`
 }
 
@@ -16781,12 +20635,24 @@ func (s *SystemConfigMetadataDto) SetFaces(val SystemConfigFacesDto) {
 
 // Ref: #/components/schemas/SystemConfigNewVersionCheckDto
 type SystemConfigNewVersionCheckDto struct {
+	Channel ReleaseChannel `json:"channel"`
+	// Enabled.
 	Enabled bool `json:"enabled"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *SystemConfigNewVersionCheckDto) GetChannel() ReleaseChannel {
+	return s.Channel
 }
 
 // GetEnabled returns the value of Enabled.
 func (s *SystemConfigNewVersionCheckDto) GetEnabled() bool {
 	return s.Enabled
+}
+
+// SetChannel sets the value of Channel.
+func (s *SystemConfigNewVersionCheckDto) SetChannel(val ReleaseChannel) {
+	s.Channel = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -16796,12 +20662,18 @@ func (s *SystemConfigNewVersionCheckDto) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/SystemConfigNightlyTasksDto
 type SystemConfigNightlyTasksDto struct {
-	ClusterNewFaces   bool   `json:"clusterNewFaces"`
-	DatabaseCleanup   bool   `json:"databaseCleanup"`
-	GenerateMemories  bool   `json:"generateMemories"`
-	MissingThumbnails bool   `json:"missingThumbnails"`
-	StartTime         string `json:"startTime"`
-	SyncQuotaUsage    bool   `json:"syncQuotaUsage"`
+	// Cluster new faces.
+	ClusterNewFaces bool `json:"clusterNewFaces"`
+	// Database cleanup.
+	DatabaseCleanup bool `json:"databaseCleanup"`
+	// Generate memories.
+	GenerateMemories bool `json:"generateMemories"`
+	// Missing thumbnails.
+	MissingThumbnails bool `json:"missingThumbnails"`
+	// Start time (HH:MM).
+	StartTime string `json:"startTime"`
+	// Sync quota usage.
+	SyncQuotaUsage bool `json:"syncQuotaUsage"`
 }
 
 // GetClusterNewFaces returns the value of ClusterNewFaces.
@@ -16881,24 +20753,52 @@ func (s *SystemConfigNotificationsDto) SetSMTP(val SystemConfigSmtpDto) {
 
 // Ref: #/components/schemas/SystemConfigOAuthDto
 type SystemConfigOAuthDto struct {
-	AutoLaunch              bool                         `json:"autoLaunch"`
-	AutoRegister            bool                         `json:"autoRegister"`
-	ButtonText              string                       `json:"buttonText"`
-	ClientId                string                       `json:"clientId"`
-	ClientSecret            string                       `json:"clientSecret"`
-	DefaultStorageQuota     NilInt64                     `json:"defaultStorageQuota"`
-	Enabled                 bool                         `json:"enabled"`
-	IssuerUrl               string                       `json:"issuerUrl"`
-	MobileOverrideEnabled   bool                         `json:"mobileOverrideEnabled"`
-	MobileRedirectUri       url.URL                      `json:"mobileRedirectUri"`
-	ProfileSigningAlgorithm string                       `json:"profileSigningAlgorithm"`
-	RoleClaim               string                       `json:"roleClaim"`
-	Scope                   string                       `json:"scope"`
-	SigningAlgorithm        string                       `json:"signingAlgorithm"`
-	StorageLabelClaim       string                       `json:"storageLabelClaim"`
-	StorageQuotaClaim       string                       `json:"storageQuotaClaim"`
+	// Allow insecure requests.
+	AllowInsecureRequests bool `json:"allowInsecureRequests"`
+	// Auto launch.
+	AutoLaunch bool `json:"autoLaunch"`
+	// Auto register.
+	AutoRegister bool `json:"autoRegister"`
+	// Button text.
+	ButtonText string `json:"buttonText"`
+	// Client ID.
+	ClientId string `json:"clientId"`
+	// Client secret.
+	ClientSecret string `json:"clientSecret"`
+	// Default storage quota.
+	DefaultStorageQuota NilInt `json:"defaultStorageQuota"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
+	// End session endpoint.
+	EndSessionEndpoint string `json:"endSessionEndpoint"`
+	// Issuer URL.
+	IssuerUrl string `json:"issuerUrl"`
+	// Mobile override enabled.
+	MobileOverrideEnabled bool `json:"mobileOverrideEnabled"`
+	// Mobile redirect URI (set to empty string to disable).
+	MobileRedirectUri string `json:"mobileRedirectUri"`
+	// Profile signing algorithm.
+	ProfileSigningAlgorithm string `json:"profileSigningAlgorithm"`
+	// OAuth prompt parameter (e.g. select_account, login, consent).
+	Prompt string `json:"prompt"`
+	// Role claim.
+	RoleClaim string `json:"roleClaim"`
+	// Scope.
+	Scope string `json:"scope"`
+	// Signing algorithm.
+	SigningAlgorithm string `json:"signingAlgorithm"`
+	// Storage label claim.
+	StorageLabelClaim string `json:"storageLabelClaim"`
+	// Storage quota claim.
+	StorageQuotaClaim string `json:"storageQuotaClaim"`
+	// Timeout.
 	Timeout                 int                          `json:"timeout"`
 	TokenEndpointAuthMethod OAuthTokenEndpointAuthMethod `json:"tokenEndpointAuthMethod"`
+}
+
+// GetAllowInsecureRequests returns the value of AllowInsecureRequests.
+func (s *SystemConfigOAuthDto) GetAllowInsecureRequests() bool {
+	return s.AllowInsecureRequests
 }
 
 // GetAutoLaunch returns the value of AutoLaunch.
@@ -16927,13 +20827,18 @@ func (s *SystemConfigOAuthDto) GetClientSecret() string {
 }
 
 // GetDefaultStorageQuota returns the value of DefaultStorageQuota.
-func (s *SystemConfigOAuthDto) GetDefaultStorageQuota() NilInt64 {
+func (s *SystemConfigOAuthDto) GetDefaultStorageQuota() NilInt {
 	return s.DefaultStorageQuota
 }
 
 // GetEnabled returns the value of Enabled.
 func (s *SystemConfigOAuthDto) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetEndSessionEndpoint returns the value of EndSessionEndpoint.
+func (s *SystemConfigOAuthDto) GetEndSessionEndpoint() string {
+	return s.EndSessionEndpoint
 }
 
 // GetIssuerUrl returns the value of IssuerUrl.
@@ -16947,13 +20852,18 @@ func (s *SystemConfigOAuthDto) GetMobileOverrideEnabled() bool {
 }
 
 // GetMobileRedirectUri returns the value of MobileRedirectUri.
-func (s *SystemConfigOAuthDto) GetMobileRedirectUri() url.URL {
+func (s *SystemConfigOAuthDto) GetMobileRedirectUri() string {
 	return s.MobileRedirectUri
 }
 
 // GetProfileSigningAlgorithm returns the value of ProfileSigningAlgorithm.
 func (s *SystemConfigOAuthDto) GetProfileSigningAlgorithm() string {
 	return s.ProfileSigningAlgorithm
+}
+
+// GetPrompt returns the value of Prompt.
+func (s *SystemConfigOAuthDto) GetPrompt() string {
+	return s.Prompt
 }
 
 // GetRoleClaim returns the value of RoleClaim.
@@ -16991,6 +20901,11 @@ func (s *SystemConfigOAuthDto) GetTokenEndpointAuthMethod() OAuthTokenEndpointAu
 	return s.TokenEndpointAuthMethod
 }
 
+// SetAllowInsecureRequests sets the value of AllowInsecureRequests.
+func (s *SystemConfigOAuthDto) SetAllowInsecureRequests(val bool) {
+	s.AllowInsecureRequests = val
+}
+
 // SetAutoLaunch sets the value of AutoLaunch.
 func (s *SystemConfigOAuthDto) SetAutoLaunch(val bool) {
 	s.AutoLaunch = val
@@ -17017,13 +20932,18 @@ func (s *SystemConfigOAuthDto) SetClientSecret(val string) {
 }
 
 // SetDefaultStorageQuota sets the value of DefaultStorageQuota.
-func (s *SystemConfigOAuthDto) SetDefaultStorageQuota(val NilInt64) {
+func (s *SystemConfigOAuthDto) SetDefaultStorageQuota(val NilInt) {
 	s.DefaultStorageQuota = val
 }
 
 // SetEnabled sets the value of Enabled.
 func (s *SystemConfigOAuthDto) SetEnabled(val bool) {
 	s.Enabled = val
+}
+
+// SetEndSessionEndpoint sets the value of EndSessionEndpoint.
+func (s *SystemConfigOAuthDto) SetEndSessionEndpoint(val string) {
+	s.EndSessionEndpoint = val
 }
 
 // SetIssuerUrl sets the value of IssuerUrl.
@@ -17037,13 +20957,18 @@ func (s *SystemConfigOAuthDto) SetMobileOverrideEnabled(val bool) {
 }
 
 // SetMobileRedirectUri sets the value of MobileRedirectUri.
-func (s *SystemConfigOAuthDto) SetMobileRedirectUri(val url.URL) {
+func (s *SystemConfigOAuthDto) SetMobileRedirectUri(val string) {
 	s.MobileRedirectUri = val
 }
 
 // SetProfileSigningAlgorithm sets the value of ProfileSigningAlgorithm.
 func (s *SystemConfigOAuthDto) SetProfileSigningAlgorithm(val string) {
 	s.ProfileSigningAlgorithm = val
+}
+
+// SetPrompt sets the value of Prompt.
+func (s *SystemConfigOAuthDto) SetPrompt(val string) {
+	s.Prompt = val
 }
 
 // SetRoleClaim sets the value of RoleClaim.
@@ -17083,6 +21008,7 @@ func (s *SystemConfigOAuthDto) SetTokenEndpointAuthMethod(val OAuthTokenEndpoint
 
 // Ref: #/components/schemas/SystemConfigPasswordLoginDto
 type SystemConfigPasswordLoginDto struct {
+	// Enabled.
 	Enabled bool `json:"enabled"`
 }
 
@@ -17098,6 +21024,7 @@ func (s *SystemConfigPasswordLoginDto) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/SystemConfigReverseGeocodingDto
 type SystemConfigReverseGeocodingDto struct {
+	// Enabled.
 	Enabled bool `json:"enabled"`
 }
 
@@ -17113,13 +21040,16 @@ func (s *SystemConfigReverseGeocodingDto) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/SystemConfigServerDto
 type SystemConfigServerDto struct {
-	ExternalDomain   url.URL `json:"externalDomain"`
-	LoginPageMessage string  `json:"loginPageMessage"`
-	PublicUsers      bool    `json:"publicUsers"`
+	// External domain.
+	ExternalDomain string `json:"externalDomain"`
+	// Login page message.
+	LoginPageMessage string `json:"loginPageMessage"`
+	// Public users.
+	PublicUsers bool `json:"publicUsers"`
 }
 
 // GetExternalDomain returns the value of ExternalDomain.
-func (s *SystemConfigServerDto) GetExternalDomain() url.URL {
+func (s *SystemConfigServerDto) GetExternalDomain() string {
 	return s.ExternalDomain
 }
 
@@ -17134,7 +21064,7 @@ func (s *SystemConfigServerDto) GetPublicUsers() bool {
 }
 
 // SetExternalDomain sets the value of ExternalDomain.
-func (s *SystemConfigServerDto) SetExternalDomain(val url.URL) {
+func (s *SystemConfigServerDto) SetExternalDomain(val string) {
 	s.ExternalDomain = val
 }
 
@@ -17150,8 +21080,11 @@ func (s *SystemConfigServerDto) SetPublicUsers(val bool) {
 
 // Ref: #/components/schemas/SystemConfigSmtpDto
 type SystemConfigSmtpDto struct {
-	Enabled   bool                         `json:"enabled"`
-	From      string                       `json:"from"`
+	// Whether SMTP email notifications are enabled.
+	Enabled bool `json:"enabled"`
+	// Email address to send from.
+	From string `json:"from"`
+	// Email address for replies.
 	ReplyTo   string                       `json:"replyTo"`
 	Transport SystemConfigSmtpTransportDto `json:"transport"`
 }
@@ -17198,12 +21131,18 @@ func (s *SystemConfigSmtpDto) SetTransport(val SystemConfigSmtpTransportDto) {
 
 // Ref: #/components/schemas/SystemConfigSmtpTransportDto
 type SystemConfigSmtpTransportDto struct {
-	Host       string  `json:"host"`
-	IgnoreCert bool    `json:"ignoreCert"`
-	Password   string  `json:"password"`
-	Port       float64 `json:"port"`
-	Secure     bool    `json:"secure"`
-	Username   string  `json:"username"`
+	// SMTP server hostname.
+	Host string `json:"host"`
+	// Whether to ignore SSL certificate errors.
+	IgnoreCert bool `json:"ignoreCert"`
+	// SMTP password.
+	Password string `json:"password"`
+	// SMTP server port.
+	Port int `json:"port"`
+	// Whether to use secure connection (TLS/SSL).
+	Secure bool `json:"secure"`
+	// SMTP username.
+	Username string `json:"username"`
 }
 
 // GetHost returns the value of Host.
@@ -17222,7 +21161,7 @@ func (s *SystemConfigSmtpTransportDto) GetPassword() string {
 }
 
 // GetPort returns the value of Port.
-func (s *SystemConfigSmtpTransportDto) GetPort() float64 {
+func (s *SystemConfigSmtpTransportDto) GetPort() int {
 	return s.Port
 }
 
@@ -17252,7 +21191,7 @@ func (s *SystemConfigSmtpTransportDto) SetPassword(val string) {
 }
 
 // SetPort sets the value of Port.
-func (s *SystemConfigSmtpTransportDto) SetPort(val float64) {
+func (s *SystemConfigSmtpTransportDto) SetPort(val int) {
 	s.Port = val
 }
 
@@ -17268,9 +21207,12 @@ func (s *SystemConfigSmtpTransportDto) SetUsername(val string) {
 
 // Ref: #/components/schemas/SystemConfigStorageTemplateDto
 type SystemConfigStorageTemplateDto struct {
-	Enabled                 bool   `json:"enabled"`
-	HashVerificationEnabled bool   `json:"hashVerificationEnabled"`
-	Template                string `json:"template"`
+	// Enabled.
+	Enabled bool `json:"enabled"`
+	// Hash verification enabled.
+	HashVerificationEnabled bool `json:"hashVerificationEnabled"`
+	// Template.
+	Template string `json:"template"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -17305,9 +21247,12 @@ func (s *SystemConfigStorageTemplateDto) SetTemplate(val string) {
 
 // Ref: #/components/schemas/SystemConfigTemplateEmailsDto
 type SystemConfigTemplateEmailsDto struct {
+	// Album invite template.
 	AlbumInviteTemplate string `json:"albumInviteTemplate"`
+	// Album update template.
 	AlbumUpdateTemplate string `json:"albumUpdateTemplate"`
-	WelcomeTemplate     string `json:"welcomeTemplate"`
+	// Welcome template.
+	WelcomeTemplate string `json:"welcomeTemplate"`
 }
 
 // GetAlbumInviteTemplate returns the value of AlbumInviteTemplate.
@@ -17342,14 +21287,22 @@ func (s *SystemConfigTemplateEmailsDto) SetWelcomeTemplate(val string) {
 
 // Ref: #/components/schemas/SystemConfigTemplateStorageOptionDto
 type SystemConfigTemplateStorageOptionDto struct {
-	DayOptions    []string `json:"dayOptions"`
-	HourOptions   []string `json:"hourOptions"`
+	// Available day format options for storage template.
+	DayOptions []string `json:"dayOptions"`
+	// Available hour format options for storage template.
+	HourOptions []string `json:"hourOptions"`
+	// Available minute format options for storage template.
 	MinuteOptions []string `json:"minuteOptions"`
-	MonthOptions  []string `json:"monthOptions"`
+	// Available month format options for storage template.
+	MonthOptions []string `json:"monthOptions"`
+	// Available preset template options.
 	PresetOptions []string `json:"presetOptions"`
+	// Available second format options for storage template.
 	SecondOptions []string `json:"secondOptions"`
-	WeekOptions   []string `json:"weekOptions"`
-	YearOptions   []string `json:"yearOptions"`
+	// Available week format options for storage template.
+	WeekOptions []string `json:"weekOptions"`
+	// Available year format options for storage template.
+	YearOptions []string `json:"yearOptions"`
 }
 
 // GetDayOptions returns the value of DayOptions.
@@ -17449,6 +21402,7 @@ func (s *SystemConfigTemplatesDto) SetEmail(val SystemConfigTemplateEmailsDto) {
 
 // Ref: #/components/schemas/SystemConfigThemeDto
 type SystemConfigThemeDto struct {
+	// Custom CSS for theming.
 	CustomCss string `json:"customCss"`
 }
 
@@ -17464,7 +21418,9 @@ func (s *SystemConfigThemeDto) SetCustomCss(val string) {
 
 // Ref: #/components/schemas/SystemConfigTrashDto
 type SystemConfigTrashDto struct {
-	Days    int  `json:"days"`
+	// Days.
+	Days int `json:"days"`
+	// Enabled.
 	Enabled bool `json:"enabled"`
 }
 
@@ -17490,6 +21446,7 @@ func (s *SystemConfigTrashDto) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/SystemConfigUserDto
 type SystemConfigUserDto struct {
+	// Delete delay.
 	DeleteDelay int `json:"deleteDelay"`
 }
 
@@ -17505,8 +21462,10 @@ func (s *SystemConfigUserDto) SetDeleteDelay(val int) {
 
 // Ref: #/components/schemas/TagBulkAssetsDto
 type TagBulkAssetsDto struct {
+	// Asset IDs.
 	AssetIds []uuid.UUID `json:"assetIds"`
-	TagIds   []uuid.UUID `json:"tagIds"`
+	// Tag IDs.
+	TagIds []uuid.UUID `json:"tagIds"`
 }
 
 // GetAssetIds returns the value of AssetIds.
@@ -17531,6 +21490,7 @@ func (s *TagBulkAssetsDto) SetTagIds(val []uuid.UUID) {
 
 // Ref: #/components/schemas/TagBulkAssetsResponseDto
 type TagBulkAssetsResponseDto struct {
+	// Number of assets tagged.
 	Count int `json:"count"`
 }
 
@@ -17546,13 +21506,16 @@ func (s *TagBulkAssetsResponseDto) SetCount(val int) {
 
 // Ref: #/components/schemas/TagCreateDto
 type TagCreateDto struct {
-	Color    OptString  `json:"color"`
-	Name     string     `json:"name"`
+	// Tag color (hex).
+	Color OptNilString `json:"color"`
+	// Tag name.
+	Name string `json:"name"`
+	// Parent tag ID.
 	ParentId OptNilUUID `json:"parentId"`
 }
 
 // GetColor returns the value of Color.
-func (s *TagCreateDto) GetColor() OptString {
+func (s *TagCreateDto) GetColor() OptNilString {
 	return s.Color
 }
 
@@ -17567,7 +21530,7 @@ func (s *TagCreateDto) GetParentId() OptNilUUID {
 }
 
 // SetColor sets the value of Color.
-func (s *TagCreateDto) SetColor(val OptString) {
+func (s *TagCreateDto) SetColor(val OptNilString) {
 	s.Color = val
 }
 
@@ -17583,13 +21546,20 @@ func (s *TagCreateDto) SetParentId(val OptNilUUID) {
 
 // Ref: #/components/schemas/TagResponseDto
 type TagResponseDto struct {
-	Color     OptString `json:"color"`
+	// Tag color (hex).
+	Color OptString `json:"color"`
+	// Creation date.
 	CreatedAt time.Time `json:"createdAt"`
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	ParentId  OptString `json:"parentId"`
+	// Tag ID.
+	ID uuid.UUID `json:"id"`
+	// Tag name.
+	Name string `json:"name"`
+	// Parent tag ID.
+	ParentId OptString `json:"parentId"`
+	// Last update date.
 	UpdatedAt time.Time `json:"updatedAt"`
-	Value     string    `json:"value"`
+	// Tag value (full path).
+	Value string `json:"value"`
 }
 
 // GetColor returns the value of Color.
@@ -17603,7 +21573,7 @@ func (s *TagResponseDto) GetCreatedAt() time.Time {
 }
 
 // GetID returns the value of ID.
-func (s *TagResponseDto) GetID() string {
+func (s *TagResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -17638,7 +21608,7 @@ func (s *TagResponseDto) SetCreatedAt(val time.Time) {
 }
 
 // SetID sets the value of ID.
-func (s *TagResponseDto) SetID(val string) {
+func (s *TagResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -17664,6 +21634,7 @@ func (s *TagResponseDto) SetValue(val string) {
 
 // Ref: #/components/schemas/TagUpdateDto
 type TagUpdateDto struct {
+	// Tag color (hex).
 	Color OptNilString `json:"color"`
 }
 
@@ -17679,6 +21650,7 @@ func (s *TagUpdateDto) SetColor(val OptNilString) {
 
 // Ref: #/components/schemas/TagUpsertDto
 type TagUpsertDto struct {
+	// Tag names to upsert.
 	Tags []string `json:"tags"`
 }
 
@@ -17694,7 +21666,9 @@ func (s *TagUpsertDto) SetTags(val []string) {
 
 // Ref: #/components/schemas/TagsResponse
 type TagsResponse struct {
-	Enabled    bool `json:"enabled"`
+	// Whether tags are enabled.
+	Enabled bool `json:"enabled"`
+	// Whether tags appear in web sidebar.
 	SidebarWeb bool `json:"sidebarWeb"`
 }
 
@@ -17720,7 +21694,9 @@ func (s *TagsResponse) SetSidebarWeb(val bool) {
 
 // Ref: #/components/schemas/TagsUpdate
 type TagsUpdate struct {
-	Enabled    OptBool `json:"enabled"`
+	// Whether tags are enabled.
+	Enabled OptBool `json:"enabled"`
+	// Whether tags appear in web sidebar.
 	SidebarWeb OptBool `json:"sidebarWeb"`
 }
 
@@ -17746,6 +21722,7 @@ func (s *TagsUpdate) SetSidebarWeb(val OptBool) {
 
 // Ref: #/components/schemas/TemplateDto
 type TemplateDto struct {
+	// Template name.
 	Template string `json:"template"`
 }
 
@@ -17761,7 +21738,9 @@ func (s *TemplateDto) SetTemplate(val string) {
 
 // Ref: #/components/schemas/TemplateResponseDto
 type TemplateResponseDto struct {
+	// Template HTML content.
 	HTML string `json:"html"`
+	// Template name.
 	Name string `json:"name"`
 }
 
@@ -17787,6 +21766,7 @@ func (s *TemplateResponseDto) SetName(val string) {
 
 // Ref: #/components/schemas/TestEmailResponseDto
 type TestEmailResponseDto struct {
+	// Email message ID.
 	MessageId string `json:"messageId"`
 }
 
@@ -17806,9 +21786,11 @@ type TimeBucketAssetResponseDto struct {
 	City []NilString `json:"city"`
 	// Array of country names extracted from EXIF GPS data.
 	Country []NilString `json:"country"`
-	// Array of video durations in HH:MM:SS format (null for images).
-	Duration []NilString `json:"duration"`
-	// Array of file creation timestamps in UTC (ISO 8601 format, without timezone).
+	// Array of UTC timestamps when each asset was originally uploaded to Immich.
+	CreatedAt []string `json:"createdAt"`
+	// Array of video/gif durations in milliseconds (null for static images).
+	Duration []NilInt `json:"duration"`
+	// Array of file creation timestamps in UTC.
 	FileCreatedAt []string `json:"fileCreatedAt"`
 	// Array of asset IDs in the time bucket.
 	ID []string `json:"id"`
@@ -17824,7 +21806,7 @@ type TimeBucketAssetResponseDto struct {
 	LivePhotoVideoId []NilString `json:"livePhotoVideoId"`
 	// Array of UTC offset hours at the time each photo was taken. Positive values are east of UTC,
 	// negative values are west of UTC. Values may be fractional (e.g., 5.5 for +05:30, -9.75 for -09:45).
-	//  Applying this offset to 'fileCreatedAt' will give you the time the photo was taken from the
+	// Applying this offset to 'fileCreatedAt' will give you the time the photo was taken from the
 	// photographer's perspective.
 	LocalOffsetHours []float64 `json:"localOffsetHours"`
 	// Array of longitude coordinates extracted from EXIF GPS data.
@@ -17853,8 +21835,13 @@ func (s *TimeBucketAssetResponseDto) GetCountry() []NilString {
 	return s.Country
 }
 
+// GetCreatedAt returns the value of CreatedAt.
+func (s *TimeBucketAssetResponseDto) GetCreatedAt() []string {
+	return s.CreatedAt
+}
+
 // GetDuration returns the value of Duration.
-func (s *TimeBucketAssetResponseDto) GetDuration() []NilString {
+func (s *TimeBucketAssetResponseDto) GetDuration() []NilInt {
 	return s.Duration
 }
 
@@ -17943,8 +21930,13 @@ func (s *TimeBucketAssetResponseDto) SetCountry(val []NilString) {
 	s.Country = val
 }
 
+// SetCreatedAt sets the value of CreatedAt.
+func (s *TimeBucketAssetResponseDto) SetCreatedAt(val []string) {
+	s.CreatedAt = val
+}
+
 // SetDuration sets the value of Duration.
-func (s *TimeBucketAssetResponseDto) SetDuration(val []NilString) {
+func (s *TimeBucketAssetResponseDto) SetDuration(val []NilInt) {
 	s.Duration = val
 }
 
@@ -18051,6 +22043,7 @@ func (s *TimeBucketsResponseDto) SetTimeBucket(val string) {
 	s.TimeBucket = val
 }
 
+// Tone mapping.
 // Ref: #/components/schemas/ToneMapping
 type ToneMapping string
 
@@ -18107,6 +22100,7 @@ func (s *ToneMapping) UnmarshalText(data []byte) error {
 	}
 }
 
+// Transcode hardware acceleration.
 // Ref: #/components/schemas/TranscodeHWAccel
 type TranscodeHWAccel string
 
@@ -18170,6 +22164,7 @@ func (s *TranscodeHWAccel) UnmarshalText(data []byte) error {
 	}
 }
 
+// Transcode policy.
 // Ref: #/components/schemas/TranscodePolicy
 type TranscodePolicy string
 
@@ -18235,6 +22230,7 @@ func (s *TranscodePolicy) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/TrashResponseDto
 type TrashResponseDto struct {
+	// Number of items in trash.
 	Count int `json:"count"`
 }
 
@@ -18259,11 +22255,15 @@ type UpdateAdminOnboardingNoContent struct{}
 
 // Ref: #/components/schemas/UpdateAlbumDto
 type UpdateAlbumDto struct {
-	AlbumName             OptString     `json:"albumName"`
-	AlbumThumbnailAssetId OptUUID       `json:"albumThumbnailAssetId"`
-	Description           OptString     `json:"description"`
-	IsActivityEnabled     OptBool       `json:"isActivityEnabled"`
-	Order                 OptAssetOrder `json:"order"`
+	// Album name.
+	AlbumName OptString `json:"albumName"`
+	// Album thumbnail asset ID.
+	AlbumThumbnailAssetId OptUUID `json:"albumThumbnailAssetId"`
+	// Album description.
+	Description OptNilString `json:"description"`
+	// Enable activity feed.
+	IsActivityEnabled OptBool       `json:"isActivityEnabled"`
+	Order             OptAssetOrder `json:"order"`
 }
 
 // GetAlbumName returns the value of AlbumName.
@@ -18277,7 +22277,7 @@ func (s *UpdateAlbumDto) GetAlbumThumbnailAssetId() OptUUID {
 }
 
 // GetDescription returns the value of Description.
-func (s *UpdateAlbumDto) GetDescription() OptString {
+func (s *UpdateAlbumDto) GetDescription() OptNilString {
 	return s.Description
 }
 
@@ -18302,7 +22302,7 @@ func (s *UpdateAlbumDto) SetAlbumThumbnailAssetId(val OptUUID) {
 }
 
 // SetDescription sets the value of Description.
-func (s *UpdateAlbumDto) SetDescription(val OptString) {
+func (s *UpdateAlbumDto) SetDescription(val OptNilString) {
 	s.Description = val
 }
 
@@ -18336,14 +22336,21 @@ type UpdateAlbumUserNoContent struct{}
 
 // Ref: #/components/schemas/UpdateAssetDto
 type UpdateAssetDto struct {
-	DateTimeOriginal OptString          `json:"dateTimeOriginal"`
-	Description      OptString          `json:"description"`
-	IsFavorite       OptBool            `json:"isFavorite"`
-	Latitude         OptFloat64         `json:"latitude"`
-	LivePhotoVideoId OptNilUUID         `json:"livePhotoVideoId"`
-	Longitude        OptFloat64         `json:"longitude"`
-	Rating           OptFloat64         `json:"rating"`
-	Visibility       OptAssetVisibility `json:"visibility"`
+	// Original date and time.
+	DateTimeOriginal OptString `json:"dateTimeOriginal"`
+	// Asset description.
+	Description OptString `json:"description"`
+	// Mark as favorite.
+	IsFavorite OptBool `json:"isFavorite"`
+	// Latitude coordinate.
+	Latitude OptFloat64 `json:"latitude"`
+	// Live photo video ID.
+	LivePhotoVideoId OptNilUUID `json:"livePhotoVideoId"`
+	// Longitude coordinate.
+	Longitude OptFloat64 `json:"longitude"`
+	// Rating in range [1-5] (starred), -1 (rejected), or null (unrated).
+	Rating     OptNilInt          `json:"rating"`
+	Visibility OptAssetVisibility `json:"visibility"`
 }
 
 // GetDateTimeOriginal returns the value of DateTimeOriginal.
@@ -18377,7 +22384,7 @@ func (s *UpdateAssetDto) GetLongitude() OptFloat64 {
 }
 
 // GetRating returns the value of Rating.
-func (s *UpdateAssetDto) GetRating() OptFloat64 {
+func (s *UpdateAssetDto) GetRating() OptNilInt {
 	return s.Rating
 }
 
@@ -18417,7 +22424,7 @@ func (s *UpdateAssetDto) SetLongitude(val OptFloat64) {
 }
 
 // SetRating sets the value of Rating.
-func (s *UpdateAssetDto) SetRating(val OptFloat64) {
+func (s *UpdateAssetDto) SetRating(val OptNilInt) {
 	s.Rating = val
 }
 
@@ -18426,14 +22433,17 @@ func (s *UpdateAssetDto) SetVisibility(val OptAssetVisibility) {
 	s.Visibility = val
 }
 
-// UpdateAssetsOK is response for UpdateAssets operation.
-type UpdateAssetsOK struct{}
+// UpdateAssetsNoContent is response for UpdateAssets operation.
+type UpdateAssetsNoContent struct{}
 
 // Ref: #/components/schemas/UpdateLibraryDto
 type UpdateLibraryDto struct {
-	ExclusionPatterns []string  `json:"exclusionPatterns"`
-	ImportPaths       []string  `json:"importPaths"`
-	Name              OptString `json:"name"`
+	// Exclusion patterns (max 128).
+	ExclusionPatterns []string `json:"exclusionPatterns"`
+	// Import paths (max 128).
+	ImportPaths []string `json:"importPaths"`
+	// Library name.
+	Name OptString `json:"name"`
 }
 
 // GetExclusionPatterns returns the value of ExclusionPatterns.
@@ -18477,16 +22487,27 @@ type UploadAssetOK AssetMediaResponseDto
 
 func (*UploadAssetOK) uploadAssetRes() {}
 
+// UploadDatabaseBackupCreated is response for UploadDatabaseBackup operation.
+type UploadDatabaseBackupCreated struct{}
+
 // Ref: #/components/schemas/UsageByUserDto
 type UsageByUserDto struct {
-	Photos           int      `json:"photos"`
-	QuotaSizeInBytes NilInt64 `json:"quotaSizeInBytes"`
-	Usage            int64    `json:"usage"`
-	UsagePhotos      int64    `json:"usagePhotos"`
-	UsageVideos      int64    `json:"usageVideos"`
-	UserId           string   `json:"userId"`
-	UserName         string   `json:"userName"`
-	Videos           int      `json:"videos"`
+	// Number of photos.
+	Photos int `json:"photos"`
+	// User quota size in bytes (null if unlimited).
+	QuotaSizeInBytes NilInt `json:"quotaSizeInBytes"`
+	// Total storage usage in bytes.
+	Usage int `json:"usage"`
+	// Storage usage for photos in bytes.
+	UsagePhotos int `json:"usagePhotos"`
+	// Storage usage for videos in bytes.
+	UsageVideos int `json:"usageVideos"`
+	// User ID.
+	UserId uuid.UUID `json:"userId"`
+	// User name.
+	UserName string `json:"userName"`
+	// Number of videos.
+	Videos int `json:"videos"`
 }
 
 // GetPhotos returns the value of Photos.
@@ -18495,27 +22516,27 @@ func (s *UsageByUserDto) GetPhotos() int {
 }
 
 // GetQuotaSizeInBytes returns the value of QuotaSizeInBytes.
-func (s *UsageByUserDto) GetQuotaSizeInBytes() NilInt64 {
+func (s *UsageByUserDto) GetQuotaSizeInBytes() NilInt {
 	return s.QuotaSizeInBytes
 }
 
 // GetUsage returns the value of Usage.
-func (s *UsageByUserDto) GetUsage() int64 {
+func (s *UsageByUserDto) GetUsage() int {
 	return s.Usage
 }
 
 // GetUsagePhotos returns the value of UsagePhotos.
-func (s *UsageByUserDto) GetUsagePhotos() int64 {
+func (s *UsageByUserDto) GetUsagePhotos() int {
 	return s.UsagePhotos
 }
 
 // GetUsageVideos returns the value of UsageVideos.
-func (s *UsageByUserDto) GetUsageVideos() int64 {
+func (s *UsageByUserDto) GetUsageVideos() int {
 	return s.UsageVideos
 }
 
 // GetUserId returns the value of UserId.
-func (s *UsageByUserDto) GetUserId() string {
+func (s *UsageByUserDto) GetUserId() uuid.UUID {
 	return s.UserId
 }
 
@@ -18535,27 +22556,27 @@ func (s *UsageByUserDto) SetPhotos(val int) {
 }
 
 // SetQuotaSizeInBytes sets the value of QuotaSizeInBytes.
-func (s *UsageByUserDto) SetQuotaSizeInBytes(val NilInt64) {
+func (s *UsageByUserDto) SetQuotaSizeInBytes(val NilInt) {
 	s.QuotaSizeInBytes = val
 }
 
 // SetUsage sets the value of Usage.
-func (s *UsageByUserDto) SetUsage(val int64) {
+func (s *UsageByUserDto) SetUsage(val int) {
 	s.Usage = val
 }
 
 // SetUsagePhotos sets the value of UsagePhotos.
-func (s *UsageByUserDto) SetUsagePhotos(val int64) {
+func (s *UsageByUserDto) SetUsagePhotos(val int) {
 	s.UsagePhotos = val
 }
 
 // SetUsageVideos sets the value of UsageVideos.
-func (s *UsageByUserDto) SetUsageVideos(val int64) {
+func (s *UsageByUserDto) SetUsageVideos(val int) {
 	s.UsageVideos = val
 }
 
 // SetUserId sets the value of UserId.
-func (s *UsageByUserDto) SetUserId(val string) {
+func (s *UsageByUserDto) SetUserId(val uuid.UUID) {
 	s.UserId = val
 }
 
@@ -18571,15 +22592,25 @@ func (s *UsageByUserDto) SetVideos(val int) {
 
 // Ref: #/components/schemas/UserAdminCreateDto
 type UserAdminCreateDto struct {
-	AvatarColor          OptNilUserAvatarColor `json:"avatarColor"`
-	Email                string                `json:"email"`
-	IsAdmin              OptBool               `json:"isAdmin"`
-	Name                 string                `json:"name"`
-	Notify               OptBool               `json:"notify"`
-	Password             string                `json:"password"`
-	QuotaSizeInBytes     OptNilInt64           `json:"quotaSizeInBytes"`
-	ShouldChangePassword OptBool               `json:"shouldChangePassword"`
-	StorageLabel         OptNilString          `json:"storageLabel"`
+	AvatarColor OptNilUserAvatarColor `json:"avatarColor"`
+	// User email.
+	Email string `json:"email"`
+	// Grant admin privileges.
+	IsAdmin OptBool `json:"isAdmin"`
+	// User name.
+	Name string `json:"name"`
+	// Send notification email.
+	Notify OptBool `json:"notify"`
+	// User password.
+	Password string `json:"password"`
+	// PIN code.
+	PinCode OptNilString `json:"pinCode"`
+	// Storage quota in bytes.
+	QuotaSizeInBytes OptNilInt `json:"quotaSizeInBytes"`
+	// Require password change on next login.
+	ShouldChangePassword OptBool `json:"shouldChangePassword"`
+	// Storage label.
+	StorageLabel OptNilString `json:"storageLabel"`
 }
 
 // GetAvatarColor returns the value of AvatarColor.
@@ -18612,8 +22643,13 @@ func (s *UserAdminCreateDto) GetPassword() string {
 	return s.Password
 }
 
+// GetPinCode returns the value of PinCode.
+func (s *UserAdminCreateDto) GetPinCode() OptNilString {
+	return s.PinCode
+}
+
 // GetQuotaSizeInBytes returns the value of QuotaSizeInBytes.
-func (s *UserAdminCreateDto) GetQuotaSizeInBytes() OptNilInt64 {
+func (s *UserAdminCreateDto) GetQuotaSizeInBytes() OptNilInt {
 	return s.QuotaSizeInBytes
 }
 
@@ -18657,8 +22693,13 @@ func (s *UserAdminCreateDto) SetPassword(val string) {
 	s.Password = val
 }
 
+// SetPinCode sets the value of PinCode.
+func (s *UserAdminCreateDto) SetPinCode(val OptNilString) {
+	s.PinCode = val
+}
+
 // SetQuotaSizeInBytes sets the value of QuotaSizeInBytes.
-func (s *UserAdminCreateDto) SetQuotaSizeInBytes(val OptNilInt64) {
+func (s *UserAdminCreateDto) SetQuotaSizeInBytes(val OptNilInt) {
 	s.QuotaSizeInBytes = val
 }
 
@@ -18674,6 +22715,7 @@ func (s *UserAdminCreateDto) SetStorageLabel(val OptNilString) {
 
 // Ref: #/components/schemas/UserAdminDeleteDto
 type UserAdminDeleteDto struct {
+	// Force delete even if user has assets.
 	Force OptBool `json:"force"`
 }
 
@@ -18689,23 +22731,37 @@ func (s *UserAdminDeleteDto) SetForce(val OptBool) {
 
 // Ref: #/components/schemas/UserAdminResponseDto
 type UserAdminResponseDto struct {
-	AvatarColor          UserAvatarColor `json:"avatarColor"`
-	CreatedAt            time.Time       `json:"createdAt"`
-	DeletedAt            NilDateTime     `json:"deletedAt"`
-	Email                string          `json:"email"`
-	ID                   string          `json:"id"`
-	IsAdmin              bool            `json:"isAdmin"`
-	License              NilUserLicense  `json:"license"`
-	Name                 string          `json:"name"`
-	OauthId              string          `json:"oauthId"`
-	ProfileChangedAt     time.Time       `json:"profileChangedAt"`
-	ProfileImagePath     string          `json:"profileImagePath"`
-	QuotaSizeInBytes     NilInt64        `json:"quotaSizeInBytes"`
-	QuotaUsageInBytes    NilInt64        `json:"quotaUsageInBytes"`
-	ShouldChangePassword bool            `json:"shouldChangePassword"`
-	Status               UserStatus      `json:"status"`
-	StorageLabel         NilString       `json:"storageLabel"`
-	UpdatedAt            time.Time       `json:"updatedAt"`
+	AvatarColor UserAvatarColor `json:"avatarColor"`
+	// Creation date.
+	CreatedAt time.Time `json:"createdAt"`
+	// Deletion date.
+	DeletedAt NilDateTime `json:"deletedAt"`
+	// User email.
+	Email string `json:"email"`
+	// User ID.
+	ID uuid.UUID `json:"id"`
+	// Is admin user.
+	IsAdmin bool           `json:"isAdmin"`
+	License NilUserLicense `json:"license"`
+	// User name.
+	Name string `json:"name"`
+	// OAuth ID.
+	OauthId string `json:"oauthId"`
+	// Profile change date.
+	ProfileChangedAt time.Time `json:"profileChangedAt"`
+	// Profile image path.
+	ProfileImagePath string `json:"profileImagePath"`
+	// Storage quota in bytes.
+	QuotaSizeInBytes NilInt `json:"quotaSizeInBytes"`
+	// Storage usage in bytes.
+	QuotaUsageInBytes NilInt `json:"quotaUsageInBytes"`
+	// Require password change on next login.
+	ShouldChangePassword bool       `json:"shouldChangePassword"`
+	Status               UserStatus `json:"status"`
+	// Storage label.
+	StorageLabel NilString `json:"storageLabel"`
+	// Last update date.
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // GetAvatarColor returns the value of AvatarColor.
@@ -18729,7 +22785,7 @@ func (s *UserAdminResponseDto) GetEmail() string {
 }
 
 // GetID returns the value of ID.
-func (s *UserAdminResponseDto) GetID() string {
+func (s *UserAdminResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -18764,12 +22820,12 @@ func (s *UserAdminResponseDto) GetProfileImagePath() string {
 }
 
 // GetQuotaSizeInBytes returns the value of QuotaSizeInBytes.
-func (s *UserAdminResponseDto) GetQuotaSizeInBytes() NilInt64 {
+func (s *UserAdminResponseDto) GetQuotaSizeInBytes() NilInt {
 	return s.QuotaSizeInBytes
 }
 
 // GetQuotaUsageInBytes returns the value of QuotaUsageInBytes.
-func (s *UserAdminResponseDto) GetQuotaUsageInBytes() NilInt64 {
+func (s *UserAdminResponseDto) GetQuotaUsageInBytes() NilInt {
 	return s.QuotaUsageInBytes
 }
 
@@ -18814,7 +22870,7 @@ func (s *UserAdminResponseDto) SetEmail(val string) {
 }
 
 // SetID sets the value of ID.
-func (s *UserAdminResponseDto) SetID(val string) {
+func (s *UserAdminResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -18849,12 +22905,12 @@ func (s *UserAdminResponseDto) SetProfileImagePath(val string) {
 }
 
 // SetQuotaSizeInBytes sets the value of QuotaSizeInBytes.
-func (s *UserAdminResponseDto) SetQuotaSizeInBytes(val NilInt64) {
+func (s *UserAdminResponseDto) SetQuotaSizeInBytes(val NilInt) {
 	s.QuotaSizeInBytes = val
 }
 
 // SetQuotaUsageInBytes sets the value of QuotaUsageInBytes.
-func (s *UserAdminResponseDto) SetQuotaUsageInBytes(val NilInt64) {
+func (s *UserAdminResponseDto) SetQuotaUsageInBytes(val NilInt) {
 	s.QuotaUsageInBytes = val
 }
 
@@ -18880,15 +22936,23 @@ func (s *UserAdminResponseDto) SetUpdatedAt(val time.Time) {
 
 // Ref: #/components/schemas/UserAdminUpdateDto
 type UserAdminUpdateDto struct {
-	AvatarColor          OptNilUserAvatarColor `json:"avatarColor"`
-	Email                OptString             `json:"email"`
-	IsAdmin              OptBool               `json:"isAdmin"`
-	Name                 OptString             `json:"name"`
-	Password             OptString             `json:"password"`
-	PinCode              OptNilString          `json:"pinCode"`
-	QuotaSizeInBytes     OptNilInt64           `json:"quotaSizeInBytes"`
-	ShouldChangePassword OptBool               `json:"shouldChangePassword"`
-	StorageLabel         OptNilString          `json:"storageLabel"`
+	AvatarColor OptNilUserAvatarColor `json:"avatarColor"`
+	// User email.
+	Email OptString `json:"email"`
+	// Grant admin privileges.
+	IsAdmin OptBool `json:"isAdmin"`
+	// User name.
+	Name OptString `json:"name"`
+	// User password.
+	Password OptString `json:"password"`
+	// PIN code.
+	PinCode OptNilString `json:"pinCode"`
+	// Storage quota in bytes.
+	QuotaSizeInBytes OptNilInt `json:"quotaSizeInBytes"`
+	// Require password change on next login.
+	ShouldChangePassword OptBool `json:"shouldChangePassword"`
+	// Storage label.
+	StorageLabel OptNilString `json:"storageLabel"`
 }
 
 // GetAvatarColor returns the value of AvatarColor.
@@ -18922,7 +22986,7 @@ func (s *UserAdminUpdateDto) GetPinCode() OptNilString {
 }
 
 // GetQuotaSizeInBytes returns the value of QuotaSizeInBytes.
-func (s *UserAdminUpdateDto) GetQuotaSizeInBytes() OptNilInt64 {
+func (s *UserAdminUpdateDto) GetQuotaSizeInBytes() OptNilInt {
 	return s.QuotaSizeInBytes
 }
 
@@ -18967,7 +23031,7 @@ func (s *UserAdminUpdateDto) SetPinCode(val OptNilString) {
 }
 
 // SetQuotaSizeInBytes sets the value of QuotaSizeInBytes.
-func (s *UserAdminUpdateDto) SetQuotaSizeInBytes(val OptNilInt64) {
+func (s *UserAdminUpdateDto) SetQuotaSizeInBytes(val OptNilInt) {
 	s.QuotaSizeInBytes = val
 }
 
@@ -18981,6 +23045,7 @@ func (s *UserAdminUpdateDto) SetStorageLabel(val OptNilString) {
 	s.StorageLabel = val
 }
 
+// User avatar color.
 // Ref: #/components/schemas/UserAvatarColor
 type UserAvatarColor string
 
@@ -19081,9 +23146,12 @@ func (s *UserAvatarColor) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/UserLicense
 type UserLicense struct {
-	ActivatedAt   time.Time `json:"activatedAt"`
-	ActivationKey string    `json:"activationKey"`
-	LicenseKey    string    `json:"licenseKey"`
+	// Activation date.
+	ActivatedAt time.Time `json:"activatedAt"`
+	// Activation key.
+	ActivationKey string `json:"activationKey"`
+	// License key (format: /^IM(SV|CL)(-[\dA-Za-z]{4}){8}$/).
+	LicenseKey string `json:"licenseKey"`
 }
 
 // GetActivatedAt returns the value of ActivatedAt.
@@ -19116,6 +23184,8 @@ func (s *UserLicense) SetLicenseKey(val string) {
 	s.LicenseKey = val
 }
 
+func (*UserLicense) getServerLicenseRes() {}
+
 // Ref: #/components/schemas/UserPreferencesResponseDto
 type UserPreferencesResponseDto struct {
 	Albums             AlbumsResponse             `json:"albums"`
@@ -19127,6 +23197,7 @@ type UserPreferencesResponseDto struct {
 	People             PeopleResponse             `json:"people"`
 	Purchase           PurchaseResponse           `json:"purchase"`
 	Ratings            RatingsResponse            `json:"ratings"`
+	RecentlyAdded      RecentlyAddedResponse      `json:"recentlyAdded"`
 	SharedLinks        SharedLinksResponse        `json:"sharedLinks"`
 	Tags               TagsResponse               `json:"tags"`
 }
@@ -19174,6 +23245,11 @@ func (s *UserPreferencesResponseDto) GetPurchase() PurchaseResponse {
 // GetRatings returns the value of Ratings.
 func (s *UserPreferencesResponseDto) GetRatings() RatingsResponse {
 	return s.Ratings
+}
+
+// GetRecentlyAdded returns the value of RecentlyAdded.
+func (s *UserPreferencesResponseDto) GetRecentlyAdded() RecentlyAddedResponse {
+	return s.RecentlyAdded
 }
 
 // GetSharedLinks returns the value of SharedLinks.
@@ -19231,6 +23307,11 @@ func (s *UserPreferencesResponseDto) SetRatings(val RatingsResponse) {
 	s.Ratings = val
 }
 
+// SetRecentlyAdded sets the value of RecentlyAdded.
+func (s *UserPreferencesResponseDto) SetRecentlyAdded(val RecentlyAddedResponse) {
+	s.RecentlyAdded = val
+}
+
 // SetSharedLinks sets the value of SharedLinks.
 func (s *UserPreferencesResponseDto) SetSharedLinks(val SharedLinksResponse) {
 	s.SharedLinks = val
@@ -19253,6 +23334,7 @@ type UserPreferencesUpdateDto struct {
 	People             OptPeopleUpdate             `json:"people"`
 	Purchase           OptPurchaseUpdate           `json:"purchase"`
 	Ratings            OptRatingsUpdate            `json:"ratings"`
+	RecentlyAdded      OptRecentlyAddedUpdate      `json:"recentlyAdded"`
 	SharedLinks        OptSharedLinksUpdate        `json:"sharedLinks"`
 	Tags               OptTagsUpdate               `json:"tags"`
 }
@@ -19305,6 +23387,11 @@ func (s *UserPreferencesUpdateDto) GetPurchase() OptPurchaseUpdate {
 // GetRatings returns the value of Ratings.
 func (s *UserPreferencesUpdateDto) GetRatings() OptRatingsUpdate {
 	return s.Ratings
+}
+
+// GetRecentlyAdded returns the value of RecentlyAdded.
+func (s *UserPreferencesUpdateDto) GetRecentlyAdded() OptRecentlyAddedUpdate {
+	return s.RecentlyAdded
 }
 
 // GetSharedLinks returns the value of SharedLinks.
@@ -19367,6 +23454,11 @@ func (s *UserPreferencesUpdateDto) SetRatings(val OptRatingsUpdate) {
 	s.Ratings = val
 }
 
+// SetRecentlyAdded sets the value of RecentlyAdded.
+func (s *UserPreferencesUpdateDto) SetRecentlyAdded(val OptRecentlyAddedUpdate) {
+	s.RecentlyAdded = val
+}
+
 // SetSharedLinks sets the value of SharedLinks.
 func (s *UserPreferencesUpdateDto) SetSharedLinks(val OptSharedLinksUpdate) {
 	s.SharedLinks = val
@@ -19379,12 +23471,17 @@ func (s *UserPreferencesUpdateDto) SetTags(val OptTagsUpdate) {
 
 // Ref: #/components/schemas/UserResponseDto
 type UserResponseDto struct {
-	AvatarColor      UserAvatarColor `json:"avatarColor"`
-	Email            string          `json:"email"`
-	ID               string          `json:"id"`
-	Name             string          `json:"name"`
-	ProfileChangedAt time.Time       `json:"profileChangedAt"`
-	ProfileImagePath string          `json:"profileImagePath"`
+	AvatarColor UserAvatarColor `json:"avatarColor"`
+	// User email.
+	Email string `json:"email"`
+	// User ID.
+	ID uuid.UUID `json:"id"`
+	// User name.
+	Name string `json:"name"`
+	// Profile change date.
+	ProfileChangedAt time.Time `json:"profileChangedAt"`
+	// Profile image path.
+	ProfileImagePath string `json:"profileImagePath"`
 }
 
 // GetAvatarColor returns the value of AvatarColor.
@@ -19398,7 +23495,7 @@ func (s *UserResponseDto) GetEmail() string {
 }
 
 // GetID returns the value of ID.
-func (s *UserResponseDto) GetID() string {
+func (s *UserResponseDto) GetID() uuid.UUID {
 	return s.ID
 }
 
@@ -19428,7 +23525,7 @@ func (s *UserResponseDto) SetEmail(val string) {
 }
 
 // SetID sets the value of ID.
-func (s *UserResponseDto) SetID(val string) {
+func (s *UserResponseDto) SetID(val uuid.UUID) {
 	s.ID = val
 }
 
@@ -19447,6 +23544,7 @@ func (s *UserResponseDto) SetProfileImagePath(val string) {
 	s.ProfileImagePath = val
 }
 
+// User status.
 // Ref: #/components/schemas/UserStatus
 type UserStatus string
 
@@ -19499,9 +23597,14 @@ func (s *UserStatus) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/UserUpdateMeDto
 type UserUpdateMeDto struct {
 	AvatarColor OptNilUserAvatarColor `json:"avatarColor"`
-	Email       OptString             `json:"email"`
-	Name        OptString             `json:"name"`
-	Password    OptString             `json:"password"`
+	// User email.
+	Email OptString `json:"email"`
+	// User name.
+	Name OptString `json:"name"`
+	// User password (deprecated, use change password endpoint).
+	//
+	// Deprecated: schema marks this property as deprecated.
+	Password OptString `json:"password"`
 }
 
 // GetAvatarColor returns the value of AvatarColor.
@@ -19546,6 +23649,7 @@ func (s *UserUpdateMeDto) SetPassword(val OptString) {
 
 // Ref: #/components/schemas/ValidateAccessTokenResponseDto
 type ValidateAccessTokenResponseDto struct {
+	// Authentication status.
 	AuthStatus bool `json:"authStatus"`
 }
 
@@ -19561,8 +23665,10 @@ func (s *ValidateAccessTokenResponseDto) SetAuthStatus(val bool) {
 
 // Ref: #/components/schemas/ValidateLibraryDto
 type ValidateLibraryDto struct {
+	// Exclusion patterns (max 128).
 	ExclusionPatterns []string `json:"exclusionPatterns"`
-	ImportPaths       []string `json:"importPaths"`
+	// Import paths to validate (max 128).
+	ImportPaths []string `json:"importPaths"`
 }
 
 // GetExclusionPatterns returns the value of ExclusionPatterns.
@@ -19587,9 +23693,12 @@ func (s *ValidateLibraryDto) SetImportPaths(val []string) {
 
 // Ref: #/components/schemas/ValidateLibraryImportPathResponseDto
 type ValidateLibraryImportPathResponseDto struct {
-	ImportPath string    `json:"importPath"`
-	IsValid    bool      `json:"isValid"`
-	Message    OptString `json:"message"`
+	// Import path.
+	ImportPath string `json:"importPath"`
+	// Is valid.
+	IsValid bool `json:"isValid"`
+	// Validation message.
+	Message OptString `json:"message"`
 }
 
 // GetImportPath returns the value of ImportPath.
@@ -19624,6 +23733,7 @@ func (s *ValidateLibraryImportPathResponseDto) SetMessage(val OptString) {
 
 // Ref: #/components/schemas/ValidateLibraryResponseDto
 type ValidateLibraryResponseDto struct {
+	// Validation results for import paths.
 	ImportPaths []ValidateLibraryImportPathResponseDto `json:"importPaths"`
 }
 
@@ -19639,7 +23749,9 @@ func (s *ValidateLibraryResponseDto) SetImportPaths(val []ValidateLibraryImportP
 
 // Ref: #/components/schemas/VersionCheckStateResponseDto
 type VersionCheckStateResponseDto struct {
-	CheckedAt      NilString `json:"checkedAt"`
+	// Last check timestamp.
+	CheckedAt NilString `json:"checkedAt"`
+	// Release version.
 	ReleaseVersion NilString `json:"releaseVersion"`
 }
 
@@ -19663,6 +23775,7 @@ func (s *VersionCheckStateResponseDto) SetReleaseVersion(val NilString) {
 	s.ReleaseVersion = val
 }
 
+// Target video codec.
 // Ref: #/components/schemas/VideoCodec
 type VideoCodec string
 
@@ -19719,6 +23832,7 @@ func (s *VideoCodec) UnmarshalText(data []byte) error {
 	}
 }
 
+// Accepted video containers.
 // Ref: #/components/schemas/VideoContainer
 type VideoContainer string
 
@@ -19787,4 +23901,677 @@ func (s ViewAssetOK) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
+}
+
+// Ref: #/components/schemas/WorkflowCreateDto
+type WorkflowCreateDto struct {
+	// Workflow description.
+	Description OptNilString `json:"description"`
+	// Workflow enabled.
+	Enabled OptBool `json:"enabled"`
+	// Workflow logs run results.
+	Logging OptBool `json:"logging"`
+	// Workflow name.
+	Name  OptNilString      `json:"name"`
+	Steps []WorkflowStepDto `json:"steps"`
+	// Workflow trigger type.
+	Trigger WorkflowTrigger `json:"trigger"`
+}
+
+// GetDescription returns the value of Description.
+func (s *WorkflowCreateDto) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *WorkflowCreateDto) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetLogging returns the value of Logging.
+func (s *WorkflowCreateDto) GetLogging() OptBool {
+	return s.Logging
+}
+
+// GetName returns the value of Name.
+func (s *WorkflowCreateDto) GetName() OptNilString {
+	return s.Name
+}
+
+// GetSteps returns the value of Steps.
+func (s *WorkflowCreateDto) GetSteps() []WorkflowStepDto {
+	return s.Steps
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *WorkflowCreateDto) GetTrigger() WorkflowTrigger {
+	return s.Trigger
+}
+
+// SetDescription sets the value of Description.
+func (s *WorkflowCreateDto) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *WorkflowCreateDto) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetLogging sets the value of Logging.
+func (s *WorkflowCreateDto) SetLogging(val OptBool) {
+	s.Logging = val
+}
+
+// SetName sets the value of Name.
+func (s *WorkflowCreateDto) SetName(val OptNilString) {
+	s.Name = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *WorkflowCreateDto) SetSteps(val []WorkflowStepDto) {
+	s.Steps = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *WorkflowCreateDto) SetTrigger(val WorkflowTrigger) {
+	s.Trigger = val
+}
+
+// Ref: #/components/schemas/WorkflowLogEntryDto
+type WorkflowLogEntryDto struct {
+	// Workflow run date/time.
+	At time.Time `json:"at"`
+	// Workflow log entry ID.
+	ID uuid.UUID `json:"id"`
+	// Last step ran, if the workflow ended early.
+	LastStep OptWorkflowLogEntryDtoLastStep `json:"lastStep"`
+	Result   WorkflowResult                 `json:"result"`
+	// Workflow trigger data ID.
+	TriggerDataId OptUUID `json:"triggerDataId"`
+}
+
+// GetAt returns the value of At.
+func (s *WorkflowLogEntryDto) GetAt() time.Time {
+	return s.At
+}
+
+// GetID returns the value of ID.
+func (s *WorkflowLogEntryDto) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetLastStep returns the value of LastStep.
+func (s *WorkflowLogEntryDto) GetLastStep() OptWorkflowLogEntryDtoLastStep {
+	return s.LastStep
+}
+
+// GetResult returns the value of Result.
+func (s *WorkflowLogEntryDto) GetResult() WorkflowResult {
+	return s.Result
+}
+
+// GetTriggerDataId returns the value of TriggerDataId.
+func (s *WorkflowLogEntryDto) GetTriggerDataId() OptUUID {
+	return s.TriggerDataId
+}
+
+// SetAt sets the value of At.
+func (s *WorkflowLogEntryDto) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetID sets the value of ID.
+func (s *WorkflowLogEntryDto) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetLastStep sets the value of LastStep.
+func (s *WorkflowLogEntryDto) SetLastStep(val OptWorkflowLogEntryDtoLastStep) {
+	s.LastStep = val
+}
+
+// SetResult sets the value of Result.
+func (s *WorkflowLogEntryDto) SetResult(val WorkflowResult) {
+	s.Result = val
+}
+
+// SetTriggerDataId sets the value of TriggerDataId.
+func (s *WorkflowLogEntryDto) SetTriggerDataId(val OptUUID) {
+	s.TriggerDataId = val
+}
+
+// Last step ran, if the workflow ended early.
+type WorkflowLogEntryDtoLastStep struct {
+	// Index of the step in the workflow.
+	Index int `json:"index"`
+	// Method of the step.
+	Method string `json:"method"`
+}
+
+// GetIndex returns the value of Index.
+func (s *WorkflowLogEntryDtoLastStep) GetIndex() int {
+	return s.Index
+}
+
+// GetMethod returns the value of Method.
+func (s *WorkflowLogEntryDtoLastStep) GetMethod() string {
+	return s.Method
+}
+
+// SetIndex sets the value of Index.
+func (s *WorkflowLogEntryDtoLastStep) SetIndex(val int) {
+	s.Index = val
+}
+
+// SetMethod sets the value of Method.
+func (s *WorkflowLogEntryDtoLastStep) SetMethod(val string) {
+	s.Method = val
+}
+
+// Ref: #/components/schemas/WorkflowResponseDto
+type WorkflowResponseDto struct {
+	// Creation date.
+	CreatedAt string `json:"createdAt"`
+	// Workflow description.
+	Description NilString `json:"description"`
+	// Workflow enabled.
+	Enabled bool `json:"enabled"`
+	// Workflow ID.
+	ID uuid.UUID `json:"id"`
+	// Workflow logs run results.
+	Logging bool `json:"logging"`
+	// Workflow name.
+	Name NilString `json:"name"`
+	// Workflow steps.
+	Steps []WorkflowStepDto `json:"steps"`
+	// Workflow trigger type.
+	Trigger WorkflowTrigger `json:"trigger"`
+	// Update date.
+	UpdatedAt string `json:"updatedAt"`
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *WorkflowResponseDto) GetCreatedAt() string {
+	return s.CreatedAt
+}
+
+// GetDescription returns the value of Description.
+func (s *WorkflowResponseDto) GetDescription() NilString {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *WorkflowResponseDto) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *WorkflowResponseDto) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetLogging returns the value of Logging.
+func (s *WorkflowResponseDto) GetLogging() bool {
+	return s.Logging
+}
+
+// GetName returns the value of Name.
+func (s *WorkflowResponseDto) GetName() NilString {
+	return s.Name
+}
+
+// GetSteps returns the value of Steps.
+func (s *WorkflowResponseDto) GetSteps() []WorkflowStepDto {
+	return s.Steps
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *WorkflowResponseDto) GetTrigger() WorkflowTrigger {
+	return s.Trigger
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *WorkflowResponseDto) GetUpdatedAt() string {
+	return s.UpdatedAt
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *WorkflowResponseDto) SetCreatedAt(val string) {
+	s.CreatedAt = val
+}
+
+// SetDescription sets the value of Description.
+func (s *WorkflowResponseDto) SetDescription(val NilString) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *WorkflowResponseDto) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *WorkflowResponseDto) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetLogging sets the value of Logging.
+func (s *WorkflowResponseDto) SetLogging(val bool) {
+	s.Logging = val
+}
+
+// SetName sets the value of Name.
+func (s *WorkflowResponseDto) SetName(val NilString) {
+	s.Name = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *WorkflowResponseDto) SetSteps(val []WorkflowStepDto) {
+	s.Steps = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *WorkflowResponseDto) SetTrigger(val WorkflowTrigger) {
+	s.Trigger = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *WorkflowResponseDto) SetUpdatedAt(val string) {
+	s.UpdatedAt = val
+}
+
+// Workflow run result.
+// Ref: #/components/schemas/WorkflowResult
+type WorkflowResult string
+
+const (
+	WorkflowResultCompleted WorkflowResult = "completed"
+	WorkflowResultHalted    WorkflowResult = "halted"
+	WorkflowResultError     WorkflowResult = "error"
+)
+
+// AllValues returns all WorkflowResult values.
+func (WorkflowResult) AllValues() []WorkflowResult {
+	return []WorkflowResult{
+		WorkflowResultCompleted,
+		WorkflowResultHalted,
+		WorkflowResultError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WorkflowResult) MarshalText() ([]byte, error) {
+	switch s {
+	case WorkflowResultCompleted:
+		return []byte(s), nil
+	case WorkflowResultHalted:
+		return []byte(s), nil
+	case WorkflowResultError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WorkflowResult) UnmarshalText(data []byte) error {
+	switch WorkflowResult(data) {
+	case WorkflowResultCompleted:
+		*s = WorkflowResultCompleted
+		return nil
+	case WorkflowResultHalted:
+		*s = WorkflowResultHalted
+		return nil
+	case WorkflowResultError:
+		*s = WorkflowResultError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/WorkflowShareResponseDto
+type WorkflowShareResponseDto struct {
+	// Workflow description.
+	Description NilString `json:"description"`
+	// Workflow name.
+	Name NilString `json:"name"`
+	// Workflow steps.
+	Steps []WorkflowShareStepDto `json:"steps"`
+	// Workflow trigger type.
+	Trigger WorkflowTrigger `json:"trigger"`
+}
+
+// GetDescription returns the value of Description.
+func (s *WorkflowShareResponseDto) GetDescription() NilString {
+	return s.Description
+}
+
+// GetName returns the value of Name.
+func (s *WorkflowShareResponseDto) GetName() NilString {
+	return s.Name
+}
+
+// GetSteps returns the value of Steps.
+func (s *WorkflowShareResponseDto) GetSteps() []WorkflowShareStepDto {
+	return s.Steps
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *WorkflowShareResponseDto) GetTrigger() WorkflowTrigger {
+	return s.Trigger
+}
+
+// SetDescription sets the value of Description.
+func (s *WorkflowShareResponseDto) SetDescription(val NilString) {
+	s.Description = val
+}
+
+// SetName sets the value of Name.
+func (s *WorkflowShareResponseDto) SetName(val NilString) {
+	s.Name = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *WorkflowShareResponseDto) SetSteps(val []WorkflowShareStepDto) {
+	s.Steps = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *WorkflowShareResponseDto) SetTrigger(val WorkflowTrigger) {
+	s.Trigger = val
+}
+
+// Ref: #/components/schemas/WorkflowShareStepDto
+type WorkflowShareStepDto struct {
+	// Step configuration.
+	Config NilWorkflowShareStepDtoConfig `json:"config"`
+	// Step is enabled.
+	Enabled OptBool `json:"enabled"`
+	// Step plugin method.
+	Method string `json:"method"`
+}
+
+// GetConfig returns the value of Config.
+func (s *WorkflowShareStepDto) GetConfig() NilWorkflowShareStepDtoConfig {
+	return s.Config
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *WorkflowShareStepDto) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetMethod returns the value of Method.
+func (s *WorkflowShareStepDto) GetMethod() string {
+	return s.Method
+}
+
+// SetConfig sets the value of Config.
+func (s *WorkflowShareStepDto) SetConfig(val NilWorkflowShareStepDtoConfig) {
+	s.Config = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *WorkflowShareStepDto) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetMethod sets the value of Method.
+func (s *WorkflowShareStepDto) SetMethod(val string) {
+	s.Method = val
+}
+
+// Step configuration.
+type WorkflowShareStepDtoConfig map[string]jx.Raw
+
+func (s *WorkflowShareStepDtoConfig) init() WorkflowShareStepDtoConfig {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/WorkflowStepDto
+type WorkflowStepDto struct {
+	// Step configuration.
+	Config NilWorkflowStepDtoConfig `json:"config"`
+	// Step is enabled.
+	Enabled OptBool `json:"enabled"`
+	// Step plugin method.
+	Method string `json:"method"`
+}
+
+// GetConfig returns the value of Config.
+func (s *WorkflowStepDto) GetConfig() NilWorkflowStepDtoConfig {
+	return s.Config
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *WorkflowStepDto) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetMethod returns the value of Method.
+func (s *WorkflowStepDto) GetMethod() string {
+	return s.Method
+}
+
+// SetConfig sets the value of Config.
+func (s *WorkflowStepDto) SetConfig(val NilWorkflowStepDtoConfig) {
+	s.Config = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *WorkflowStepDto) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetMethod sets the value of Method.
+func (s *WorkflowStepDto) SetMethod(val string) {
+	s.Method = val
+}
+
+// Step configuration.
+type WorkflowStepDtoConfig map[string]jx.Raw
+
+func (s *WorkflowStepDtoConfig) init() WorkflowStepDtoConfig {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// Plugin trigger type.
+// Ref: #/components/schemas/WorkflowTrigger
+type WorkflowTrigger string
+
+const (
+	WorkflowTriggerAssetCreate             WorkflowTrigger = "AssetCreate"
+	WorkflowTriggerAssetMetadataExtraction WorkflowTrigger = "AssetMetadataExtraction"
+	WorkflowTriggerAssetTagged             WorkflowTrigger = "AssetTagged"
+)
+
+// AllValues returns all WorkflowTrigger values.
+func (WorkflowTrigger) AllValues() []WorkflowTrigger {
+	return []WorkflowTrigger{
+		WorkflowTriggerAssetCreate,
+		WorkflowTriggerAssetMetadataExtraction,
+		WorkflowTriggerAssetTagged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WorkflowTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case WorkflowTriggerAssetCreate:
+		return []byte(s), nil
+	case WorkflowTriggerAssetMetadataExtraction:
+		return []byte(s), nil
+	case WorkflowTriggerAssetTagged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WorkflowTrigger) UnmarshalText(data []byte) error {
+	switch WorkflowTrigger(data) {
+	case WorkflowTriggerAssetCreate:
+		*s = WorkflowTriggerAssetCreate
+		return nil
+	case WorkflowTriggerAssetMetadataExtraction:
+		*s = WorkflowTriggerAssetMetadataExtraction
+		return nil
+	case WorkflowTriggerAssetTagged:
+		*s = WorkflowTriggerAssetTagged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/WorkflowTriggerResponseDto
+type WorkflowTriggerResponseDto struct {
+	// Trigger type.
+	Trigger WorkflowTrigger `json:"trigger"`
+	// Workflow types.
+	Types []WorkflowType `json:"types"`
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *WorkflowTriggerResponseDto) GetTrigger() WorkflowTrigger {
+	return s.Trigger
+}
+
+// GetTypes returns the value of Types.
+func (s *WorkflowTriggerResponseDto) GetTypes() []WorkflowType {
+	return s.Types
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *WorkflowTriggerResponseDto) SetTrigger(val WorkflowTrigger) {
+	s.Trigger = val
+}
+
+// SetTypes sets the value of Types.
+func (s *WorkflowTriggerResponseDto) SetTypes(val []WorkflowType) {
+	s.Types = val
+}
+
+// Workflow type.
+// Ref: #/components/schemas/WorkflowType
+type WorkflowType string
+
+const (
+	WorkflowTypeAssetV1 WorkflowType = "AssetV1"
+)
+
+// AllValues returns all WorkflowType values.
+func (WorkflowType) AllValues() []WorkflowType {
+	return []WorkflowType{
+		WorkflowTypeAssetV1,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WorkflowType) MarshalText() ([]byte, error) {
+	switch s {
+	case WorkflowTypeAssetV1:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WorkflowType) UnmarshalText(data []byte) error {
+	switch WorkflowType(data) {
+	case WorkflowTypeAssetV1:
+		*s = WorkflowTypeAssetV1
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/WorkflowUpdateDto
+type WorkflowUpdateDto struct {
+	// Workflow description.
+	Description OptNilString `json:"description"`
+	// Workflow enabled.
+	Enabled OptBool `json:"enabled"`
+	// Workflow logs run results.
+	Logging OptBool `json:"logging"`
+	// Workflow name.
+	Name  OptNilString      `json:"name"`
+	Steps []WorkflowStepDto `json:"steps"`
+	// Workflow trigger type.
+	Trigger OptWorkflowTrigger `json:"trigger"`
+}
+
+// GetDescription returns the value of Description.
+func (s *WorkflowUpdateDto) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *WorkflowUpdateDto) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetLogging returns the value of Logging.
+func (s *WorkflowUpdateDto) GetLogging() OptBool {
+	return s.Logging
+}
+
+// GetName returns the value of Name.
+func (s *WorkflowUpdateDto) GetName() OptNilString {
+	return s.Name
+}
+
+// GetSteps returns the value of Steps.
+func (s *WorkflowUpdateDto) GetSteps() []WorkflowStepDto {
+	return s.Steps
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *WorkflowUpdateDto) GetTrigger() OptWorkflowTrigger {
+	return s.Trigger
+}
+
+// SetDescription sets the value of Description.
+func (s *WorkflowUpdateDto) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *WorkflowUpdateDto) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetLogging sets the value of Logging.
+func (s *WorkflowUpdateDto) SetLogging(val OptBool) {
+	s.Logging = val
+}
+
+// SetName sets the value of Name.
+func (s *WorkflowUpdateDto) SetName(val OptNilString) {
+	s.Name = val
+}
+
+// SetSteps sets the value of Steps.
+func (s *WorkflowUpdateDto) SetSteps(val []WorkflowStepDto) {
+	s.Steps = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *WorkflowUpdateDto) SetTrigger(val OptWorkflowTrigger) {
+	s.Trigger = val
 }

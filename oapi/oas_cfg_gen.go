@@ -4,6 +4,7 @@ package oapi
 
 import (
 	"net/http"
+	"strings"
 
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/middleware"
@@ -17,8 +18,18 @@ import (
 )
 
 var regexMap = map[string]ogenregex.Regexp{
-	"/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/":                       ogenregex.MustCompile("/IM(SV|CL)(-[\\dA-Za-z]{4}){8}/"),
-	"^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$": ogenregex.MustCompile("^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$"),
+	"^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$": ogenregex.MustCompile("^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$"),
+	"^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$":                                                                                                  ogenregex.MustCompile("^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"),
+	"^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$": ogenregex.MustCompile("^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"),
+	"^(?:[01]\\d|2[0-3]):[0-5]\\d$": ogenregex.MustCompile("^(?:[01]\\d|2[0-3]):[0-5]\\d$"),
+	"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$":                                                                               ogenregex.MustCompile("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"),
+	"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$":                                                                               ogenregex.MustCompile("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"),
+	"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$": ogenregex.MustCompile("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"),
+	"^(init\\.mp4|seg_\\d+\\.m4s)$":   ogenregex.MustCompile("^(init\\.mp4|seg_\\d+\\.m4s)$"),
+	"^IM(SV|CL)(-[\\dA-Za-z]{4}){8}$": ogenregex.MustCompile("^IM(SV|CL)(-[\\dA-Za-z]{4}){8}$"),
+	"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$": ogenregex.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"),
+	"^[a-zA-Z0-9_\\-.]+$": ogenregex.MustCompile("^[a-zA-Z0-9_\\-.]+$"),
+	"^\\d{6}$":            ogenregex.MustCompile("^\\d{6}$"),
 }
 var (
 	// Allocate option closure once.
@@ -87,18 +98,8 @@ func (o otelOptionFunc) applyServer(c *serverConfig) {
 
 func newServerConfig(opts ...ServerOption) serverConfig {
 	cfg := serverConfig{
-		NotFound: http.NotFound,
-		MethodNotAllowed: func(w http.ResponseWriter, r *http.Request, allowed string) {
-			status := http.StatusMethodNotAllowed
-			if r.Method == "OPTIONS" {
-				w.Header().Set("Access-Control-Allow-Methods", allowed)
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-				status = http.StatusNoContent
-			} else {
-				w.Header().Set("Allow", allowed)
-			}
-			w.WriteHeader(status)
-		},
+		NotFound:           http.NotFound,
+		MethodNotAllowed:   nil,
 		ErrorHandler:       ogenerrors.DefaultErrorHandler,
 		Middleware:         nil,
 		MaxMultipartMemory: 32 << 20, // 32 MB
@@ -121,8 +122,44 @@ func (s baseServer) notFound(w http.ResponseWriter, r *http.Request) {
 	s.cfg.NotFound(w, r)
 }
 
-func (s baseServer) notAllowed(w http.ResponseWriter, r *http.Request, allowed string) {
-	s.cfg.MethodNotAllowed(w, r, allowed)
+type notAllowedParams struct {
+	allowedMethods string
+	allowedHeaders map[string]string
+	acceptPost     string
+	acceptPatch    string
+}
+
+func (s baseServer) notAllowed(w http.ResponseWriter, r *http.Request, params notAllowedParams) {
+	h := w.Header()
+	isOptions := r.Method == "OPTIONS"
+	if isOptions {
+		h.Set("Access-Control-Allow-Methods", params.allowedMethods)
+		if params.allowedHeaders != nil {
+			m := r.Header.Get("Access-Control-Request-Method")
+			if m != "" {
+				allowedHeaders, ok := params.allowedHeaders[strings.ToUpper(m)]
+				if ok {
+					h.Set("Access-Control-Allow-Headers", allowedHeaders)
+				}
+			}
+		}
+		if params.acceptPost != "" {
+			h.Set("Accept-Post", params.acceptPost)
+		}
+		if params.acceptPatch != "" {
+			h.Set("Accept-Patch", params.acceptPatch)
+		}
+	}
+	if s.cfg.MethodNotAllowed != nil {
+		s.cfg.MethodNotAllowed(w, r, params.allowedMethods)
+		return
+	}
+	status := http.StatusNoContent
+	if !isOptions {
+		h.Set("Allow", params.allowedMethods)
+		status = http.StatusMethodNotAllowed
+	}
+	w.WriteHeader(status)
 }
 
 func (cfg serverConfig) baseServer() (s baseServer, err error) {
